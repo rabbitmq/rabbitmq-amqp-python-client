@@ -18,10 +18,8 @@ jobs:
         os: [ubuntu-22.04]
     runs-on: ${{ matrix.os }}
     services:
-      rabbitmq-streaming:
+      rabbitmq-server:
         image: rabbitmq:4.0.3-management
-        env:
-          RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbitmq_stream advertised_host localhost"
         ports:
           - 5672:5672
           - 15672:15672
@@ -37,7 +35,7 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: false
       - name: Enable RabbitMQ Plugins
-        run: docker exec ${{ job.services.rabbitmq-streaming.id }} rabbitmq-plugins enable rabbitmq_stream rabbitmq_stream_management rabbitmq_amqp1_0
+        run: docker exec ${{ job.services.rabbitmq-server.id }} rabbitmq-plugins enable rabbitmq_stream rabbitmq_stream_management rabbitmq_amqp1_0
       - name: poetry install
         run: poetry install --no-root
       - name: isort check-only
