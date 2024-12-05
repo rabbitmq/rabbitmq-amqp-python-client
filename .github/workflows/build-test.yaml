@@ -23,7 +23,7 @@ jobs:
         env:
           RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbitmq_stream advertised_host localhost"
         ports:
-          - 5552:5552
+          - 5672:5672
           - 15672:15672
     steps:
       - uses: actions/checkout@v2
