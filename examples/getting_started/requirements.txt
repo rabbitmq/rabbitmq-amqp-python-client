@@ -1,0 +1,1 @@
+/Users/dpalaia/projects/rabbitmq-amqp-python-client
