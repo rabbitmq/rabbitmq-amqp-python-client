@@ -20,7 +20,13 @@ class CommonValues(enum.Enum):
     bindings = "bindings"
 
 
-class ExchangeTypes(enum.Enum):
+class ExchangeType(enum.Enum):
     direct = "direct"
     topic = "topic"
     fanout = "fanout"
+
+
+class QueueType(enum.Enum):
+    quorum = "quorum"
+    classic = "classic"
+    stream = "stream"

@@ -8,13 +8,16 @@ from proton.utils import (
     BlockingSender,
 )
 
-from .address_helper import exchange_address
+from .address_helper import exchange_address, queue_address
 from .common import CommonValues
 from .configuration_options import (
     ReceiverOption,
     SenderOption,
 )
-from .entities import ExchangeSpecification
+from .entities import (
+    ExchangeSpecification,
+    QueueSpecification,
+)
 
 
 class Management:
@@ -86,9 +89,6 @@ class Management:
         # TO_COMPLETE HERE
 
     # TODO
-    # def declare_queue(self, name:str):
-
-    # TODO
     # def delete_queue(self, name:str):
 
     def declare_exchange(self, exchange_specification: ExchangeSpecification):
@@ -100,6 +100,32 @@ class Management:
         body["arguments"] = exchange_specification.arguments
 
         path = exchange_address(exchange_specification.name)
+
+        print(path)
+
+        self.request(
+            body,
+            path,
+            CommonValues.command_put.value,
+            [
+                CommonValues.response_code_201.value,
+                CommonValues.response_code_204.value,
+                CommonValues.response_code_409.value,
+            ],
+        )
+
+    def declare_queue(self, queue_specification: QueueSpecification):
+        body = {}
+        body["auto_delete"] = queue_specification.is_auto_delete
+        body["durable"] = queue_specification.is_durable
+        body["arguments"] = {
+            "x-queue-type": queue_specification.queue_type.value,
+            "x-dead-letter-exchange": queue_specification.dead_letter_exchange,
+            "x-dead-letter-routing-key": queue_specification.dead_letter_routing_key,
+            "max-length-bytes": queue_specification.max_len_bytes,
+        }
+
+        path = queue_address(queue_specification.name)
 
         print(path)
 
