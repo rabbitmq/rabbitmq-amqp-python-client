@@ -1,7 +1,11 @@
 from importlib import metadata
 
+from .common import QueueType
 from .connection import Connection
-from .entities import ExchangeSpecification
+from .entities import (
+    ExchangeSpecification,
+    QueueSpecification,
+)
 
 try:
     __version__ = metadata.version(__package__)
@@ -15,4 +19,6 @@ del metadata
 __all__ = [
     "Connection",
     "ExchangeSpecification",
+    "QueueSpecification",
+    "QueueType",
 ]
