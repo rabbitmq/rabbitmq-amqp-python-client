@@ -7,16 +7,17 @@ from .common import ExchangeType, QueueType
 @dataclass
 class ExchangeSpecification:
     name: str
-    arguments: dict
+    arguments: dict[str, str]
     exchange_type: ExchangeType = ExchangeType.direct
     is_auto_delete: bool = False
+    is_internal: bool = False
     is_durable: bool = True
 
 
 @dataclass
 class QueueSpecification:
     name: str
-    arguments: dict
+    arguments: dict[str, str]
     queue_type: QueueType = QueueType.quorum
     dead_letter_routing_key: str = ""
     is_exclusive: Optional[bool] = None

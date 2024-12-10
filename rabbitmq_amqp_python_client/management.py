@@ -1,27 +1,22 @@
 import uuid
 from typing import Any, Optional
-import json
-from proton import Message, Receiver, Sender
+
+from proton import Message
+from proton._data import Data
 from proton.utils import (
     BlockingConnection,
     BlockingReceiver,
     BlockingSender,
 )
 
-from proton._data import Data
-
 from .address_helper import exchange_address, queue_address
 from .common import CommonValues
-from .configuration_options import (
-    ReceiverOption,
-    SenderOption,
-)
 from .entities import (
     ExchangeSpecification,
     QueueSpecification,
 )
+from .options import ReceiverOption, SenderOption
 
-import pickle
 
 class Management:
     def __init__(self, conn: BlockingConnection):
@@ -59,7 +54,6 @@ class Management:
         method: str,
         expected_response_codes: list[int],
     ) -> None:
-        print("im in request")
         self._request(str(uuid.uuid4()), body, path, method, expected_response_codes)
 
     def _request(
@@ -70,62 +64,36 @@ class Management:
         method: str,
         expected_response_codes: list[int],
     ) -> None:
-        print("path is: " + path)
-
-        ## test exchange message
         amq_message = Message(
             id=id,
             body=body,
             reply_to="$me",
             address=path,
             subject=method,
-            #properties={"id": id, "to": path, "subject": method, "reply_to": "$me"},
         )
-
-        kvBody = {
-            "auto_delete": False,
-            "durable": True,
-            "type": "direct",
-            "arguments": {},
-        }
-
-        amq_message = Message(
-            body=kvBody,
-            reply_to="$me",
-            address=path,
-            subject=method,
-            id = id,
-        )
-
-        message_bytes= amq_message.encode()
-        list_bytes = list(message_bytes)
 
         if self._sender is not None:
             self._sender.send(amq_message)
 
-        msg = self._receiver.receive()
+        if self._receiver is not None:
+            msg = self._receiver.receive()
 
-
-        print("response received: " + str(msg.subject))
-
-        #self._validate_reponse_code(int(msg.properties["http:response"]), expected_response_codes)
-
-        # TO_COMPLETE HERE
+        self._validate_reponse_code(int(msg.subject), expected_response_codes)
 
     # TODO
     # def delete_queue(self, name:str):
 
-    def declare_exchange(self, exchange_specification: ExchangeSpecification):
+    def declare_exchange(
+        self, exchange_specification: ExchangeSpecification
+    ) -> ExchangeSpecification:
         body = {}
         body["auto_delete"] = exchange_specification.is_auto_delete
         body["durable"] = exchange_specification.is_durable
-        body["type"] = exchange_specification.exchange_type.value
-        #body["internal"] = False
-        body["arguments"] = {}
+        body["type"] = exchange_specification.exchange_type.value  # type: ignore
+        body["internal"] = exchange_specification.is_internal
+        body["arguments"] = {}  # type: ignore
 
         path = exchange_address(exchange_specification.name)
-
-        print(path)
 
         self.request(
             body,
@@ -138,11 +106,15 @@ class Management:
             ],
         )
 
-    def declare_queue(self, queue_specification: QueueSpecification):
+        return exchange_specification
+
+    def declare_queue(
+        self, queue_specification: QueueSpecification
+    ) -> QueueSpecification:
         body = {}
         body["auto_delete"] = queue_specification.is_auto_delete
         body["durable"] = queue_specification.is_durable
-        body["arguments"] = {
+        body["arguments"] = {  # type: ignore
             "x-queue-type": queue_specification.queue_type.value,
             "x-dead-letter-exchange": queue_specification.dead_letter_exchange,
             "x-dead-letter-routing-key": queue_specification.dead_letter_routing_key,
@@ -164,8 +136,9 @@ class Management:
             ],
         )
 
-    def delete_exchange(self, exchange_name:str):
+        return queue_specification
 
+    def delete_exchange(self, exchange_name: str) -> None:
         path = exchange_address(exchange_name)
 
         print(path)
@@ -179,9 +152,7 @@ class Management:
             ],
         )
 
-
-    def delete_queue(self, queue_name:str):
-
+    def delete_queue(self, queue_name: str) -> None:
         path = queue_address(queue_name)
 
         print(path)
@@ -195,11 +166,10 @@ class Management:
             ],
         )
 
-    def _validate_reponse_code(self, response_code: int, expected_response_codes: list[int]) -> None:
-
-        print("response code: " + str(response_code))
-
-        if response_code == CommonValues.response_code_409:
+    def _validate_reponse_code(
+        self, response_code: int, expected_response_codes: list[int]
+    ) -> None:
+        if response_code == CommonValues.response_code_409.value:
             # TODO replace with a new defined Exception
             raise Exception("ErrPreconditionFailed")
 
@@ -208,7 +178,6 @@ class Management:
                 return None
 
         raise Exception("wrong response code received")
-
 
     # TODO
     # def bind(self, bind_specification:BindSpecification):
