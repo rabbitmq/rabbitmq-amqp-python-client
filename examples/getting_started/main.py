@@ -9,7 +9,7 @@ from rabbitmq_amqp_python_client import (
 
 
 def main():
-    exchange_name = "example-exchange"
+    exchange_name = "getting-started-exchange"
     queue_name = "example-queue"
     connection = Connection("amqp://guest:guest@localhost:5672/")
 
@@ -21,9 +21,9 @@ def main():
         ExchangeSpecification(name=exchange_name, arguments={})
     )
 
-    queue_info = management.declare_queue(
-        QueueSpecification(name=queue_name, queue_type=QueueType.quorum, arguments={})
-    )
+    #queue_info = management.declare_queue(
+    #    QueueSpecification(name=queue_name, queue_type=QueueType.quorum, arguments={})
+    #)
 
     """
     #management.bind(BindingSpecification{
@@ -59,13 +59,9 @@ def main():
     management.purge_queue(queue_info.name)
     """
 
-    """
-    management.delete_queue(queue_info.name)
-    """
+    #management.delete_queue(queue_name)
 
-    """
-    management.delete_exchange(exchange_info.name)
-    """
+    #management.delete_exchange(exchange_name)
 
     management.close()
 
