@@ -3,7 +3,7 @@ from proton._endpoints import Link  # noqa: E402
 from proton.reactor import LinkOption  # noqa: E402
 
 
-class SenderOption(LinkOption):
+class SenderOption(LinkOption):  # type: ignore
     def __init__(self, addr: str):
         self._addr = addr
 
@@ -18,7 +18,7 @@ class SenderOption(LinkOption):
         return bool(link.is_sender)
 
 
-class ReceiverOption(LinkOption):
+class ReceiverOption(LinkOption):  # type: ignore
     def __init__(self, addr: str):
         self._addr = addr
 

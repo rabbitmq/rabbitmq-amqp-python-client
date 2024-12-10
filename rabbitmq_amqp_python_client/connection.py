@@ -1,13 +1,5 @@
-from proton.utils import (
-    BlockingConnection,
-    BlockingReceiver,
-    BlockingSender,
-)
+from proton.utils import BlockingConnection
 
-from .configuration_options import (
-    ReceiverOption,
-    SenderOption,
-)
 from .management import Management
 
 
