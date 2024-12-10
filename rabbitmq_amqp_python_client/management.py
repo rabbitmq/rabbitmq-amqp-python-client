@@ -74,7 +74,7 @@ class Management:
 
         ## test exchange message
         amq_message = Message(
-            id='84caea92-8e38-41d4-993f-de12b2a3d9a2',
+            id=id,
             body=body,
             reply_to="$me",
             address=path,
@@ -82,31 +82,31 @@ class Management:
             #properties={"id": id, "to": path, "subject": method, "reply_to": "$me"},
         )
 
-        ## test empty message
+        kvBody = {
+            "auto_delete": False,
+            "durable": True,
+            "type": "direct",
+            "arguments": {},
+        }
+
         amq_message = Message(
-            #id='84caea92-8e38-41d4-993f-de12b2a3d9a2',
-            body=Data.NULL,
-            #reply_to="$me",
-            #address=path,
-            #subject=method,
-            #properties={"id": id, "to": path, "subject": method, "reply_to": "$me"},
+            body=kvBody,
+            reply_to="$me",
+            address=path,
+            subject=method,
+            id = id,
         )
 
         message_bytes= amq_message.encode()
-
-        #print("received " + str(message_bytes.format(binary)))
-
         list_bytes = list(message_bytes)
-        print("message: " + str(list_bytes))
 
         if self._sender is not None:
             self._sender.send(amq_message)
 
         msg = self._receiver.receive()
 
-        #message_bytes= msg.encode()
 
-        print("received " + str(msg))
+        print("response received: " + str(msg.subject))
 
         #self._validate_reponse_code(int(msg.properties["http:response"]), expected_response_codes)
 
