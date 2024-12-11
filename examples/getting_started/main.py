@@ -1,4 +1,5 @@
 from rabbitmq_amqp_python_client import (
+    BindingSpecification,
     Connection,
     ExchangeSpecification,
     QueueSpecification,
@@ -7,8 +8,9 @@ from rabbitmq_amqp_python_client import (
 
 
 def main() -> None:
-    exchange_name = "getting-started-exchange"
+    exchange_name = "test-exchange"
     queue_name = "example-queue"
+    routing_key = "routing-key"
     connection = Connection("amqp://guest:guest@localhost:5672/")
 
     connection.dial()
@@ -21,10 +23,13 @@ def main() -> None:
         QueueSpecification(name=queue_name, queue_type=QueueType.quorum, arguments={})
     )
 
-    """
-    #management.bind(BindingSpecification(source_exchange=exchange_name, destination_queue=queue_name, \
-    binding_key=routing_key))
-    """
+    binding_exchange_queue_path = management.bind(
+        BindingSpecification(
+            source_exchange=exchange_name,
+            destination_queue=queue_name,
+            binding_key=routing_key,
+        )
+    )
 
     """
     addr = exchange_address(exchange_name, routing_key)
@@ -44,9 +49,7 @@ def main() -> None:
     publisher.close()
     """
 
-    """
-    management.unbind(binding_path)
-    """
+    management.unbind(binding_exchange_queue_path)
 
     """
     management.purge_queue(queue_info.name)

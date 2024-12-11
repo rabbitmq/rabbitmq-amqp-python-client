@@ -3,6 +3,7 @@ from importlib import metadata
 from .common import QueueType
 from .connection import Connection
 from .entities import (
+    BindingSpecification,
     ExchangeSpecification,
     QueueSpecification,
 )
@@ -20,5 +21,6 @@ __all__ = [
     "Connection",
     "ExchangeSpecification",
     "QueueSpecification",
+    "BindingSpecification",
     "QueueType",
 ]
