@@ -25,3 +25,11 @@ class QueueSpecification:
     dead_letter_exchange: str = ""
     is_auto_delete: bool = False
     is_durable: bool = True
+
+
+@dataclass
+class BindingSpecification:
+    source_exchange: str
+    destination_queue: str
+    # destination_exchange: str
+    binding_key: str

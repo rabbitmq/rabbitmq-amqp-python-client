@@ -9,9 +9,15 @@ from proton.utils import (
     BlockingSender,
 )
 
-from .address_helper import exchange_address, queue_address
+from .address_helper import (
+    binding_path_with_exchange_queue,
+    exchange_address,
+    path_address,
+    queue_address,
+)
 from .common import CommonValues
 from .entities import (
+    BindingSpecification,
     ExchangeSpecification,
     QueueSpecification,
 )
@@ -80,9 +86,6 @@ class Management:
 
         self._validate_reponse_code(int(msg.subject), expected_response_codes)
 
-    # TODO
-    # def delete_queue(self, name:str):
-
     def declare_exchange(
         self, exchange_specification: ExchangeSpecification
     ) -> ExchangeSpecification:
@@ -123,8 +126,6 @@ class Management:
 
         path = queue_address(queue_specification.name)
 
-        print(path)
-
         self.request(
             body,
             path,
@@ -155,8 +156,6 @@ class Management:
     def delete_queue(self, queue_name: str) -> None:
         path = queue_address(queue_name)
 
-        print(path)
-
         self.request(
             None,
             path,
@@ -169,6 +168,7 @@ class Management:
     def _validate_reponse_code(
         self, response_code: int, expected_response_codes: list[int]
     ) -> None:
+        print("response_code received: " + str(response_code))
         if response_code == CommonValues.response_code_409.value:
             # TODO replace with a new defined Exception
             raise Exception("ErrPreconditionFailed")
@@ -180,10 +180,37 @@ class Management:
         raise Exception("wrong response code received")
 
     # TODO
-    # def bind(self, bind_specification:BindSpecification):
+    def bind(self, bind_specification: BindingSpecification) -> str:
+        body = {}
+        body["binding_key"] = bind_specification.binding_key
+        body["source"] = bind_specification.source_exchange
+        body["destination_queue"] = bind_specification.destination_queue
+        body["arguments"] = {}  # type: ignore
+
+        path = path_address()
+
+        self.request(
+            body,
+            path,
+            CommonValues.command_post.value,
+            [
+                CommonValues.response_code_204.value,
+            ],
+        )
+
+        binding_path_with_queue = binding_path_with_exchange_queue(bind_specification)
+        return binding_path_with_queue
 
     # TODO
-    # def unbind(self, binding_path:str):
+    def unbind(self, binding_exchange_queue_path: str) -> None:
+        self.request(
+            None,
+            binding_exchange_queue_path,
+            CommonValues.command_delete.value,
+            [
+                CommonValues.response_code_200.value,
+            ],
+        )
 
     # TODO
     # def queue_info(self, queue_name:str):
