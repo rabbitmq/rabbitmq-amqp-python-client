@@ -23,7 +23,7 @@ def main() -> None:
         QueueSpecification(name=queue_name, queue_type=QueueType.quorum, arguments={})
     )
 
-    binding_exchange_queue_path = management.bind(
+    management.bind(
         BindingSpecification(
             source_exchange=exchange_name,
             destination_queue=queue_name,
@@ -49,7 +49,7 @@ def main() -> None:
     publisher.close()
     """
 
-    management.unbind(binding_exchange_queue_path)
+    # management.unbind(binding_exchange_queue_path)
 
     """
     management.purge_queue(queue_info.name)

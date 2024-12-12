@@ -21,6 +21,7 @@ from .entities import (
     ExchangeSpecification,
     QueueSpecification,
 )
+from .exceptions import ValidationCodeException
 from .options import ReceiverOption, SenderOption
 
 
@@ -131,8 +132,8 @@ class Management:
             path,
             CommonValues.command_put.value,
             [
+                CommonValues.response_code_200.value,
                 CommonValues.response_code_201.value,
-                CommonValues.response_code_204.value,
                 CommonValues.response_code_409.value,
             ],
         )
@@ -171,13 +172,15 @@ class Management:
         print("response_code received: " + str(response_code))
         if response_code == CommonValues.response_code_409.value:
             # TODO replace with a new defined Exception
-            raise Exception("ErrPreconditionFailed")
+            raise ValidationCodeException("ErrPreconditionFailed")
 
         for code in expected_response_codes:
             if code == response_code:
                 return None
 
-        raise Exception("wrong response code received")
+        raise ValidationCodeException(
+            "wrong response code received: " + str(response_code)
+        )
 
     # TODO
     def bind(self, bind_specification: BindingSpecification) -> str:
