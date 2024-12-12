@@ -1,3 +1,4 @@
+import logging
 import uuid
 from typing import Any, Optional
 
@@ -24,6 +25,8 @@ from .entities import (
 from .exceptions import ValidationCodeException
 from .options import ReceiverOption, SenderOption
 
+logger = logging.getLogger(__name__)
+
 
 class Management:
     def __init__(self, conn: BlockingConnection):
@@ -33,10 +36,12 @@ class Management:
 
     def open(self) -> None:
         if self._sender is None:
+            logger.debug("Creating Sender")
             self._sender = self._create_sender(
                 CommonValues.management_node_address.value
             )
         if self._receiver is None:
+            logger.debug("Creating Receiver")
             self._receiver = self._create_receiver(
                 CommonValues.management_node_address.value,
             )
@@ -49,6 +54,7 @@ class Management:
 
     # closes the connection to the AMQP 1.0 server.
     def close(self) -> None:
+        logger.debug("Closing Sender and Receiver")
         if self._sender is not None:
             self._sender.close()
         if self._receiver is not None:
@@ -80,16 +86,19 @@ class Management:
         )
 
         if self._sender is not None:
+            logger.debug("Sending message: " + str(amq_message))
             self._sender.send(amq_message)
 
         if self._receiver is not None:
             msg = self._receiver.receive()
+            logger.debug("Received message: " + str(msg))
 
         self._validate_reponse_code(int(msg.subject), expected_response_codes)
 
     def declare_exchange(
         self, exchange_specification: ExchangeSpecification
     ) -> ExchangeSpecification:
+        logger.debug("delete_exchange operation called")
         body = {}
         body["auto_delete"] = exchange_specification.is_auto_delete
         body["durable"] = exchange_specification.is_durable
@@ -115,6 +124,7 @@ class Management:
     def declare_queue(
         self, queue_specification: QueueSpecification
     ) -> QueueSpecification:
+        logger.debug("declare_queue operation called")
         body = {}
         body["auto_delete"] = queue_specification.is_auto_delete
         body["durable"] = queue_specification.is_durable
@@ -141,6 +151,7 @@ class Management:
         return queue_specification
 
     def delete_exchange(self, exchange_name: str) -> None:
+        logger.debug("delete_exchange operation called")
         path = exchange_address(exchange_name)
 
         print(path)
@@ -155,6 +166,7 @@ class Management:
         )
 
     def delete_queue(self, queue_name: str) -> None:
+        logger.debug("delete_queue operation called")
         path = queue_address(queue_name)
 
         self.request(
@@ -169,7 +181,7 @@ class Management:
     def _validate_reponse_code(
         self, response_code: int, expected_response_codes: list[int]
     ) -> None:
-        print("response_code received: " + str(response_code))
+        logger.debug("response_code received: " + str(response_code))
         if response_code == CommonValues.response_code_409.value:
             # TODO replace with a new defined Exception
             raise ValidationCodeException("ErrPreconditionFailed")
@@ -184,6 +196,7 @@ class Management:
 
     # TODO
     def bind(self, bind_specification: BindingSpecification) -> str:
+        logger.debug("Bind Operation called")
         body = {}
         body["binding_key"] = bind_specification.binding_key
         body["source"] = bind_specification.source_exchange
@@ -206,6 +219,7 @@ class Management:
 
     # TODO
     def unbind(self, binding_exchange_queue_path: str) -> None:
+        logger.debug("UnBind Operation called")
         self.request(
             None,
             binding_exchange_queue_path,
