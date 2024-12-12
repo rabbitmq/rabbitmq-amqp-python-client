@@ -15,7 +15,7 @@ flake8 = "^7.1.1"
 isort = "^5.9.3"
 mypy = "^0.910"
 pytest = "^7.4.0"
-black = "^23.12.1"
+black = "^24.3.0"
 python-qpid-proton = "^0.39.0"
 
 [build-system]
