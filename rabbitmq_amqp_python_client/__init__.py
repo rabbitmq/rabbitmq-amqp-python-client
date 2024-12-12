@@ -1,5 +1,6 @@
 from importlib import metadata
 
+from .address_helper import exchange_address
 from .common import QueueType
 from .connection import Connection
 from .entities import (
@@ -7,6 +8,7 @@ from .entities import (
     ExchangeSpecification,
     QueueSpecification,
 )
+from .publisher import Publisher
 
 try:
     __version__ = metadata.version(__package__)
@@ -23,4 +25,6 @@ __all__ = [
     "QueueSpecification",
     "BindingSpecification",
     "QueueType",
+    "Publisher",
+    "exchange_address",
 ]

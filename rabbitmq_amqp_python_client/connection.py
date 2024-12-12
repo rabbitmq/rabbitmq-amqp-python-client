@@ -3,6 +3,7 @@ import logging
 from proton.utils import BlockingConnection
 
 from .management import Management
+from .publisher import Publisher
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,10 @@ class Connection:
     # closes the connection to the AMQP 1.0 server.
     def close(self) -> None:
         self._conn.close()
+
+    def publisher(self, destination: str) -> Publisher:
+        publisher = Publisher(self._conn, destination)
+        return publisher
 
     # TODO: returns the current status of the connection.
     # def status(self) -> int:
