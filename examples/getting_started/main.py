@@ -1,9 +1,12 @@
+from proton import Message
+
 from rabbitmq_amqp_python_client import (
     BindingSpecification,
     Connection,
     ExchangeSpecification,
     QueueSpecification,
     QueueType,
+    exchange_address,
 )
 
 
@@ -31,29 +34,17 @@ def main() -> None:
         )
     )
 
-    """
     addr = exchange_address(exchange_name, routing_key)
-    """
 
-    """
-    publisher = connection.publisher(addr, "getting-started-publisher")
-    """
+    publisher = connection.publisher(addr)
 
-    """
-    message = Message(
-        body='test',
-        address='/queues/getting-started-exchangemessage',
-    )
+    publisher.publish(Message(body="test"))
 
-    publisher.Publish(message)
     publisher.close()
-    """
 
     # management.unbind(binding_exchange_queue_path)
 
-    """
-    management.purge_queue(queue_info.name)
-    """
+    # management.purge_queue(queue_info.name)
 
     # management.delete_queue(queue_name)
 

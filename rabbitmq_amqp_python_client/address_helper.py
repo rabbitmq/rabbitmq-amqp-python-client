@@ -1,8 +1,11 @@
 from .entities import BindingSpecification
 
 
-def exchange_address(name: str) -> str:
-    path = "/exchanges/" + name
+def exchange_address(exchange_name: str, routing_key: str = "") -> str:
+    if routing_key == "":
+        path = "/exchanges/" + exchange_name
+    else:
+        path = "/exchanges/" + exchange_name + "/" + routing_key
 
     return path
 
