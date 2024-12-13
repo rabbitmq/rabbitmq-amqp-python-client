@@ -1,5 +1,7 @@
 from importlib import metadata
 
+from proton import Message
+
 from .address_helper import exchange_address
 from .common import QueueType
 from .connection import Connection
@@ -27,4 +29,5 @@ __all__ = [
     "QueueType",
     "Publisher",
     "exchange_address",
+    "Message",
 ]
