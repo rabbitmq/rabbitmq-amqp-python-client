@@ -1,9 +1,8 @@
-from proton import Message
-
 from rabbitmq_amqp_python_client import (
     BindingSpecification,
     Connection,
     ExchangeSpecification,
+    Message,
     QueueSpecification,
     QueueType,
     exchange_address,
