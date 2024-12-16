@@ -30,7 +30,7 @@ def test_declare_delete_queue() -> None:
     connection = Connection("amqp://guest:guest@localhost:5672/")
     connection.dial()
 
-    queue_name = "test-queue"
+    queue_name = "my_queue>"
     management = connection.management()
 
     queue_info = management.declare_queue(
