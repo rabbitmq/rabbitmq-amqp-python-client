@@ -21,33 +21,35 @@ def main() -> None:
 
     management.declare_exchange(ExchangeSpecification(name=exchange_name, arguments={}))
 
-    management.declare_queue(
+    binding_exchange_queue_path = management.declare_queue(
         QueueSpecification(name=queue_name, queue_type=QueueType.quorum, arguments={})
     )
 
-    management.bind(
-        BindingSpecification(
-            source_exchange=exchange_name,
-            destination_queue=queue_name,
-            binding_key=routing_key,
-        )
-    )
 
-    addr = exchange_address(exchange_name, routing_key)
+    #management.bind(
+    #    BindingSpecification(
+    #        source_exchange=exchange_name,
+    #        destination_queue=queue_name,
+    #        binding_key=routing_key,
+    #    )
+    #)
 
-    publisher = connection.publisher(addr)
+    #addr = exchange_address(exchange_name, routing_key)
 
-    publisher.publish(Message(body="test"))
+    #publisher = connection.publisher(addr)
 
-    publisher.close()
+    #publisher.publish(Message(body="test"))
 
-    # management.unbind(binding_exchange_queue_path)
+    #publisher.close()
+
+    #management.unbind(binding_exchange_queue_path)
 
     # management.purge_queue(queue_info.name)
 
-    # management.delete_queue(queue_name)
+    management.delete_queue(queue_name)
 
-    # management.delete_exchange(exchange_name)
+    management.delete_exchange(exchange_name)
+
 
     management.close()
 
