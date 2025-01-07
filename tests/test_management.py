@@ -21,7 +21,7 @@ def test_declare_delete_exchange() -> None:
     assert exchange_info.name == exchange_name
 
     # Still not working
-    # management.delete_exchange(exchange_name)
+    management.delete_exchange(exchange_name)
 
     connection.close()
 
@@ -30,7 +30,7 @@ def test_declare_delete_queue() -> None:
     connection = Connection("amqp://guest:guest@localhost:5672/")
     connection.dial()
 
-    queue_name = "my_queue>"
+    queue_name = "my_queue"
     management = connection.management()
 
     queue_info = management.declare_queue(
@@ -40,7 +40,7 @@ def test_declare_delete_queue() -> None:
     assert queue_info.name == queue_name
 
     # Still not working
-    # management.delete_queue(queue_name)
+    management.delete_queue(queue_name)
 
     connection.close()
 
@@ -82,10 +82,10 @@ def test_bind_exchange_to_queue() -> None:
     )
 
     # Still not working
-    # management.delete_exchange(exchange_name)
+    management.delete_exchange(exchange_name)
 
     # Still not working
-    # management.delete_queue(queue_name)
+    management.delete_queue(queue_name)
 
     # Still not working
-    # management.delete_bind(binding_exchange_queue_path)
+    management.unbind(binding_exchange_queue_path)

@@ -1,9 +1,8 @@
 import logging
 
-from proton.utils import BlockingConnection
-
 from .management import Management
 from .publisher import Publisher
+from .qpid.proton.utils import BlockingConnection
 
 logger = logging.getLogger(__name__)
 

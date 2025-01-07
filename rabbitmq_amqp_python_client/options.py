@@ -1,6 +1,9 @@
-from proton._data import PropertyDict, symbol  # noqa: E402
-from proton._endpoints import Link  # noqa: E402
-from proton.reactor import LinkOption  # noqa: E402
+from .qpid.proton._data import (  # noqa: E402
+    PropertyDict,
+    symbol,
+)
+from .qpid.proton._endpoints import Link  # noqa: E402
+from .qpid.proton.reactor import LinkOption  # noqa: E402
 
 
 class SenderOption(LinkOption):  # type: ignore

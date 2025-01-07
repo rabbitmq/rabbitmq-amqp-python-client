@@ -2,14 +2,6 @@ import logging
 import uuid
 from typing import Any, Optional
 
-from proton import Message
-from proton._data import Data
-from proton.utils import (
-    BlockingConnection,
-    BlockingReceiver,
-    BlockingSender,
-)
-
 from .address_helper import (
     binding_path_with_exchange_queue,
     exchange_address,
@@ -24,6 +16,12 @@ from .entities import (
 )
 from .exceptions import ValidationCodeException
 from .options import ReceiverOption, SenderOption
+from .qpid.proton._message import Message
+from .qpid.proton.utils import (
+    BlockingConnection,
+    BlockingReceiver,
+    BlockingSender,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -154,14 +152,13 @@ class Management:
         logger.debug("delete_exchange operation called")
         path = exchange_address(exchange_name)
 
-        print(path)
-
         self.request(
-            Data.NULL,
+            None,
             path,
             CommonValues.command_delete.value,
             [
                 CommonValues.response_code_200.value,
+                CommonValues.response_code_204.value,
             ],
         )
 
@@ -175,6 +172,7 @@ class Management:
             CommonValues.command_delete.value,
             [
                 CommonValues.response_code_200.value,
+                CommonValues.response_code_204.value,
             ],
         )
 
@@ -226,6 +224,7 @@ class Management:
             CommonValues.command_delete.value,
             [
                 CommonValues.response_code_200.value,
+                CommonValues.response_code_204.value,
             ],
         )
 

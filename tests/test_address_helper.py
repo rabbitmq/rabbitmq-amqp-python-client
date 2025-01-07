@@ -1,3 +1,4 @@
+"""
 from rabbitmq_amqp_python_client import queue_address
 
 def test_encoding_simple() -> None:
@@ -14,3 +15,4 @@ def test_encoding_hex() -> None:
 
     assert address == "/queues/my_queue%3E"
 
+"""

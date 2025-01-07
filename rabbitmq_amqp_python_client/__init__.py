@@ -1,8 +1,6 @@
 from importlib import metadata
 
-from proton import Message
-
-from .address_helper import exchange_address
+from .address_helper import exchange_address, queue_address
 from .common import QueueType
 from .connection import Connection
 from .entities import (
@@ -11,6 +9,7 @@ from .entities import (
     QueueSpecification,
 )
 from .publisher import Publisher
+from .qpid.proton._message import Message
 
 try:
     __version__ = metadata.version(__package__)
@@ -29,5 +28,6 @@ __all__ = [
     "QueueType",
     "Publisher",
     "exchange_address",
+    "queue_address",
     "Message",
 ]

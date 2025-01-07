@@ -29,4 +29,4 @@ def test_bind_exchange_to_queue() -> None:
 
     publisher.close()
     # Still not working
-    # management.delete_queue(queue_name)
+    management.delete_queue(queue_name)
