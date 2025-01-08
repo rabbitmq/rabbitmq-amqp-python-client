@@ -1,5 +1,0 @@
-cffi>=1.0.0
-
-[opentracing]
-opentracing
-jaeger_client
