@@ -230,7 +230,7 @@ class Management:
     # def queue_info(self, queue_name:str):
 
     # TODO
-    def purge_queue(self, queue_name: str):
+    def purge_queue(self, queue_name: str) -> None:
         logger.debug("purge_queue operation called")
         path = purge_queue_address(queue_name)
 
