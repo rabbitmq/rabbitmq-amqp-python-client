@@ -26,7 +26,7 @@ def test_declare_delete_exchange() -> None:
     connection.close()
 
 
-def test_declare_delete_queue() -> None:
+def test_declare_purge_delete_queue() -> None:
     connection = Connection("amqp://guest:guest@localhost:5672/")
     connection.dial()
 
@@ -39,7 +39,8 @@ def test_declare_delete_queue() -> None:
 
     assert queue_info.name == queue_name
 
-    # Still not working
+    management.purge_queue(queue_name)
+
     management.delete_queue(queue_name)
 
     connection.close()
@@ -81,11 +82,8 @@ def test_bind_exchange_to_queue() -> None:
         + ";args="
     )
 
-    # Still not working
     management.delete_exchange(exchange_name)
 
-    # Still not working
     management.delete_queue(queue_name)
 
-    # Still not working
     management.unbind(binding_exchange_queue_path)

@@ -28,5 +28,5 @@ def test_bind_exchange_to_queue() -> None:
     assert raised is False
 
     publisher.close()
-    # Still not working
+
     management.delete_queue(queue_name)

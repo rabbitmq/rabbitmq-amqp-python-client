@@ -1317,7 +1317,6 @@ class Sender(Link):
         Where the object is a :class:`Message`, this will send the message over
         this link, creating a new delivery for the purpose.
         """
-        print("XXXXXXXXXXXX")
         if hasattr(obj, "send"):
             return obj.send(self, tag=tag)
         else:

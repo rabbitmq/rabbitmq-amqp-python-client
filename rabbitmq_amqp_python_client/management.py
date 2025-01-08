@@ -6,6 +6,7 @@ from .address_helper import (
     binding_path_with_exchange_queue,
     exchange_address,
     path_address,
+    purge_queue_address,
     queue_address,
 )
 from .common import CommonValues
@@ -157,7 +158,6 @@ class Management:
             path,
             CommonValues.command_delete.value,
             [
-                CommonValues.response_code_200.value,
                 CommonValues.response_code_204.value,
             ],
         )
@@ -172,7 +172,6 @@ class Management:
             CommonValues.command_delete.value,
             [
                 CommonValues.response_code_200.value,
-                CommonValues.response_code_204.value,
             ],
         )
 
@@ -223,7 +222,6 @@ class Management:
             binding_exchange_queue_path,
             CommonValues.command_delete.value,
             [
-                CommonValues.response_code_200.value,
                 CommonValues.response_code_204.value,
             ],
         )
@@ -232,4 +230,17 @@ class Management:
     # def queue_info(self, queue_name:str):
 
     # TODO
-    # def purge_queue(self, queue_name:str):
+    def purge_queue(self, queue_name: str):
+        logger.debug("purge_queue operation called")
+        path = purge_queue_address(queue_name)
+
+        print("path: " + path)
+
+        self.request(
+            None,
+            path,
+            CommonValues.command_delete.value,
+            [
+                CommonValues.response_code_200.value,
+            ],
+        )

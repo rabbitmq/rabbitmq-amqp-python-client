@@ -16,6 +16,12 @@ def queue_address(name: str) -> str:
     return path
 
 
+def purge_queue_address(name: str) -> str:
+    path = "/queues/" + name + "/messages"
+
+    return path
+
+
 def path_address() -> str:
     path = "/bindings"
 
