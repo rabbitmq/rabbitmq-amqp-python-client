@@ -6,10 +6,14 @@ from .connection import Connection
 from .entities import (
     BindingSpecification,
     ExchangeSpecification,
-    QueueSpecification,
 )
 from .publisher import Publisher
 from .qpid.proton._message import Message
+from .queues import (
+    ClassicQueueSpecification,
+    QuorumQueueSpecification,
+    StreamSpecification,
+)
 
 try:
     __version__ = metadata.version(__package__)
@@ -23,7 +27,9 @@ del metadata
 __all__ = [
     "Connection",
     "ExchangeSpecification",
-    "QueueSpecification",
+    "QuorumQueueSpecification",
+    "ClassicQueueSpecification",
+    "StreamSpecification",
     "BindingSpecification",
     "QueueType",
     "Publisher",

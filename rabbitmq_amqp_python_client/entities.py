@@ -15,23 +15,6 @@ class ExchangeSpecification:
 
 
 @dataclass
-class QueueSpecification:
-    name: str
-    queue_type: QueueType = QueueType.quorum
-    dead_letter_routing_key: Optional[str] = None
-    is_exclusive: Optional[bool] = None
-    max_len: Optional[int] = None
-    max_len_bytes: Optional[int] = None
-    message_ttl: Optional[int] = None
-    expires: Optional[int] = None
-    dead_letter_exchange: Optional[str] = ""
-    is_auto_delete: bool = False
-    is_durable: bool = True
-    overflow: Optional[str] = None
-    single_active_consumer: Optional[bool] = None
-
-
-@dataclass
 class QueueInfo:
     name: str
     arguments: dict[str, Any]

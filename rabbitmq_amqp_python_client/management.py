@@ -14,7 +14,6 @@ from .entities import (
     BindingSpecification,
     ExchangeSpecification,
     QueueInfo,
-    QueueSpecification,
 )
 from .exceptions import ValidationCodeException
 from .options import ReceiverOption, SenderOption
@@ -23,6 +22,11 @@ from .qpid.proton.utils import (
     BlockingConnection,
     BlockingReceiver,
     BlockingSender,
+)
+from .queues import (
+    ClassicQueueSpecification,
+    QuorumQueueSpecification,
+    StreamSpecification,
 )
 
 logger = logging.getLogger(__name__)
@@ -125,9 +129,41 @@ class Management:
         return exchange_specification
 
     def declare_queue(
-        self, queue_specification: QueueSpecification
-    ) -> QueueSpecification:
+        self,
+        queue_specification: (
+            ClassicQueueSpecification | QuorumQueueSpecification | StreamSpecification
+        ),
+    ) -> ClassicQueueSpecification | QuorumQueueSpecification | StreamSpecification:
         logger.debug("declare_queue operation called")
+
+        if (
+            type(queue_specification) is ClassicQueueSpecification
+            or type(queue_specification) is QuorumQueueSpecification
+        ):
+            body = self._declare_queue(queue_specification)
+
+        elif type(queue_specification) is StreamSpecification:
+            body = self._declare_stream(queue_specification)
+
+        path = queue_address(queue_specification.name)
+
+        self.request(
+            body,
+            path,
+            CommonValues.command_put.value,
+            [
+                CommonValues.response_code_200.value,
+                CommonValues.response_code_201.value,
+                CommonValues.response_code_409.value,
+            ],
+        )
+
+        return queue_specification
+
+    def _declare_queue(
+        self, queue_specification: ClassicQueueSpecification | QuorumQueueSpecification
+    ) -> dict[str, Any]:
+
         body = {}
         args: dict[str, Any] = {}
 
@@ -155,22 +191,63 @@ class Management:
                 queue_specification.single_active_consumer
             )
 
+        if type(queue_specification) is ClassicQueueSpecification:
+            if queue_specification.maximum_priority is not None:
+                args["x-maximum-priority"] = queue_specification.maximum_priority
+
+        if type(queue_specification) is QuorumQueueSpecification:
+            if queue_specification.deliver_limit is not None:
+                args["x-deliver-limit"] = queue_specification.deliver_limit
+
+            if queue_specification.dead_letter_strategy is not None:
+                args["x-dead-letter-strategy"] = (
+                    queue_specification.dead_letter_strategy
+                )
+
+            if queue_specification.quorum_initial_group_size is not None:
+                args["x-initial-quorum-group-size"] = (
+                    queue_specification.quorum_initial_group_size
+                )
+
+            if queue_specification.cluster_target_size is not None:
+                args["cluster_target_size"] = queue_specification.cluster_target_size
+
         body["arguments"] = args  # type: ignore
 
-        path = queue_address(queue_specification.name)
+        return body
 
-        self.request(
-            body,
-            path,
-            CommonValues.command_put.value,
-            [
-                CommonValues.response_code_200.value,
-                CommonValues.response_code_201.value,
-                CommonValues.response_code_409.value,
-            ],
-        )
+    def _declare_stream(
+        self, stream_specification: StreamSpecification
+    ) -> dict[str, Any]:
 
-        return queue_specification
+        body = {}
+        args: dict[str, Any] = {}
+
+        args["x-queue-type"] = stream_specification.queue_type.value
+
+        if stream_specification.max_len_bytes is not None:
+            args["x-max-length-bytes"] = stream_specification.max_len_bytes
+
+        if stream_specification.max_time_retention is not None:
+            args["x-max-time-retention"] = stream_specification.max_time_retention
+
+        if stream_specification.max_segment_size_in_bytes is not None:
+            args["x-max-segment-size-in-bytes"] = (
+                stream_specification.max_segment_size_in_bytes
+            )
+
+        if stream_specification.filter_size is not None:
+            args["x-filter-size"] = stream_specification.filter_size
+
+        if stream_specification.initial_group_size is not None:
+            args["x-initial-group-size"] = stream_specification.initial_group_size
+
+        if stream_specification.leader_locator is not None:
+            args["x-leader-locator"] = stream_specification.leader_locator
+
+        body["arguments"] = args
+
+        return body
 
     def delete_exchange(self, exchange_name: str) -> None:
         logger.debug("delete_exchange operation called")
