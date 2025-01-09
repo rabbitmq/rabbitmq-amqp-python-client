@@ -14,7 +14,7 @@ def test_bind_exchange_to_queue() -> None:
     management = connection.management()
 
     management.declare_queue(
-        QueueSpecification(name=queue_name, queue_type=QueueType.quorum, arguments={})
+        QueueSpecification(name=queue_name, queue_type=QueueType.quorum)
     )
 
     raised = False

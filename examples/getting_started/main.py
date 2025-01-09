@@ -24,7 +24,7 @@ def main() -> None:
     management.declare_exchange(ExchangeSpecification(name=exchange_name, arguments={}))
 
     management.declare_queue(
-        QueueSpecification(name=queue_name, queue_type=QueueType.quorum, arguments={})
+        QueueSpecification(name=queue_name, queue_type=QueueType.quorum)
     )
 
     print("binding queue to exchange")

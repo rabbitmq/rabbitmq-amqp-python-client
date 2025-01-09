@@ -1,4 +1,4 @@
-class ValidationCodeException(Exception):
+class ValidationCodeException(BaseException):
     # Constructor or Initializer
     def __init__(self, msg: str):
         self.msg = msg

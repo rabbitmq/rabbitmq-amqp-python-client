@@ -107,7 +107,7 @@ class Management:
         body["durable"] = exchange_specification.is_durable
         body["type"] = exchange_specification.exchange_type.value  # type: ignore
         body["internal"] = exchange_specification.is_internal
-        body["arguments"] = {}  # type: ignore
+        body["arguments"] = exchange_specification.arguments  # type: ignore
 
         path = exchange_address(exchange_specification.name)
 
@@ -129,14 +129,33 @@ class Management:
     ) -> QueueSpecification:
         logger.debug("declare_queue operation called")
         body = {}
+        args: dict[str, Any] = {}
+
         body["auto_delete"] = queue_specification.is_auto_delete
         body["durable"] = queue_specification.is_durable
-        body["arguments"] = {  # type: ignore
-            "x-queue-type": queue_specification.queue_type.value,
-            "x-dead-letter-exchange": queue_specification.dead_letter_exchange,
-            "x-dead-letter-routing-key": queue_specification.dead_letter_routing_key,
-            "max-length-bytes": queue_specification.max_len_bytes,
-        }
+        args["x-queue-type"] = queue_specification.queue_type.value
+        if queue_specification.dead_letter_exchange is not None:
+            args["x-dead-letter-exchange"] = queue_specification.dead_letter_exchange
+        if queue_specification.dead_letter_routing_key is not None:
+            args["x-dead-letter-routing-key"] = (
+                queue_specification.dead_letter_routing_key
+            )
+        if queue_specification.overflow is not None:
+            args["x-overflow"] = queue_specification.overflow
+        if queue_specification.max_len is not None:
+            args["x-max-length"] = queue_specification.max_len
+        if queue_specification.max_len_bytes is not None:
+            args["x-max-length-bytes"] = queue_specification.max_len_bytes
+        if queue_specification.message_ttl is not None:
+            args["x-message-ttl"] = queue_specification.message_ttl
+        if queue_specification.expires is not None:
+            args["x-expires"] = queue_specification.expires
+        if queue_specification.single_active_consumer is not None:
+            args["x-single-active-consumer"] = (
+                queue_specification.single_active_consumer
+            )
+
+        body["arguments"] = args  # type: ignore
 
         path = queue_address(queue_specification.name)
 
