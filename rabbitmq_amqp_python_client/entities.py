@@ -31,5 +31,4 @@ class QueueSpecification:
 class BindingSpecification:
     source_exchange: str
     destination_queue: str
-    # destination_exchange: str
     binding_key: str

@@ -28,12 +28,9 @@ class Connection:
 
     # closes the connection to the AMQP 1.0 server.
     def close(self) -> None:
+        logger.debug("Closing connection")
         self._conn.close()
 
     def publisher(self, destination: str) -> Publisher:
         publisher = Publisher(self._conn, destination)
         return publisher
-
-    # TODO: returns the current status of the connection.
-    # def status(self) -> int:
-    #    pass

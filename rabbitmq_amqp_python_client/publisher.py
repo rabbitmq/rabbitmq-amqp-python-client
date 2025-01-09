@@ -30,10 +30,11 @@ class Publisher:
             self._sender.send(message)
 
     def close(self) -> None:
+        logger.debug("Closing Sender and Receiver")
         if self._sender is not None:
             self._sender.close()
-        # if self._receiver is not None:
-        #    self._receiver.close()
+        if self._receiver is not None:
+            self._receiver.close()
 
     def _create_sender(self, addr: str) -> BlockingSender:
         return self._conn.create_sender(addr, options=SenderOption(addr))

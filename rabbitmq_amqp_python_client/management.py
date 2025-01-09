@@ -191,7 +191,6 @@ class Management:
             "wrong response code received: " + str(response_code)
         )
 
-    # TODO
     def bind(self, bind_specification: BindingSpecification) -> str:
         logger.debug("Bind Operation called")
         body = {}
@@ -214,7 +213,6 @@ class Management:
         binding_path_with_queue = binding_path_with_exchange_queue(bind_specification)
         return binding_path_with_queue
 
-    # TODO
     def unbind(self, binding_exchange_queue_path: str) -> None:
         logger.debug("UnBind Operation called")
         self.request(
@@ -226,15 +224,9 @@ class Management:
             ],
         )
 
-    # TODO
-    # def queue_info(self, queue_name:str):
-
-    # TODO
     def purge_queue(self, queue_name: str) -> None:
         logger.debug("purge_queue operation called")
         path = purge_queue_address(queue_name)
-
-        print("path: " + path)
 
         self.request(
             None,

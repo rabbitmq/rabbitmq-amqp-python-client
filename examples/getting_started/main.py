@@ -48,7 +48,7 @@ def main() -> None:
     print("unbind")
     management.unbind(bind_name)
 
-    print("purging queue")
+    print("purging the queue")
     management.purge_queue(queue_name)
 
     print("delete queue")

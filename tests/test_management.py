@@ -20,7 +20,6 @@ def test_declare_delete_exchange() -> None:
 
     assert exchange_info.name == exchange_name
 
-    # Still not working
     management.delete_exchange(exchange_name)
 
     connection.close()

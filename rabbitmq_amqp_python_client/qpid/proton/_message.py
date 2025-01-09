@@ -556,6 +556,7 @@ class Message(object):
                 continue
             else:
                 self._check(err)
+                # workaround because of: https://github.com/rabbitmq/rabbitmq-amqp-python-client/issues/1
                 if self.body is None:
                     data[0] = 0
                     data[1] = 83
@@ -580,30 +581,11 @@ class Message(object):
         """
         dlv = sender.delivery(tag or sender.delivery_tag())
 
+        # workaround because of: https://github.com/rabbitmq/rabbitmq-amqp-python-client/issues/1
         if sender.target.address == "/management":
             encoded = self.encode_delete()
         else:
             encoded = self.encode()
-
-        sender.stream(encoded)
-        sender.advance()
-        if sender.snd_settle_mode == Link.SND_SETTLED:
-            dlv.settle()
-        return dlv
-
-    def send_mngmnt(self, sender: "Sender", tag: Optional[str] = None) -> "Delivery":
-        """
-        Encodes and sends the message content using the specified sender,
-        and, if present, using the specified tag. Upon success, will
-        return the :class:`Delivery` object for the sent message.
-
-        :param sender: The sender to send the message
-        :param tag: The delivery tag for the sent message
-        :return: The delivery associated with the sent message
-        """
-        dlv = sender.delivery(tag or sender.delivery_tag())
-
-        encoded = self.encode_delete()
 
         sender.stream(encoded)
         sender.advance()
