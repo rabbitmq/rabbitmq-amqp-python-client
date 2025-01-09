@@ -9,10 +9,11 @@ from .address_helper import (
     purge_queue_address,
     queue_address,
 )
-from .common import CommonValues
+from .common import CommonValues, QueueType
 from .entities import (
     BindingSpecification,
     ExchangeSpecification,
+    QueueInfo,
     QueueSpecification,
 )
 from .exceptions import ValidationCodeException
@@ -65,8 +66,10 @@ class Management:
         path: str,
         method: str,
         expected_response_codes: list[int],
-    ) -> None:
-        self._request(str(uuid.uuid4()), body, path, method, expected_response_codes)
+    ) -> Message:
+        return self._request(
+            str(uuid.uuid4()), body, path, method, expected_response_codes
+        )
 
     def _request(
         self,
@@ -75,7 +78,7 @@ class Management:
         path: str,
         method: str,
         expected_response_codes: list[int],
-    ) -> None:
+    ) -> Message:
         amq_message = Message(
             id=id,
             body=body,
@@ -93,6 +96,7 @@ class Management:
             logger.debug("Received message: " + str(msg))
 
         self._validate_reponse_code(int(msg.subject), expected_response_codes)
+        return msg
 
     def declare_exchange(
         self, exchange_specification: ExchangeSpecification
@@ -235,4 +239,37 @@ class Management:
             [
                 CommonValues.response_code_200.value,
             ],
+        )
+
+    def queue_info(self, queue_name: str) -> QueueInfo:
+        logger.debug("queue_info operation called")
+        path = queue_address(queue_name)
+
+        message = self.request(
+            None,
+            path,
+            CommonValues.command_get.value,
+            [
+                CommonValues.response_code_200.value,
+            ],
+        )
+
+        queue_info: dict[str, Any] = message.body
+
+        if queue_info["type"] == "quorum":
+            queue_type = QueueType.quorum
+        elif queue_info["type"] == "stream":
+            queue_type = QueueType.stream
+        else:
+            queue_type = QueueType.classic
+
+        return QueueInfo(
+            name=queue_info["name"],
+            is_durable=queue_info["durable"],
+            is_auto_delete=queue_info["auto_delete"],
+            is_exclusive=queue_info["exclusive"],
+            queue_type=queue_type,
+            leader=queue_info["leader"],
+            members=queue_info["replicas"],
+            arguments=queue_info["arguments"],
         )

@@ -86,3 +86,22 @@ def test_bind_exchange_to_queue() -> None:
     management.delete_queue(queue_name)
 
     management.unbind(binding_exchange_queue_path)
+
+
+def test_queue_info() -> None:
+    connection = Connection("amqp://guest:guest@localhost:5672/")
+    connection.dial()
+
+    queue_name = "test-bind-exchange-to-queue-queue"
+    management = connection.management()
+
+    queue_specification = QueueSpecification(
+        name=queue_name, queue_type=QueueType.quorum, arguments={}
+    )
+    management.declare_queue(queue_specification)
+
+    queue_info = management.queue_info(queue_name=queue_name)
+
+    assert queue_info.name == queue_name
+    assert queue_info.queue_type == queue_specification.queue_type
+    assert queue_info.is_durable == queue_specification.is_durable
