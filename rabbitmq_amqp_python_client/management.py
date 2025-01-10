@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from .address_helper import (
     binding_path_with_exchange_queue,
@@ -130,19 +130,20 @@ class Management:
 
     def declare_queue(
         self,
-        queue_specification: (
-            ClassicQueueSpecification | QuorumQueueSpecification | StreamSpecification
-        ),
-    ) -> ClassicQueueSpecification | QuorumQueueSpecification | StreamSpecification:
+        queue_specification: Union[
+            ClassicQueueSpecification, QuorumQueueSpecification, StreamSpecification
+        ],
+    ) -> Union[
+        ClassicQueueSpecification, QuorumQueueSpecification, StreamSpecification
+    ]:
         logger.debug("declare_queue operation called")
 
-        if (
-            type(queue_specification) is ClassicQueueSpecification
-            or type(queue_specification) is QuorumQueueSpecification
+        if isinstance(queue_specification, ClassicQueueSpecification) or isinstance(
+            queue_specification, QuorumQueueSpecification
         ):
             body = self._declare_queue(queue_specification)
 
-        elif type(queue_specification) is StreamSpecification:
+        elif isinstance(queue_specification, StreamSpecification):
             body = self._declare_stream(queue_specification)
 
         path = queue_address(queue_specification.name)
@@ -161,7 +162,8 @@ class Management:
         return queue_specification
 
     def _declare_queue(
-        self, queue_specification: ClassicQueueSpecification | QuorumQueueSpecification
+        self,
+        queue_specification: Union[ClassicQueueSpecification, QuorumQueueSpecification],
     ) -> dict[str, Any]:
 
         body = {}
@@ -191,11 +193,11 @@ class Management:
                 queue_specification.single_active_consumer
             )
 
-        if type(queue_specification) is ClassicQueueSpecification:
+        if isinstance(queue_specification, ClassicQueueSpecification):
             if queue_specification.maximum_priority is not None:
                 args["x-maximum-priority"] = queue_specification.maximum_priority
 
-        if type(queue_specification) is QuorumQueueSpecification:
+        if isinstance(queue_specification, QuorumQueueSpecification):
             if queue_specification.deliver_limit is not None:
                 args["x-deliver-limit"] = queue_specification.deliver_limit
 

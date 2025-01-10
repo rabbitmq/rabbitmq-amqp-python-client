@@ -4,7 +4,6 @@ from rabbitmq_amqp_python_client import (
     ExchangeSpecification,
     Message,
     QueueType,
-    QuorumQueueSpecification,
     StreamSpecification,
     exchange_address,
 )

@@ -39,9 +39,9 @@ class QuorumQueueSpecification(QueueSpecification):
 class StreamSpecification:
     name: str
     queue_type: QueueType = QueueType.stream
-    max_len_bytes: Optional[str] = None
-    max_time_retention: Optional[str] = None
-    max_segment_size_in_bytes: Optional[str] = None
+    max_len_bytes: Optional[int] = None
+    max_time_retention: Optional[int] = None
+    max_segment_size_in_bytes: Optional[int] = None
     filter_size: Optional[int] = None
     initial_group_size: Optional[int] = None
     leader_locator: Optional[str] = None

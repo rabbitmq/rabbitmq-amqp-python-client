@@ -1,8 +1,7 @@
 from rabbitmq_amqp_python_client import (
     Connection,
     Message,
-    QueueSpecification,
-    QueueType,
+    QuorumQueueSpecification,
 )
 
 
@@ -13,9 +12,7 @@ def test_bind_exchange_to_queue() -> None:
     queue_name = "test-queue"
     management = connection.management()
 
-    management.declare_queue(
-        QueueSpecification(name=queue_name, queue_type=QueueType.quorum)
-    )
+    management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
     raised = False
 
