@@ -282,7 +282,6 @@ class Management:
     ) -> None:
         logger.debug("response_code received: " + str(response_code))
         if response_code == CommonValues.response_code_409.value:
-            # TODO replace with a new defined Exception
             raise ValidationCodeException("ErrPreconditionFailed")
 
         for code in expected_response_codes:
@@ -329,8 +328,6 @@ class Management:
     def purge_queue(self, queue_name: str) -> int:
         logger.debug("purge_queue operation called")
         path = purge_queue_address(queue_name)
-
-        print("path: " + path)
 
         response = self.request(
             None,

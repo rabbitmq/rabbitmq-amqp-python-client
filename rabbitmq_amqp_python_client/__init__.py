@@ -7,6 +7,7 @@ from .entities import (
     BindingSpecification,
     ExchangeSpecification,
 )
+from .management import Management
 from .publisher import Publisher
 from .qpid.proton._message import Message
 from .queues import (
@@ -26,6 +27,7 @@ del metadata
 
 __all__ = [
     "Connection",
+    "Management",
     "ExchangeSpecification",
     "QuorumQueueSpecification",
     "ClassicQueueSpecification",

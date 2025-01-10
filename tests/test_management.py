@@ -1,8 +1,8 @@
 from rabbitmq_amqp_python_client import (
     BindingSpecification,
     ClassicQueueSpecification,
-    Connection,
     ExchangeSpecification,
+    Management,
     QueueType,
     QuorumQueueSpecification,
     StreamSpecification,
@@ -12,12 +12,9 @@ from rabbitmq_amqp_python_client.exceptions import (
 )
 
 
-def test_declare_delete_exchange() -> None:
-    connection = Connection("amqp://guest:guest@localhost:5672/")
-    connection.dial()
+def test_declare_delete_exchange(management: Management) -> None:
 
     exchange_name = "test-exchange"
-    management = connection.management()
 
     exchange_info = management.declare_exchange(
         ExchangeSpecification(name=exchange_name, arguments={})
@@ -27,15 +24,9 @@ def test_declare_delete_exchange() -> None:
 
     management.delete_exchange(exchange_name)
 
-    connection.close()
 
-
-def test_declare_purge_delete_queue() -> None:
-    connection = Connection("amqp://guest:guest@localhost:5672/")
-    connection.dial()
-
+def test_declare_purge_delete_queue(management: Management) -> None:
     queue_name = "my_queue"
-    management = connection.management()
 
     queue_info = management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
@@ -45,17 +36,12 @@ def test_declare_purge_delete_queue() -> None:
 
     management.delete_queue(queue_name)
 
-    connection.close()
 
-
-def test_bind_exchange_to_queue() -> None:
-    connection = Connection("amqp://guest:guest@localhost:5672/")
-    connection.dial()
+def test_bind_exchange_to_queue(management: Management) -> None:
 
     exchange_name = "test-bind-exchange-to-queue-exchange"
     queue_name = "test-bind-exchange-to-queue-queue"
     routing_key = "routing-key"
-    management = connection.management()
 
     management.declare_exchange(ExchangeSpecification(name=exchange_name, arguments={}))
 
@@ -89,12 +75,9 @@ def test_bind_exchange_to_queue() -> None:
     management.unbind(binding_exchange_queue_path)
 
 
-def test_queue_info_with_validations() -> None:
-    connection = Connection("amqp://guest:guest@localhost:5672/")
-    connection.dial()
+def test_queue_info_with_validations(management: Management) -> None:
 
     queue_name = "test_queue_info_with_validation"
-    management = connection.management()
 
     queue_specification = QuorumQueueSpecification(
         name=queue_name,
@@ -111,12 +94,9 @@ def test_queue_info_with_validations() -> None:
     assert queue_info.message_count == 0
 
 
-def test_queue_info_for_stream_with_validations() -> None:
-    connection = Connection("amqp://guest:guest@localhost:5672/")
-    connection.dial()
+def test_queue_info_for_stream_with_validations(management: Management) -> None:
 
     stream_name = "test_stream_info_with_validation"
-    management = connection.management()
 
     queue_specification = StreamSpecification(
         name=stream_name,
@@ -132,13 +112,10 @@ def test_queue_info_for_stream_with_validations() -> None:
     assert stream_info.message_count == 0
 
 
-def test_queue_precondition_fail() -> None:
-    connection = Connection("amqp://guest:guest@localhost:5672/")
-    connection.dial()
+def test_queue_precondition_fail(management: Management) -> None:
     test_failure = True
 
     queue_name = "test-queue_precondition_fail"
-    management = connection.management()
 
     queue_specification = QuorumQueueSpecification(
         name=queue_name, is_auto_delete=False
@@ -162,12 +139,9 @@ def test_queue_precondition_fail() -> None:
     assert test_failure is False
 
 
-def test_declare_classic_queue() -> None:
-    connection = Connection("amqp://guest:guest@localhost:5672/")
-    connection.dial()
+def test_declare_classic_queue(management: Management) -> None:
 
     queue_name = "test-declare_classic_queue"
-    management = connection.management()
 
     queue_specification = QuorumQueueSpecification(
         name=queue_name,
@@ -182,12 +156,9 @@ def test_declare_classic_queue() -> None:
     management.delete_queue(queue_name)
 
 
-def test_declare_classic_queue_with_args() -> None:
-    connection = Connection("amqp://guest:guest@localhost:5672/")
-    connection.dial()
+def test_declare_classic_queue_with_args(management: Management) -> None:
 
     queue_name = "test-queue_with_args"
-    management = connection.management()
 
     queue_specification = ClassicQueueSpecification(
         name=queue_name,
@@ -220,12 +191,8 @@ def test_declare_classic_queue_with_args() -> None:
     management.delete_queue(queue_name)
 
 
-def test_declare_classic_queue_with_invalid_args() -> None:
-    connection = Connection("amqp://guest:guest@localhost:5672/")
-    connection.dial()
-
+def test_declare_classic_queue_with_invalid_args(management: Management) -> None:
     queue_name = "test-queue_with_args"
-    management = connection.management()
     test_failure = True
 
     queue_specification = ClassicQueueSpecification(
@@ -244,12 +211,8 @@ def test_declare_classic_queue_with_invalid_args() -> None:
     assert test_failure is False
 
 
-def test_declare_stream_with_args() -> None:
-    connection = Connection("amqp://guest:guest@localhost:5672/")
-    connection.dial()
-
+def test_declare_stream_with_args(management: Management) -> None:
     stream_name = "test-stream_with_args"
-    management = connection.management()
 
     stream_specification = StreamSpecification(
         name=stream_name,
