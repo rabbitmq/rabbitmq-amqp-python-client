@@ -111,6 +111,27 @@ def test_queue_info_with_validations() -> None:
     assert queue_info.message_count == 0
 
 
+def test_queue_info_for_stream_with_validations() -> None:
+    connection = Connection("amqp://guest:guest@localhost:5672/")
+    connection.dial()
+
+    stream_name = "test_stream_info_with_validation"
+    management = connection.management()
+
+    queue_specification = StreamSpecification(
+        name=stream_name,
+    )
+    management.declare_queue(queue_specification)
+
+    stream_info = management.queue_info(queue_name=stream_name)
+
+    management.delete_queue(stream_name)
+
+    assert stream_info.name == stream_name
+    assert stream_info.queue_type == queue_specification.queue_type
+    assert stream_info.message_count == 0
+
+
 def test_queue_precondition_fail() -> None:
     connection = Connection("amqp://guest:guest@localhost:5672/")
     connection.dial()
@@ -197,6 +218,30 @@ def test_declare_classic_queue_with_args() -> None:
     )
 
     management.delete_queue(queue_name)
+
+
+def test_declare_classic_queue_with_invalid_args() -> None:
+    connection = Connection("amqp://guest:guest@localhost:5672/")
+    connection.dial()
+
+    queue_name = "test-queue_with_args"
+    management = connection.management()
+    test_failure = True
+
+    queue_specification = ClassicQueueSpecification(
+        name=queue_name,
+        queue_type=QueueType.classic,
+        max_len=-5,
+    )
+
+    try:
+        management.declare_queue(queue_specification)
+    except ValidationCodeException:
+        test_failure = False
+
+    management.delete_queue(queue_name)
+
+    assert test_failure is False
 
 
 def test_declare_stream_with_args() -> None:

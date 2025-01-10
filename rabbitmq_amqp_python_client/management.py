@@ -105,7 +105,7 @@ class Management:
     def declare_exchange(
         self, exchange_specification: ExchangeSpecification
     ) -> ExchangeSpecification:
-        logger.debug("delete_exchange operation called")
+        logger.debug("declare_exchange operation called")
         body = {}
         body["auto_delete"] = exchange_specification.is_auto_delete
         body["durable"] = exchange_specification.is_durable
@@ -326,11 +326,13 @@ class Management:
             ],
         )
 
-    def purge_queue(self, queue_name: str) -> None:
+    def purge_queue(self, queue_name: str) -> int:
         logger.debug("purge_queue operation called")
         path = purge_queue_address(queue_name)
 
-        self.request(
+        print("path: " + path)
+
+        response = self.request(
             None,
             path,
             CommonValues.command_delete.value,
@@ -338,6 +340,8 @@ class Management:
                 CommonValues.response_code_200.value,
             ],
         )
+
+        return int(response.body["message_count"])
 
     def queue_info(self, queue_name: str) -> QueueInfo:
         logger.debug("queue_info operation called")
