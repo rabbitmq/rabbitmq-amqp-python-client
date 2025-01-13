@@ -10,7 +10,7 @@ readme = "README.md"
 python = "^3.9"
 python-qpid-proton = "^0.39.0"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 flake8 = "^7.1.1"
 isort = "^5.9.3"
 mypy = "^0.910"
