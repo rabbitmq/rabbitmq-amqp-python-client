@@ -4,7 +4,7 @@ from rabbitmq_amqp_python_client import (
     ExchangeSpecification,
     Message,
     QueueType,
-    StreamSpecification,
+    QuorumQueueSpecification,
     exchange_address,
 )
 
@@ -24,7 +24,7 @@ def main() -> None:
     management.declare_exchange(ExchangeSpecification(name=exchange_name, arguments={}))
 
     management.declare_queue(
-        StreamSpecification(name=queue_name, queue_type=QueueType.stream)
+        QuorumQueueSpecification(name=queue_name, queue_type=QueueType.quorum)
     )
 
     print("binding queue to exchange")
