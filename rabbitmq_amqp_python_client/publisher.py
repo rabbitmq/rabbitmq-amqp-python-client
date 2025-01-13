@@ -5,7 +5,6 @@ from .options import SenderOption
 from .qpid.proton._message import Message
 from .qpid.proton.utils import (
     BlockingConnection,
-    BlockingReceiver,
     BlockingSender,
 )
 
@@ -15,7 +14,6 @@ logger = logging.getLogger(__name__)
 class Publisher:
     def __init__(self, conn: BlockingConnection, addr: str):
         self._sender: Optional[BlockingSender] = None
-        self._receiver: Optional[BlockingReceiver] = None
         self._conn = conn
         self._addr = addr
         self._open()
@@ -30,11 +28,9 @@ class Publisher:
             self._sender.send(message)
 
     def close(self) -> None:
-        logger.debug("Closing Sender and Receiver")
+        logger.debug("Closing Sender")
         if self._sender is not None:
             self._sender.close()
-        if self._receiver is not None:
-            self._receiver.close()
 
     def _create_sender(self, addr: str) -> BlockingSender:
         return self._conn.create_sender(addr, options=SenderOption(addr))
