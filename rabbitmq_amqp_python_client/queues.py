@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from .common import QueueType
-
 
 @dataclass
 class QueueSpecification:
@@ -22,13 +20,11 @@ class QueueSpecification:
 
 @dataclass
 class ClassicQueueSpecification(QueueSpecification):
-    queue_type: QueueType = QueueType.classic
     maximum_priority: Optional[int] = None
 
 
 @dataclass
 class QuorumQueueSpecification(QueueSpecification):
-    queue_type: QueueType = QueueType.quorum
     deliver_limit: Optional[str] = None
     dead_letter_strategy: Optional[str] = None
     quorum_initial_group_size: Optional[int] = None
@@ -38,7 +34,6 @@ class QuorumQueueSpecification(QueueSpecification):
 @dataclass
 class StreamSpecification:
     name: str
-    queue_type: QueueType = QueueType.stream
     max_len_bytes: Optional[int] = None
     max_time_retention: Optional[int] = None
     max_segment_size_in_bytes: Optional[int] = None

@@ -171,7 +171,7 @@ class Management:
 
         body["auto_delete"] = queue_specification.is_auto_delete
         body["durable"] = queue_specification.is_durable
-        args["x-queue-type"] = queue_specification.queue_type.value
+
         if queue_specification.dead_letter_exchange is not None:
             args["x-dead-letter-exchange"] = queue_specification.dead_letter_exchange
         if queue_specification.dead_letter_routing_key is not None:
@@ -194,10 +194,12 @@ class Management:
             )
 
         if isinstance(queue_specification, ClassicQueueSpecification):
+            args["x-queue-type"] = QueueType.classic.value
             if queue_specification.maximum_priority is not None:
                 args["x-maximum-priority"] = queue_specification.maximum_priority
 
         if isinstance(queue_specification, QuorumQueueSpecification):
+            args["x-queue-type"] = QueueType.quorum.value
             if queue_specification.deliver_limit is not None:
                 args["x-deliver-limit"] = queue_specification.deliver_limit
 
@@ -225,7 +227,7 @@ class Management:
         body = {}
         args: dict[str, Any] = {}
 
-        args["x-queue-type"] = stream_specification.queue_type.value
+        args["x-queue-type"] = QueueType.stream.value
 
         if stream_specification.max_len_bytes is not None:
             args["x-max-length-bytes"] = stream_specification.max_len_bytes

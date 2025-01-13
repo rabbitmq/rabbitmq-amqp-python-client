@@ -30,6 +30,7 @@ def test_publish_queue(connection: Connection) -> None:
     publisher.close()
 
     management.delete_queue(queue_name)
+    management.close()
 
 
 def test_publish_exchange(connection: Connection) -> None:
@@ -67,6 +68,7 @@ def test_publish_exchange(connection: Connection) -> None:
 
     management.delete_exchange(exchange_name)
     management.delete_queue(queue_name)
+    management.close()
 
 
 def test_publish_purge(connection: Connection) -> None:
@@ -97,3 +99,4 @@ def test_publish_purge(connection: Connection) -> None:
     publisher.close()
 
     management.delete_queue(queue_name)
+    management.close()

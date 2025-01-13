@@ -89,7 +89,7 @@ def test_queue_info_with_validations(management: Management) -> None:
     management.delete_queue(queue_name)
 
     assert queue_info.name == queue_name
-    assert queue_info.queue_type == queue_specification.queue_type
+    assert queue_info.queue_type == QueueType.quorum
     assert queue_info.is_durable == queue_specification.is_durable
     assert queue_info.message_count == 0
 
@@ -108,7 +108,7 @@ def test_queue_info_for_stream_with_validations(management: Management) -> None:
     management.delete_queue(stream_name)
 
     assert stream_info.name == stream_name
-    assert stream_info.queue_type == queue_specification.queue_type
+    assert stream_info.queue_type == QueueType.stream
     assert stream_info.message_count == 0
 
 
@@ -145,13 +145,11 @@ def test_declare_classic_queue(management: Management) -> None:
 
     queue_specification = QuorumQueueSpecification(
         name=queue_name,
-        queue_type=QueueType.classic,
         is_auto_delete=False,
     )
     queue_info = management.declare_queue(queue_specification)
 
     assert queue_info.name == queue_specification.name
-    assert queue_info.queue_type == queue_specification.queue_type
 
     management.delete_queue(queue_name)
 
@@ -162,7 +160,6 @@ def test_declare_classic_queue_with_args(management: Management) -> None:
 
     queue_specification = ClassicQueueSpecification(
         name=queue_name,
-        queue_type=QueueType.classic,
         is_auto_delete=False,
         dead_letter_exchange="my_exchange",
         dead_letter_routing_key="my_key",
@@ -197,7 +194,6 @@ def test_declare_classic_queue_with_invalid_args(management: Management) -> None
 
     queue_specification = ClassicQueueSpecification(
         name=queue_name,
-        queue_type=QueueType.classic,
         max_len=-5,
     )
 
