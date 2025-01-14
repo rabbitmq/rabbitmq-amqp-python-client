@@ -273,8 +273,6 @@ class BlockingReceiver(BlockingLink):
         if credit:
             receiver.flow(credit)
 
-        if fetcher is None:
-            print("fetcher is none")
         self.fetcher = fetcher
         self.container = connection.container
 

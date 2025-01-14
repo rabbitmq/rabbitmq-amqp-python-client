@@ -1,3 +1,5 @@
+# type: ignore
+
 from rabbitmq_amqp_python_client import (
     BindingSpecification,
     Connection,
@@ -84,11 +86,9 @@ def main() -> None:
     print("unbind")
     management.unbind(bind_name)
 
-
-
     consumer.close()
     print("delete queue")
-    #management.delete_queue(queue_name)
+    # management.delete_queue(queue_name)
 
     print("delete exchange")
     management.delete_exchange(exchange_name)

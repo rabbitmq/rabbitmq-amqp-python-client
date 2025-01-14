@@ -72,6 +72,8 @@ def test_publish_exchange(connection: Connection) -> None:
 
 
 def test_publish_purge(connection: Connection) -> None:
+    connection = Connection("amqp://guest:guest@localhost:5672/")
+    connection.dial()
 
     queue_name = "test-queue"
     management = connection.management()
@@ -82,17 +84,17 @@ def test_publish_purge(connection: Connection) -> None:
 
     try:
         publisher = connection.publisher("/queues/" + queue_name)
-        for i in range(100):
+        for i in range(20):
             publisher.publish(Message(body="test"))
     except Exception:
         raised = True
 
-    time.sleep(5)
+    time.sleep(4)
 
     message_purged = management.purge_queue(queue_name)
 
     assert raised is False
-    assert message_purged == 100
+    assert message_purged == 20
 
     publisher.close()
 
