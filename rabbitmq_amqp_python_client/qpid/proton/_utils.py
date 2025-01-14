@@ -272,6 +272,7 @@ class BlockingReceiver(BlockingLink):
             )
         if credit:
             receiver.flow(credit)
+
         self.fetcher = fetcher
         self.container = connection.container
 
@@ -526,7 +527,8 @@ class BlockingConnection(Handler):
                 handler=handler or fetcher,
                 options=options,
             ),
-            fetcher,
+
+            handler or fetcher,
             credit=prefetch,
         )
 

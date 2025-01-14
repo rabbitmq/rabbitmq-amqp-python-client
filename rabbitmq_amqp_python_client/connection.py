@@ -1,7 +1,11 @@
 import logging
 
+from typing import Optional
+
+from .consumer import Consumer
 from .management import Management
 from .publisher import Publisher
+from .qpid.proton._handlers import MessagingHandler
 from .qpid.proton.utils import BlockingConnection
 
 logger = logging.getLogger(__name__)
@@ -34,3 +38,10 @@ class Connection:
     def publisher(self, destination: str) -> Publisher:
         publisher = Publisher(self._conn, destination)
         return publisher
+
+
+    def consumer(
+        self, destination: str, handler: Optional[MessagingHandler] = None
+    ) -> Consumer:
+        consumer = Consumer(self._conn, destination, handler)
+        return consumer
