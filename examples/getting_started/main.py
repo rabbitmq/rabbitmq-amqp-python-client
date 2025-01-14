@@ -1,11 +1,36 @@
 from rabbitmq_amqp_python_client import (
     BindingSpecification,
     Connection,
+    Event,
     ExchangeSpecification,
     Message,
+    MessagingHandler,
     QuorumQueueSpecification,
     exchange_address,
+    queue_address,
 )
+
+
+class MyMessageHandler(MessagingHandler):
+
+    def __init__(self):
+        super().__init__()
+
+    def on_message(self, event: Event):
+        print("received message: " + event.message.body)
+        self.accept(event.delivery)
+
+    def on_connection_closed(self, event: Event):
+        print("connection closed")
+
+    def on_connection_cloing(self, event: Event):
+        print("connection closed")
+
+    def on_link_closed(self, event: Event) -> None:
+        print("link closed")
+
+    def on_rejected(self, event: Event) -> None:
+        print("rejected")
 
 
 def main() -> None:
@@ -35,21 +60,35 @@ def main() -> None:
 
     addr = exchange_address(exchange_name, routing_key)
 
+    addr_queue = queue_address(queue_name)
+
     print("create a publisher and publish a test message")
     publisher = connection.publisher(addr)
 
     publisher.publish(Message(body="test"))
 
+    print("purging the queue")
+    messages_purged = management.purge_queue(queue_name)
+
+    print("messages purged: " + str(messages_purged))
+
+    for i in range(10):
+        publisher.publish(Message(body="test"))
+
     publisher.close()
+
+    print("create a consumer and consume the test message")
+
+    consumer = connection.consumer(addr_queue, handler=MyMessageHandler())
 
     print("unbind")
     management.unbind(bind_name)
 
-    print("purging the queue")
-    management.purge_queue(queue_name)
 
+
+    consumer.close()
     print("delete queue")
-    management.delete_queue(queue_name)
+    #management.delete_queue(queue_name)
 
     print("delete exchange")
     management.delete_exchange(exchange_name)
