@@ -39,13 +39,13 @@ jobs:
       - name: poetry install
         run: poetry install --no-root
       - name: isort check-only
-        run: poetry run isort --check-only .
+        run: poetry run isort --skip rabbitmq_amqp_python_client/qpid --check-only .
       - name: black check
         run: poetry run black --check .
       - name: flake8
-        run: poetry run flake8 --exclude=venv,local_tests,docs/examples --max-line-length=120 --ignore=E203,W503
+        run: poetry run flake8 --exclude=venv,local_tests,docs/examples,rabbitmq_amqp_python_client/qpid --max-line-length=120 --ignore=E203,W503
       - name: mypy
         run: | 
-          poetry run mypy .
+          poetry run mypy --exclude=rabbitmq_amqp_python_client/qpid .
       - name: poetry run pytest
         run: poetry run pytest
