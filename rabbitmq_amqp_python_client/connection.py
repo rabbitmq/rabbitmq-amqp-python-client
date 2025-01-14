@@ -1,5 +1,4 @@
 import logging
-
 from typing import Optional
 
 from .consumer import Consumer
@@ -38,7 +37,6 @@ class Connection:
     def publisher(self, destination: str) -> Publisher:
         publisher = Publisher(self._conn, destination)
         return publisher
-
 
     def consumer(
         self, destination: str, handler: Optional[MessagingHandler] = None

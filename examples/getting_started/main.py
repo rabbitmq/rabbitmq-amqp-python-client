@@ -21,6 +21,7 @@ class MyMessageHandler(MessagingHandler):
     def on_message(self, event: Event):
         print("received message: " + event.message.body)
         self.accept(event.delivery)
+        self.rele
 
     def on_connection_closed(self, event: Event):
         print("connection closed")

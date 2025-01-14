@@ -3,19 +3,13 @@ from importlib import metadata
 from .address_helper import exchange_address, queue_address
 from .common import QueueType
 from .connection import Connection
-<<<<<<< HEAD
-=======
 from .consumer import Consumer
->>>>>>> consumer_implementation
 from .entities import (
     BindingSpecification,
     ExchangeSpecification,
 )
 from .management import Management
 from .publisher import Publisher
-
-from .qpid.proton._message import Message
-
 from .qpid.proton._events import Event
 from .qpid.proton._message import Message
 from .qpid.proton.handlers import MessagingHandler
@@ -47,7 +41,6 @@ __all__ = [
     "exchange_address",
     "queue_address",
     "Message",
-
     "Consumer",
     "MessagingHandler",
     "Event",

@@ -527,7 +527,6 @@ class BlockingConnection(Handler):
                 handler=handler or fetcher,
                 options=options,
             ),
-
             handler or fetcher,
             credit=prefetch,
         )
