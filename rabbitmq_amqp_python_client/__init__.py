@@ -19,6 +19,8 @@ from .queues import (
     StreamSpecification,
 )
 
+from .qpid.proton._delivery import Delivery
+
 try:
     __version__ = metadata.version(__package__)
     __license__ = metadata.metadata(__package__)["license"]
@@ -44,4 +46,5 @@ __all__ = [
     "Consumer",
     "MessagingHandler",
     "Event",
+    "Delivery",
 ]

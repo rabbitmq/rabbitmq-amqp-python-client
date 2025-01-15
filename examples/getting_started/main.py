@@ -10,18 +10,30 @@ from rabbitmq_amqp_python_client import (
     QuorumQueueSpecification,
     exchange_address,
     queue_address,
+    Delivery,
 )
+
 
 
 class MyMessageHandler(MessagingHandler):
 
     def __init__(self):
         super().__init__()
+        self.auto_accept = False
+        self.auto_settle = False
 
     def on_message(self, event: Event):
         print("received message: " + event.message.body)
-        self.accept(event.delivery)
-        self.rele
+
+        dlv = event.delivery
+        #dlv.update(Delivery.REJECTED)
+        dlv.update(Delivery.RELEASED)
+        dlv.settle()
+
+
+        #self.reject(event.delivery)
+        #self.settle(event.delivery, Delivery.REJECTED)
+
 
     def on_connection_closed(self, event: Event):
         print("connection closed")
@@ -71,9 +83,9 @@ def main() -> None:
     publisher.publish(Message(body="test"))
 
     print("purging the queue")
-    messages_purged = management.purge_queue(queue_name)
+    #messages_purged = management.purge_queue(queue_name)
 
-    print("messages purged: " + str(messages_purged))
+    #print("messages purged: " + str(messages_purged))
 
     for i in range(10):
         publisher.publish(Message(body="test"))
@@ -87,7 +99,7 @@ def main() -> None:
     print("unbind")
     management.unbind(bind_name)
 
-    consumer.close()
+    #consumer.close()
     print("delete queue")
     # management.delete_queue(queue_name)
 
