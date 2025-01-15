@@ -1,4 +1,5 @@
 # type: ignore
+import time
 
 from rabbitmq_amqp_python_client import (
     BindingSpecification,
@@ -18,17 +19,15 @@ from rabbitmq_amqp_python_client import (
 class MyMessageHandler(MessagingHandler):
 
     def __init__(self):
-        super().__init__()
-        self.auto_accept = False
-        self.auto_settle = False
+        super().__init__(auto_accept=False, auto_settle=False)
 
     def on_message(self, event: Event):
         print("received message: " + event.message.body)
 
         dlv = event.delivery
         #dlv.update(Delivery.REJECTED)
-        dlv.update(Delivery.RELEASED)
-        dlv.settle()
+        dlv.update(Delivery.ACCEPTED)
+        # dlv.settle()
 
 
         #self.reject(event.delivery)
@@ -49,6 +48,8 @@ class MyMessageHandler(MessagingHandler):
 
 
 def main() -> None:
+
+
     exchange_name = "test-exchange"
     queue_name = "example-queue"
     routing_key = "routing-key"
@@ -80,15 +81,14 @@ def main() -> None:
     print("create a publisher and publish a test message")
     publisher = connection.publisher(addr)
 
-    publisher.publish(Message(body="test"))
 
     print("purging the queue")
     #messages_purged = management.purge_queue(queue_name)
 
     #print("messages purged: " + str(messages_purged))
 
-    for i in range(10):
-        publisher.publish(Message(body="test"))
+    # for i in range(1):
+    publisher.publish(Message(body="test"))
 
     publisher.close()
 

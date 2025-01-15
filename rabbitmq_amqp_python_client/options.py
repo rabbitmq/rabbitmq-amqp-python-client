@@ -27,7 +27,7 @@ class ReceiverOption(LinkOption):  # type: ignore
 
     def apply(self, link: Link) -> None:
         link.target.address = self._addr
-        link.snd_settle_mode = Link.SND_SETTLED
+        link.snd_settle_mode = Link.SND_UNSETTLED
         link.rcv_settle_mode = Link.RCV_FIRST
         link.properties = PropertyDict({symbol("paired"): True})
         link.source.dynamic = False
