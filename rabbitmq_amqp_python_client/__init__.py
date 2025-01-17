@@ -10,6 +10,7 @@ from .entities import (
 )
 from .management import Management
 from .publisher import Publisher
+from .qpid.proton._delivery import Delivery
 from .qpid.proton._events import Event
 from .qpid.proton._message import Message
 from .qpid.proton.handlers import MessagingHandler
@@ -18,8 +19,6 @@ from .queues import (
     QuorumQueueSpecification,
     StreamSpecification,
 )
-
-from .qpid.proton._delivery import Delivery
 
 try:
     __version__ = metadata.version(__package__)

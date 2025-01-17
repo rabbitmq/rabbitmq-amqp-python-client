@@ -55,8 +55,6 @@ def test_bind_exchange_to_queue(management: Management) -> None:
         )
     )
 
-    print(binding_exchange_queue_path)
-
     assert (
         binding_exchange_queue_path
         == "/bindings/src="

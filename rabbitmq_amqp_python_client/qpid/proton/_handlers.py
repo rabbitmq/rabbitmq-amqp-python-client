@@ -247,7 +247,6 @@ class IncomingMessageHandler(Handler, Acking):
     def __init__(
         self, auto_accept: bool = True, delegate: Optional[Handler] = None
     ) -> None:
-        print("auto accept is" + str(auto_accept))
         self.delegate = delegate
         self.auto_accept = auto_accept
 
@@ -266,10 +265,8 @@ class IncomingMessageHandler(Handler, Acking):
                     dlv.settle()
             else:
                 try:
-                    print("sending on message")
                     self.on_message(event)
                     if self.auto_accept:
-                        print("accepting")
                         dlv.update(Delivery.ACCEPTED)
                         dlv.settle()
                 except Reject:

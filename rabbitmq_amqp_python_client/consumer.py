@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from .options import ReceiverOption
+from .options import ReceiverOptionUnsettled
 from .qpid.proton._handlers import MessagingHandler
 from .qpid.proton._message import Message
 from .qpid.proton.utils import (
@@ -35,13 +35,20 @@ class Consumer:
             return self._receiver.receive()
 
     def close(self) -> None:
-        logger.debug("Closing Sender and Receiver")
-        if self._receiver is not None:
-            self._receiver.close()
+        logger.debug("Closing the receiver")
         if self._receiver is not None:
             self._receiver.close()
 
+    def run(self) -> None:
+        if self._receiver is not None:
+            self._receiver.container.run()
+
+    def stop(self) -> None:
+        if self._receiver is not None:
+            self._receiver.container.stop_events()
+            self._receiver.container.stop()
+
     def _create_receiver(self, addr: str) -> BlockingReceiver:
         return self._conn.create_receiver(
-            addr, options=ReceiverOption(addr), handler=self._handler
+            addr, options=ReceiverOptionUnsettled(addr), handler=self._handler
         )
