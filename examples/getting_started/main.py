@@ -2,10 +2,10 @@
 from rabbitmq_amqp_python_client import (
     BindingSpecification,
     Connection,
-    Delivery,
     Event,
     ExchangeSpecification,
     Message,
+    MessageAck,
     MessagingHandler,
     QuorumQueueSpecification,
     exchange_address,
@@ -20,18 +20,19 @@ class MyMessageHandler(MessagingHandler):
         self._count = 0
 
     def on_message(self, event: Event):
-        print("received message: " + event.message.body)
+        print("received message: " + str(event.message.annotations))
 
-        dlv = event.delivery
+        # annotations = {}
+        # annotations[symbol('x-opt-string')] = 'x-test1'
+        # MessageAck.requeue_with_annotations(event, annotations)
 
-        dlv.update(Delivery.ACCEPTED)
-        dlv.settle()
+        MessageAck.accept(event)
 
         print("count " + str(self._count))
 
         self._count = self._count + 1
 
-        if self._count == 100000:
+        if self._count == 100:
             print("closing receiver")
             event.receiver.close()
             event.connection.close()
@@ -41,9 +42,6 @@ class MyMessageHandler(MessagingHandler):
 
     def on_link_closed(self, event: Event) -> None:
         print("link closed")
-
-    def on_rejected(self, event: Event) -> None:
-        print("rejected")
 
 
 def create_connection() -> Connection:
@@ -58,7 +56,7 @@ def main() -> None:
     exchange_name = "test-exchange"
     queue_name = "example-queue"
     routing_key = "routing-key"
-    messages_to_publish = 100000
+    messages_to_publish = 100
 
     print("connection to amqp server")
     connection = create_connection()
@@ -121,14 +119,14 @@ def main() -> None:
     management.unbind(bind_name)
 
     print("delete queue")
-    management.delete_queue(queue_name)
+    # management.delete_queue(queue_name)
 
     print("delete exchange")
     management.delete_exchange(exchange_name)
 
     print("closing connections")
     management.close()
-    consumer.close()
+    # consumer.close()
     print("after management closing")
     connection.close()
     print("after connection closing")

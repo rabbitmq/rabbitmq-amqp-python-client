@@ -8,8 +8,8 @@ from rabbitmq_amqp_python_client import (
 from .conftest import (
     ConsumerTestException,
     MyMessageHandlerAccept,
+    MyMessageHandlerDiscard,
     MyMessageHandlerNoack,
-    MyMessageHandlerReject,
     MyMessageHandlerRequeue,
     create_connection,
 )
@@ -132,10 +132,10 @@ def test_consumer_async_queue_noack(connection: Connection) -> None:
     assert message_count > 0
 
 
-def test_consumer_async_queue_with_reject(connection: Connection) -> None:
+def test_consumer_async_queue_with_discard(connection: Connection) -> None:
     messages_to_send = 1000
 
-    queue_name = "test-queue_async_reject"
+    queue_name = "test-queue_async_discard"
 
     management = connection.management()
 
@@ -155,7 +155,7 @@ def test_consumer_async_queue_with_reject(connection: Connection) -> None:
     connection_consumer = create_connection()
 
     consumer = connection_consumer.consumer(
-        addr_queue, handler=MyMessageHandlerReject()
+        addr_queue, handler=MyMessageHandlerDiscard()
     )
 
     try:

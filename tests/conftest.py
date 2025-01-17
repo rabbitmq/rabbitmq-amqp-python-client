@@ -2,8 +2,8 @@ import pytest
 
 from rabbitmq_amqp_python_client import (
     Connection,
-    Delivery,
     Event,
+    MessageAck,
     MessagingHandler,
 )
 
@@ -44,10 +44,11 @@ class ConsumerTestException(BaseException):
 class MyMessageHandlerAccept(MessagingHandler):
 
     def __init__(self):
-        super().__init__(auto_accept=True, auto_settle=True)
+        super().__init__(auto_accept=False, auto_settle=False)
         self._received = 0
 
     def on_message(self, event: Event):
+        MessageAck.accept(event)
         self._received = self._received + 1
         if self._received == 1000:
             event.connection.close()
@@ -77,16 +78,14 @@ class MyMessageHandlerNoack(MessagingHandler):
         print("rejected")
 
 
-class MyMessageHandlerReject(MessagingHandler):
+class MyMessageHandlerDiscard(MessagingHandler):
 
     def __init__(self):
-        super().__init__(auto_accept=False, auto_settle=True)
+        super().__init__(auto_accept=False, auto_settle=False)
         self._received = 0
 
     def on_message(self, event: Event):
-        dlv = event.delivery
-        dlv.update(Delivery.REJECTED)
-        dlv.settle()
+        MessageAck.discard(event)
         self._received = self._received + 1
         if self._received == 1000:
             event.connection.close()
@@ -96,13 +95,11 @@ class MyMessageHandlerReject(MessagingHandler):
 class MyMessageHandlerRequeue(MessagingHandler):
 
     def __init__(self):
-        super().__init__(auto_accept=False, auto_settle=True)
+        super().__init__(auto_accept=False, auto_settle=False)
         self._received = 0
 
     def on_message(self, event: Event):
-        dlv = event.delivery
-        dlv.update(Delivery.RELEASED)
-        dlv.settle()
+        MessageAck.requeue(event)
         self._received = self._received + 1
         if self._received == 1000:
             event.connection.close()

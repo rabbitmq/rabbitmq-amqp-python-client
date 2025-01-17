@@ -9,7 +9,9 @@ from .entities import (
     ExchangeSpecification,
 )
 from .management import Management
+from .message_ack import MessageAck
 from .publisher import Publisher
+from .qpid.proton._data import symbol  # noqa: E402
 from .qpid.proton._delivery import Delivery
 from .qpid.proton._events import Event
 from .qpid.proton._message import Message
@@ -46,4 +48,6 @@ __all__ = [
     "MessagingHandler",
     "Event",
     "Delivery",
+    "MessageAck",
+    "symbol",
 ]
