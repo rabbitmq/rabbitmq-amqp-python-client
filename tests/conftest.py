@@ -5,6 +5,7 @@ from rabbitmq_amqp_python_client import (
     Event,
     MessageAck,
     MessagingHandler,
+    queue_address,
     symbol,
 )
 
@@ -30,6 +31,21 @@ def management(pytestconfig):
 
     finally:
         management.close()
+        connection.close()
+
+
+@pytest.fixture()
+def consumer(pytestconfig):
+    connection = Connection("amqp://guest:guest@localhost:5672/")
+    connection.dial()
+    try:
+        queue_name = "test-queue"
+        addr_queue = queue_address(queue_name)
+        consumer = connection.consumer(addr_queue)
+        yield consumer
+
+    finally:
+        consumer.close()
         connection.close()
 
 
@@ -67,16 +83,8 @@ class MyMessageHandlerNoack(MessagingHandler):
         if self._received == 1000:
             event.receiver.close()
             event.connection.close()
+            # Workaround to terminate the Consumer and notify the test when all messages are consumed
             raise ConsumerTestException("consumed")
-
-    def on_connection_closed(self, event: Event):
-        print("connection closed")
-
-    def on_link_closed(self, event: Event) -> None:
-        print("link closed")
-
-    def on_rejected(self, event: Event) -> None:
-        print("rejected")
 
 
 class MyMessageHandlerDiscard(MessagingHandler):
@@ -105,13 +113,6 @@ class MyMessageHandlerRequeue(MessagingHandler):
         if self._received == 1000:
             event.connection.close()
             raise ConsumerTestException("consumed")
-
-
-def create_connection() -> Connection:
-    connection_consumer = Connection("amqp://guest:guest@localhost:5672/")
-    connection_consumer.dial()
-
-    return connection_consumer
 
 
 class MyMessageHandlerRequeueWithAnnotations(MessagingHandler):

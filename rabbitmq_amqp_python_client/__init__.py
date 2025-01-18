@@ -1,7 +1,7 @@
 from importlib import metadata
 
 from .address_helper import exchange_address, queue_address
-from .common import QueueType
+from .common import ExchangeType, QueueType
 from .connection import Connection
 from .consumer import Consumer
 from .entities import (
@@ -50,4 +50,5 @@ __all__ = [
     "Delivery",
     "MessageAck",
     "symbol",
+    "ExchangeType",
 ]

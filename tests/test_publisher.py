@@ -1,3 +1,5 @@
+import time
+
 from rabbitmq_amqp_python_client import (
     BindingSpecification,
     Connection,
@@ -69,7 +71,6 @@ def test_publish_exchange(connection: Connection) -> None:
     management.close()
 
 
-"""
 def test_publish_purge(connection: Connection) -> None:
     messages_to_publish = 20
     connection = Connection("amqp://guest:guest@localhost:5672/")
@@ -98,7 +99,7 @@ def test_publish_purge(connection: Connection) -> None:
     while purged_messages != messages_to_publish:
         purged_messages = management.purge_queue(queue_name)
         time.sleep(1)
-        attempt = attempt+1
+        attempt = attempt + 1
         if attempt > 60:
             break
 
@@ -109,4 +110,3 @@ def test_publish_purge(connection: Connection) -> None:
 
     management.delete_queue(queue_name)
     management.close()
-"""

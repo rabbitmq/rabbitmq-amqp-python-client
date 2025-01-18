@@ -22,11 +22,22 @@ class MyMessageHandler(MessagingHandler):
     def on_message(self, event: Event):
         print("received message: " + str(event.message.annotations))
 
+        # accepting
+        MessageAck.accept(event)
+
+        # in case of rejection (+eventually deadlettering)
+        # MessageAck.discard(event)
+
+        # in case of requeuing
+        # MessageAck.requeue(event)
+
         # annotations = {}
         # annotations[symbol('x-opt-string')] = 'x-test1'
+        # in case of requeuing with annotations added
         # MessageAck.requeue_with_annotations(event, annotations)
 
-        MessageAck.accept(event)
+        # in case of rejection with annotations added
+        # MessageAck.discard_with_annotations(event)
 
         print("count " + str(self._count))
 
@@ -67,9 +78,8 @@ def main() -> None:
     management.declare_exchange(ExchangeSpecification(name=exchange_name, arguments={}))
 
     management.declare_queue(
-        QuorumQueueSpecification(
-            name=queue_name, dead_letter_exchange="dead-letter-test"
-        )
+        QuorumQueueSpecification(name=queue_name)
+        # QuorumQueueSpecification(name=queue_name, dead_letter_exchange="dead-letter")
     )
 
     print("binding queue to exchange")
