@@ -42,8 +42,6 @@ class MessageAck:
         event: Event, annotations: Dict[str, "PythonAMQPData"]
     ) -> None:
         dlv = event.delivery
-        if dlv.local.annotations is None:
-            print("is none")
         dlv.local.annotations = annotations
         dlv.local.failed = False
         dlv.local.undeliverable = False

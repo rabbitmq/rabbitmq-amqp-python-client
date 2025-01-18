@@ -11,8 +11,9 @@ from .conftest import (
     MyMessageHandlerDiscard,
     MyMessageHandlerNoack,
     MyMessageHandlerRequeue,
-    create_connection,
+    MyMessageHandlerRequeueWithAnnotations,
 )
+from .utils import create_connection
 
 
 def test_consumer_sync_queue_ack(connection: Connection) -> None:
@@ -81,9 +82,9 @@ def test_consumer_async_queue_accept(connection: Connection) -> None:
     except ConsumerTestException:
         pass
 
-    message_count = management.purge_queue(queue_name)
+    consumer.close()
 
-    management.delete_queue(queue_name)
+    message_count = management.purge_queue(queue_name)
 
     management.close()
 
@@ -208,6 +209,57 @@ def test_consumer_async_queue_with_requeue(connection: Connection) -> None:
         pass
 
     consumer.close()
+
+    message_count = management.purge_queue(queue_name)
+
+    management.delete_queue(queue_name)
+    management.close()
+
+    assert message_count > 0
+
+
+def test_consumer_async_queue_with_requeue_with_annotations(
+    connection: Connection,
+) -> None:
+    messages_to_send = 1000
+
+    queue_name = "test-queue_async_requeue"
+
+    management = connection.management()
+
+    management.declare_queue(QuorumQueueSpecification(name=queue_name))
+
+    addr_queue = queue_address(queue_name)
+
+    publisher = connection.publisher("/queues/" + queue_name)
+
+    # publish messages_to_send messages
+    for i in range(messages_to_send):
+        publisher.publish(Message(body="test" + str(i)))
+    publisher.close()
+
+    # workaround: it looks like when the consumer finish to consume invalidate the connection
+    # so for the moment we need to use one dedicated
+    connection_consumer = create_connection()
+
+    consumer = connection_consumer.consumer(
+        addr_queue, handler=MyMessageHandlerRequeueWithAnnotations()
+    )
+
+    try:
+        consumer.run()
+    # ack to terminate the consumer
+    except ConsumerTestException:
+        pass
+
+    consumer.close()
+
+    # check for added annotation
+    new_consumer = connection.consumer(addr_queue)
+    message = new_consumer.consume()
+    new_consumer.close()
+
+    assert "x-opt-string" in message.annotations
 
     message_count = management.purge_queue(queue_name)
 
