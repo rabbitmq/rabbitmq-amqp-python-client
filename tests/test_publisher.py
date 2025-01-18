@@ -25,12 +25,12 @@ def test_publish_queue(connection: Connection) -> None:
     except Exception:
         raised = True
 
-    assert raised is False
-
     publisher.close()
 
     management.delete_queue(queue_name)
     management.close()
+
+    assert raised is False
 
 
 def test_publish_exchange(connection: Connection) -> None:
@@ -62,19 +62,17 @@ def test_publish_exchange(connection: Connection) -> None:
     except Exception:
         raised = True
 
-    assert raised is False
-
     publisher.close()
 
     management.delete_exchange(exchange_name)
     management.delete_queue(queue_name)
     management.close()
 
+    assert raised is False
+
 
 def test_publish_purge(connection: Connection) -> None:
     messages_to_publish = 20
-    connection = Connection("amqp://guest:guest@localhost:5672/")
-    connection.dial()
 
     queue_name = "test-queue"
     management = connection.management()
@@ -92,21 +90,21 @@ def test_publish_purge(connection: Connection) -> None:
 
     time.sleep(4)
 
-    message_purged = management.purge_queue(queue_name)
-
     attempt = 0
-    purged_messages = 0
-    while purged_messages != messages_to_publish:
-        purged_messages = management.purge_queue(queue_name)
+    message_purged = 0
+    # check right number of messages purged
+    # publish may delay so we loop several times till the condition is met
+    while message_purged == 0:
+        message_purged = management.purge_queue(queue_name)
         time.sleep(1)
         attempt = attempt + 1
         if attempt > 60:
             break
 
-    assert raised is False
-    assert message_purged == 20
-
     publisher.close()
 
     management.delete_queue(queue_name)
     management.close()
+
+    assert raised is False
+    assert message_purged == 20
