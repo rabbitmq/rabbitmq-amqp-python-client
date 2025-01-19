@@ -32,7 +32,9 @@ class Connection:
     # closes the connection to the AMQP 1.0 server.
     def close(self) -> None:
         logger.debug("Closing connection")
+        print("closing connection")
         self._conn.close()
+        print("after closing connection")
 
     def publisher(self, destination: str) -> Publisher:
         publisher = Publisher(self._conn, destination)

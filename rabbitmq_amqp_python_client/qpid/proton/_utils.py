@@ -553,7 +553,7 @@ class BlockingConnection(Handler):
         finally:
             self.conn.free()
             # Nothing left to block on.  Allow reactor to clean up.
-            self.run()
+            # self.run()   # why is this necessary here?
             if self.conn:
                 self.conn.handler = None  # break cyclical reference
                 self.conn = None

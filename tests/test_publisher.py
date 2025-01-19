@@ -1,12 +1,10 @@
-import time
-
 from rabbitmq_amqp_python_client import (
+    AddressHelper,
     BindingSpecification,
     Connection,
     ExchangeSpecification,
     Message,
     QuorumQueueSpecification,
-    exchange_address,
 )
 
 
@@ -52,7 +50,7 @@ def test_publish_exchange(connection: Connection) -> None:
         )
     )
 
-    addr = exchange_address(exchange_name, routing_key)
+    addr = AddressHelper.exchange_address(exchange_name, routing_key)
 
     raised = False
 
@@ -88,20 +86,9 @@ def test_publish_purge(connection: Connection) -> None:
     except Exception:
         raised = True
 
-    time.sleep(4)
-
-    attempt = 0
-    message_purged = 0
-    # check right number of messages purged
-    # publish may delay so we loop several times till the condition is met
-    while message_purged == 0:
-        message_purged = management.purge_queue(queue_name)
-        time.sleep(1)
-        attempt = attempt + 1
-        if attempt > 60:
-            break
-
     publisher.close()
+
+    message_purged = management.purge_queue(queue_name)
 
     management.delete_queue(queue_name)
     management.close()

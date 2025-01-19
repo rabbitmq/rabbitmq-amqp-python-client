@@ -5,23 +5,20 @@ from .qpid.proton._delivery import Delivery
 from .qpid.proton._events import Event
 
 
-class MessageAck:
+class DeliveryContext:
 
-    @staticmethod
-    def accept(event: Event) -> None:
+    def accept(self, event: Event) -> None:
         dlv = event.delivery
         dlv.update(Delivery.ACCEPTED)
         dlv.settle()
 
-    @staticmethod
-    def discard(event: Event) -> None:
+    def discard(self, event: Event) -> None:
         dlv = event.delivery
         dlv.update(Delivery.REJECTED)
         dlv.settle()
 
-    @staticmethod
     def discard_with_annotations(
-        event: Event, annotations: Dict[str, "PythonAMQPData"]
+        self, event: Event, annotations: Dict[str, "PythonAMQPData"]
     ) -> None:
         dlv = event.delivery
         dlv.local.annotations = annotations
@@ -31,15 +28,13 @@ class MessageAck:
         dlv.update(Delivery.MODIFIED)
         dlv.settle()
 
-    @staticmethod
-    def requeue(event: Event) -> None:
+    def requeue(self, event: Event) -> None:
         dlv = event.delivery
         dlv.update(Delivery.RELEASED)
         dlv.settle()
 
-    @staticmethod
     def requeue_with_annotations(
-        event: Event, annotations: Dict[str, "PythonAMQPData"]
+        self, event: Event, annotations: Dict[str, "PythonAMQPData"]
     ) -> None:
         dlv = event.delivery
         dlv.local.annotations = annotations

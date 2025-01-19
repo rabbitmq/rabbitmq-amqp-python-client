@@ -1,15 +1,17 @@
 from importlib import metadata
 
-from .address_helper import exchange_address, queue_address
+from .address_helper import AddressHelper
 from .common import ExchangeType, QueueType
 from .connection import Connection
 from .consumer import Consumer
+from .delivery_consumer_handler import (
+    DeliveryConsumerHandler,
+)
 from .entities import (
     BindingSpecification,
     ExchangeSpecification,
 )
 from .management import Management
-from .message_ack import MessageAck
 from .publisher import Publisher
 from .qpid.proton._data import symbol  # noqa: E402
 from .qpid.proton._delivery import Delivery
@@ -41,14 +43,13 @@ __all__ = [
     "BindingSpecification",
     "QueueType",
     "Publisher",
-    "exchange_address",
-    "queue_address",
     "Message",
     "Consumer",
     "MessagingHandler",
     "Event",
     "Delivery",
-    "MessageAck",
     "symbol",
     "ExchangeType",
+    "AddressHelper",
+    "DeliveryConsumerHandler",
 ]

@@ -1,43 +1,43 @@
 # type: ignore
+
+
 from rabbitmq_amqp_python_client import (
+    AddressHelper,
     BindingSpecification,
     Connection,
+    DeliveryConsumerHandler,
     Event,
     ExchangeSpecification,
     Message,
-    MessageAck,
-    MessagingHandler,
     QuorumQueueSpecification,
-    exchange_address,
-    queue_address,
 )
 
 
-class MyMessageHandler(MessagingHandler):
+class MyMessageHandler(DeliveryConsumerHandler):
 
     def __init__(self):
-        super().__init__(auto_accept=False, auto_settle=False)
+        super().__init__()
         self._count = 0
 
     def on_message(self, event: Event):
         print("received message: " + str(event.message.annotations))
 
         # accepting
-        MessageAck.accept(event)
+        self.delivery_context.accept(event)
 
         # in case of rejection (+eventually deadlettering)
-        # MessageAck.discard(event)
+        # self.delivery_context.discard(event)
 
         # in case of requeuing
-        # MessageAck.requeue(event)
+        # self.delivery_context.requeue(event)
 
         # annotations = {}
         # annotations[symbol('x-opt-string')] = 'x-test1'
         # in case of requeuing with annotations added
-        # MessageAck.requeue_with_annotations(event, annotations)
+        # self.delivery_context.requeue_with_annotations(event, annotations)
 
         # in case of rejection with annotations added
-        # MessageAck.discard_with_annotations(event)
+        # self.delivery_context.discard_with_annotations(event)
 
         print("count " + str(self._count))
 
@@ -45,13 +45,16 @@ class MyMessageHandler(MessagingHandler):
 
         if self._count == 100:
             print("closing receiver")
-            event.receiver.close()
-            event.connection.close()
+            # if you want you can add cleanup operations here
+            # event.receiver.close()
+            # event.connection.close()
 
     def on_connection_closed(self, event: Event):
+        # if you want you can add cleanup operations here
         print("connection closed")
 
     def on_link_closed(self, event: Event) -> None:
+        # if you want you can add cleanup operations here
         print("link closed")
 
 
@@ -91,9 +94,9 @@ def main() -> None:
         )
     )
 
-    addr = exchange_address(exchange_name, routing_key)
+    addr = AddressHelper.exchange_address(exchange_name, routing_key)
 
-    addr_queue = queue_address(queue_name)
+    addr_queue = AddressHelper.queue_address(queue_name)
 
     print("create a publisher and publish a test message")
     publisher = connection.publisher(addr)
@@ -102,7 +105,7 @@ def main() -> None:
     messages_purged = management.purge_queue(queue_name)
 
     print("messages purged: " + str(messages_purged))
-    management.close()
+    # management.close()
 
     # publish 10 messages
     for i in range(messages_to_publish):
@@ -121,22 +124,22 @@ def main() -> None:
         pass
 
     print("cleanup")
-    # once we finish consuming we close the connection so we need to create a new one
-    connection = create_connection()
+    consumer.close()
+    # once we finish consuming if we close the connection we need to create a new one
+    # connection = create_connection()
+    # management = connection.management()
 
-    management = connection.management()
     print("unbind")
     management.unbind(bind_name)
 
     print("delete queue")
-    # management.delete_queue(queue_name)
+    management.delete_queue(queue_name)
 
     print("delete exchange")
     management.delete_exchange(exchange_name)
 
     print("closing connections")
     management.close()
-    # consumer.close()
     print("after management closing")
     connection.close()
     print("after connection closing")

@@ -1,7 +1,7 @@
 from rabbitmq_amqp_python_client import (
+    AddressHelper,
     Connection,
     QuorumQueueSpecification,
-    queue_address,
 )
 
 from .conftest import (
@@ -29,7 +29,7 @@ def test_consumer_sync_queue_accept(connection: Connection) -> None:
 
     management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
-    addr_queue = queue_address(queue_name)
+    addr_queue = AddressHelper.queue_address(queue_name)
     consumer = connection.consumer(addr_queue)
 
     consumed = 0
@@ -61,12 +61,11 @@ def test_consumer_async_queue_accept(connection: Connection) -> None:
 
     management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
-    addr_queue = queue_address(queue_name)
+    addr_queue = AddressHelper.queue_address(queue_name)
 
     publish_messages(connection, messages_to_send, queue_name)
 
-    # workaround: it looks like when the consumer finish to consume invalidate the connection
-    # so for the moment we need to use one dedicated
+    # we closed the connection so we need to open a new one
     connection_consumer = create_connection()
     consumer = connection_consumer.consumer(
         addr_queue, handler=MyMessageHandlerAccept()
@@ -99,12 +98,11 @@ def test_consumer_async_queue_no_ack(connection: Connection) -> None:
 
     management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
-    addr_queue = queue_address(queue_name)
+    addr_queue = AddressHelper.queue_address(queue_name)
 
     publish_messages(connection, messages_to_send, queue_name)
 
-    # workaround: it looks like when the consumer finish to consume invalidate the connection
-    # so for the moment we need to use one dedicated
+    # we closed the connection so we need to open a new one
     connection_consumer = create_connection()
 
     consumer = connection_consumer.consumer(addr_queue, handler=MyMessageHandlerNoack())
@@ -138,7 +136,7 @@ def test_consumer_async_queue_with_discard(connection: Connection) -> None:
 
     # configuring dead lettering
     bind_path = setup_dead_lettering(management)
-    addr_queue = queue_address(queue_name)
+    addr_queue = AddressHelper.queue_address(queue_name)
 
     management.declare_queue(
         QuorumQueueSpecification(
@@ -150,8 +148,7 @@ def test_consumer_async_queue_with_discard(connection: Connection) -> None:
 
     publish_messages(connection, messages_to_send, queue_name)
 
-    # workaround: it looks like when the consumer finish to consume invalidate the connection
-    # so for the moment we need to use one dedicated
+    # we closed the connection so we need to open a new one
     connection_consumer = create_connection()
 
     consumer = connection_consumer.consumer(
@@ -204,11 +201,10 @@ def test_consumer_async_queue_with_discard_with_annotations(
     publish_messages(connection, messages_to_send, queue_name)
 
     bind_path = setup_dead_lettering(management)
-    addr_queue = queue_address(queue_name)
-    addr_queue_dl = queue_address(queue_dead_lettering)
+    addr_queue = AddressHelper.queue_address(queue_name)
+    addr_queue_dl = AddressHelper.queue_address(queue_dead_lettering)
 
-    # workaround: it looks like when the consumer finish to consume invalidate the connection
-    # so for the moment we need to use one dedicated
+    # we closed the connection so we need to open a new one
     connection_consumer = create_connection()
 
     consumer = connection_consumer.consumer(
@@ -254,12 +250,11 @@ def test_consumer_async_queue_with_requeue(connection: Connection) -> None:
 
     management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
-    addr_queue = queue_address(queue_name)
+    addr_queue = AddressHelper.queue_address(queue_name)
 
     publish_messages(connection, messages_to_send, queue_name)
 
-    # workaround: it looks like when the consumer finish to consume invalidate the connection
-    # so for the moment we need to use one dedicated
+    # we closed the connection so we need to open a new one
     connection_consumer = create_connection()
 
     consumer = connection_consumer.consumer(
@@ -293,12 +288,11 @@ def test_consumer_async_queue_with_requeue_with_annotations(
 
     management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
-    addr_queue = queue_address(queue_name)
+    addr_queue = AddressHelper.queue_address(queue_name)
 
     publish_messages(connection, messages_to_send, queue_name)
 
-    # workaround: it looks like when the consumer finish to consume invalidate the connection
-    # so for the moment we need to use one dedicated
+    # we closed the connection so we need to open a new one
     connection_consumer = create_connection()
 
     consumer = connection_consumer.consumer(
