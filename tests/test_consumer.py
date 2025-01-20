@@ -1,5 +1,6 @@
 from rabbitmq_amqp_python_client import (
     AddressHelper,
+    ArgumentOutOfRangeException,
     Connection,
     QuorumQueueSpecification,
 )
@@ -12,6 +13,7 @@ from .conftest import (
     MyMessageHandlerNoack,
     MyMessageHandlerRequeue,
     MyMessageHandlerRequeueWithAnnotations,
+    MyMessageHandlerRequeueWithInvalidAnnotations,
 )
 from .utils import (
     cleanup_dead_lettering,
@@ -320,3 +322,43 @@ def test_consumer_async_queue_with_requeue_with_annotations(
     assert "x-opt-string" in message.annotations
 
     assert message_count > 0
+
+
+def test_consumer_async_queue_with_requeue_with_invalid_annotations(
+    connection: Connection,
+) -> None:
+    messages_to_send = 1000
+    test_failure = True
+
+    queue_name = "test-queue-async-requeue"
+
+    management = connection.management()
+
+    management.declare_queue(QuorumQueueSpecification(name=queue_name))
+
+    addr_queue = AddressHelper.queue_address(queue_name)
+
+    publish_messages(connection, messages_to_send, queue_name)
+
+    # we closed the connection so we need to open a new one
+    connection_consumer = create_connection()
+
+    try:
+        consumer = connection_consumer.consumer(
+            addr_queue, handler=MyMessageHandlerRequeueWithInvalidAnnotations()
+        )
+
+        consumer.run()
+    # ack to terminate the consumer
+    except ConsumerTestException:
+        pass
+
+    except ArgumentOutOfRangeException:
+        test_failure = False
+
+    consumer.close()
+
+    management.delete_queue(queue_name)
+    management.close()
+
+    assert test_failure is False

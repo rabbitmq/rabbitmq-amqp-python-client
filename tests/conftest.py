@@ -2,8 +2,8 @@ import pytest
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
-    Connection,
     AMQPMessagingHandler,
+    Connection,
     Event,
     symbol,
 )
@@ -139,6 +139,22 @@ class MyMessageHandlerRequeueWithAnnotations(AMQPMessagingHandler):
     def on_message(self, event: Event):
         annotations = {}
         annotations[symbol("x-opt-string")] = "x-test1"
+        self.delivery_context.requeue_with_annotations(event, annotations)
+        self._received = self._received + 1
+        if self._received == 1000:
+            event.connection.close()
+            raise ConsumerTestException("consumed")
+
+
+class MyMessageHandlerRequeueWithInvalidAnnotations(AMQPMessagingHandler):
+
+    def __init__(self):
+        super().__init__()
+        self._received = 0
+
+    def on_message(self, event: Event):
+        annotations = {}
+        annotations[symbol("invalid")] = "x-test1"
         self.delivery_context.requeue_with_annotations(event, annotations)
         self._received = self._received + 1
         if self._received == 1000:

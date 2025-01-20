@@ -1,16 +1,15 @@
 from importlib import metadata
 
 from .address_helper import AddressHelper
+from .amqp_consumer_handler import AMQPMessagingHandler
 from .common import ExchangeType, QueueType
 from .connection import Connection
 from .consumer import Consumer
-from .amqp_consumer_handler import (
-    AMQPMessagingHandler,
-)
 from .entities import (
     BindingSpecification,
     ExchangeSpecification,
 )
+from .exceptions import ArgumentOutOfRangeException
 from .management import Management
 from .publisher import Publisher
 from .qpid.proton._data import symbol  # noqa: E402
@@ -52,4 +51,5 @@ __all__ = [
     "ExchangeType",
     "AddressHelper",
     "AMQPMessagingHandler",
+    "ArgumentOutOfRangeException",
 ]

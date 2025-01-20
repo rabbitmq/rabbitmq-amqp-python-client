@@ -3,9 +3,9 @@
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
+    AMQPMessagingHandler,
     BindingSpecification,
     Connection,
-    AMQPMessagingHandler,
     Event,
     ExchangeSpecification,
     Message,
