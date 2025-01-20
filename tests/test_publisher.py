@@ -1,12 +1,10 @@
-import time
-
 from rabbitmq_amqp_python_client import (
+    AddressHelper,
     BindingSpecification,
     Connection,
     ExchangeSpecification,
     Message,
     QuorumQueueSpecification,
-    exchange_address,
 )
 
 
@@ -25,12 +23,12 @@ def test_publish_queue(connection: Connection) -> None:
     except Exception:
         raised = True
 
-    assert raised is False
-
     publisher.close()
 
     management.delete_queue(queue_name)
     management.close()
+
+    assert raised is False
 
 
 def test_publish_exchange(connection: Connection) -> None:
@@ -52,7 +50,7 @@ def test_publish_exchange(connection: Connection) -> None:
         )
     )
 
-    addr = exchange_address(exchange_name, routing_key)
+    addr = AddressHelper.exchange_address(exchange_name, routing_key)
 
     raised = False
 
@@ -62,18 +60,17 @@ def test_publish_exchange(connection: Connection) -> None:
     except Exception:
         raised = True
 
-    assert raised is False
-
     publisher.close()
 
     management.delete_exchange(exchange_name)
     management.delete_queue(queue_name)
     management.close()
 
+    assert raised is False
+
 
 def test_publish_purge(connection: Connection) -> None:
-    connection = Connection("amqp://guest:guest@localhost:5672/")
-    connection.dial()
+    messages_to_publish = 20
 
     queue_name = "test-queue"
     management = connection.management()
@@ -84,19 +81,17 @@ def test_publish_purge(connection: Connection) -> None:
 
     try:
         publisher = connection.publisher("/queues/" + queue_name)
-        for i in range(20):
+        for i in range(messages_to_publish):
             publisher.publish(Message(body="test"))
     except Exception:
         raised = True
 
-    time.sleep(4)
+    publisher.close()
 
     message_purged = management.purge_queue(queue_name)
 
-    assert raised is False
-    assert message_purged == 20
-
-    publisher.close()
-
     management.delete_queue(queue_name)
     management.close()
+
+    assert raised is False
+    assert message_purged == 20

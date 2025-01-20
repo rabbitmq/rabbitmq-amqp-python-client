@@ -1,15 +1,22 @@
 from importlib import metadata
 
-from .address_helper import exchange_address, queue_address
-from .common import QueueType
+from .address_helper import AddressHelper
+from .amqp_consumer_handler import AMQPMessagingHandler
+from .common import ExchangeType, QueueType
 from .connection import Connection
+from .consumer import Consumer
 from .entities import (
     BindingSpecification,
     ExchangeSpecification,
 )
+from .exceptions import ArgumentOutOfRangeException
 from .management import Management
 from .publisher import Publisher
+from .qpid.proton._data import symbol  # noqa: E402
+from .qpid.proton._delivery import Delivery
+from .qpid.proton._events import Event
 from .qpid.proton._message import Message
+from .qpid.proton.handlers import MessagingHandler
 from .queues import (
     ClassicQueueSpecification,
     QuorumQueueSpecification,
@@ -35,7 +42,14 @@ __all__ = [
     "BindingSpecification",
     "QueueType",
     "Publisher",
-    "exchange_address",
-    "queue_address",
     "Message",
+    "Consumer",
+    "MessagingHandler",
+    "Event",
+    "Delivery",
+    "symbol",
+    "ExchangeType",
+    "AddressHelper",
+    "AMQPMessagingHandler",
+    "ArgumentOutOfRangeException",
 ]

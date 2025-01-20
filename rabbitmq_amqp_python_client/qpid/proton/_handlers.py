@@ -711,7 +711,7 @@ class MessagingHandler(Handler, Acking):
     def __init__(
         self,
         prefetch: int = 10,
-        auto_accept: bool = True,
+        auto_accept: bool = False,
         auto_settle: bool = True,
         peer_close_is_error: bool = False,
     ) -> None:

@@ -2,13 +2,7 @@ import logging
 import uuid
 from typing import Any, Optional, Union
 
-from .address_helper import (
-    binding_path_with_exchange_queue,
-    exchange_address,
-    path_address,
-    purge_queue_address,
-    queue_address,
-)
+from .address_helper import AddressHelper
 from .common import CommonValues, QueueType
 from .entities import (
     BindingSpecification,
@@ -113,7 +107,7 @@ class Management:
         body["internal"] = exchange_specification.is_internal
         body["arguments"] = exchange_specification.arguments  # type: ignore
 
-        path = exchange_address(exchange_specification.name)
+        path = AddressHelper.exchange_address(exchange_specification.name)
 
         self.request(
             body,
@@ -146,7 +140,7 @@ class Management:
         elif isinstance(queue_specification, StreamSpecification):
             body = self._declare_stream(queue_specification)
 
-        path = queue_address(queue_specification.name)
+        path = AddressHelper.queue_address(queue_specification.name)
 
         self.request(
             body,
@@ -255,7 +249,7 @@ class Management:
 
     def delete_exchange(self, exchange_name: str) -> None:
         logger.debug("delete_exchange operation called")
-        path = exchange_address(exchange_name)
+        path = AddressHelper.exchange_address(exchange_name)
 
         self.request(
             None,
@@ -268,7 +262,7 @@ class Management:
 
     def delete_queue(self, queue_name: str) -> None:
         logger.debug("delete_queue operation called")
-        path = queue_address(queue_name)
+        path = AddressHelper.queue_address(queue_name)
 
         self.request(
             None,
@@ -302,7 +296,7 @@ class Management:
         body["destination_queue"] = bind_specification.destination_queue
         body["arguments"] = {}  # type: ignore
 
-        path = path_address()
+        path = AddressHelper.path_address()
 
         self.request(
             body,
@@ -313,7 +307,9 @@ class Management:
             ],
         )
 
-        binding_path_with_queue = binding_path_with_exchange_queue(bind_specification)
+        binding_path_with_queue = AddressHelper.binding_path_with_exchange_queue(
+            bind_specification
+        )
         return binding_path_with_queue
 
     def unbind(self, binding_exchange_queue_path: str) -> None:
@@ -329,7 +325,7 @@ class Management:
 
     def purge_queue(self, queue_name: str) -> int:
         logger.debug("purge_queue operation called")
-        path = purge_queue_address(queue_name)
+        path = AddressHelper.purge_queue_address(queue_name)
 
         response = self.request(
             None,
@@ -344,7 +340,7 @@ class Management:
 
     def queue_info(self, queue_name: str) -> QueueInfo:
         logger.debug("queue_info operation called")
-        path = queue_address(queue_name)
+        path = AddressHelper.queue_address(queue_name)
 
         message = self.request(
             None,
