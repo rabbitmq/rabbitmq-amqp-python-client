@@ -4,8 +4,8 @@ from .address_helper import AddressHelper
 from .common import ExchangeType, QueueType
 from .connection import Connection
 from .consumer import Consumer
-from .delivery_consumer_handler import (
-    DeliveryConsumerHandler,
+from .amqp_consumer_handler import (
+    AMQPMessagingHandler,
 )
 from .entities import (
     BindingSpecification,
@@ -51,5 +51,5 @@ __all__ = [
     "symbol",
     "ExchangeType",
     "AddressHelper",
-    "DeliveryConsumerHandler",
+    "AMQPMessagingHandler",
 ]

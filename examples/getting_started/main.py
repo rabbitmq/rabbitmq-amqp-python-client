@@ -5,7 +5,7 @@ from rabbitmq_amqp_python_client import (
     AddressHelper,
     BindingSpecification,
     Connection,
-    DeliveryConsumerHandler,
+    AMQPMessagingHandler,
     Event,
     ExchangeSpecification,
     Message,
@@ -13,7 +13,7 @@ from rabbitmq_amqp_python_client import (
 )
 
 
-class MyMessageHandler(DeliveryConsumerHandler):
+class MyMessageHandler(AMQPMessagingHandler):
 
     def __init__(self):
         super().__init__()

@@ -3,7 +3,7 @@ import pytest
 from rabbitmq_amqp_python_client import (
     AddressHelper,
     Connection,
-    DeliveryConsumerHandler,
+    AMQPMessagingHandler,
     Event,
     symbol,
 )
@@ -57,7 +57,7 @@ class ConsumerTestException(BaseException):
         return repr(self.msg)
 
 
-class MyMessageHandlerAccept(DeliveryConsumerHandler):
+class MyMessageHandlerAccept(AMQPMessagingHandler):
 
     def __init__(self):
         super().__init__()
@@ -71,7 +71,7 @@ class MyMessageHandlerAccept(DeliveryConsumerHandler):
             raise ConsumerTestException("consumed")
 
 
-class MyMessageHandlerNoack(DeliveryConsumerHandler):
+class MyMessageHandlerNoack(AMQPMessagingHandler):
 
     def __init__(self):
         super().__init__(auto_settle=False)
@@ -86,7 +86,7 @@ class MyMessageHandlerNoack(DeliveryConsumerHandler):
             raise ConsumerTestException("consumed")
 
 
-class MyMessageHandlerDiscard(DeliveryConsumerHandler):
+class MyMessageHandlerDiscard(AMQPMessagingHandler):
 
     def __init__(self):
         super().__init__()
@@ -100,7 +100,7 @@ class MyMessageHandlerDiscard(DeliveryConsumerHandler):
             raise ConsumerTestException("consumed")
 
 
-class MyMessageHandlerDiscardWithAnnotations(DeliveryConsumerHandler):
+class MyMessageHandlerDiscardWithAnnotations(AMQPMessagingHandler):
 
     def __init__(self):
         super().__init__()
@@ -116,7 +116,7 @@ class MyMessageHandlerDiscardWithAnnotations(DeliveryConsumerHandler):
             raise ConsumerTestException("consumed")
 
 
-class MyMessageHandlerRequeue(DeliveryConsumerHandler):
+class MyMessageHandlerRequeue(AMQPMessagingHandler):
 
     def __init__(self):
         super().__init__()
@@ -130,7 +130,7 @@ class MyMessageHandlerRequeue(DeliveryConsumerHandler):
             raise ConsumerTestException("consumed")
 
 
-class MyMessageHandlerRequeueWithAnnotations(DeliveryConsumerHandler):
+class MyMessageHandlerRequeueWithAnnotations(AMQPMessagingHandler):
 
     def __init__(self):
         super().__init__()
