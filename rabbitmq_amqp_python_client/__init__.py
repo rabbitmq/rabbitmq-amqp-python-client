@@ -52,4 +52,5 @@ __all__ = [
     "AddressHelper",
     "AMQPMessagingHandler",
     "ArgumentOutOfRangeException",
+    "Delivery",
 ]

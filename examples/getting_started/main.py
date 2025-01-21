@@ -109,7 +109,13 @@ def main() -> None:
 
     # publish 10 messages
     for i in range(messages_to_publish):
-        publisher.publish(Message(body="test"))
+        status = publisher.publish(Message(body="test"))
+        if status.ACCEPTED:
+            print("message accepted")
+        if status.RELEASED:
+            print("message not routed")
+        if status.REJECTED:
+            print("message not rejected")
 
     publisher.close()
 
