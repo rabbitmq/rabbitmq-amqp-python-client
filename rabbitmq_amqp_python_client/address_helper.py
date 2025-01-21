@@ -72,3 +72,9 @@ class AddressHelper:
             + ";args="
         )
         return binding_path_wth_exchange_queue_key
+
+
+def validate_address(address: str) -> bool:
+    if address.startswith("/queues") or address.startswith("/exchanges"):
+        return True
+    return False

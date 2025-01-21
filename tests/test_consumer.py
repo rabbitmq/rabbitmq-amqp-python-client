@@ -53,6 +53,24 @@ def test_consumer_sync_queue_accept(connection: Connection) -> None:
     assert consumed > 0
 
 
+def test_consumer_invalid_destination(connection: Connection) -> None:
+
+    queue_name = "test-queue-sync-invalid-accept"
+    raised = False
+    consumer = None
+    try:
+        consumer = connection.consumer("/invalid-destination/" + queue_name)
+    except ArgumentOutOfRangeException:
+        raised = True
+    except Exception:
+        raised = False
+
+    if consumer is not None:
+        consumer.close()
+
+    assert raised is True
+
+
 def test_consumer_async_queue_accept(connection: Connection) -> None:
 
     messages_to_send = 1000

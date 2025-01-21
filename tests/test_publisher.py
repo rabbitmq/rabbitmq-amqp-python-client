@@ -1,5 +1,6 @@
 from rabbitmq_amqp_python_client import (
     AddressHelper,
+    ArgumentOutOfRangeException,
     BindingSpecification,
     Connection,
     ExchangeSpecification,
@@ -29,6 +30,27 @@ def test_publish_queue(connection: Connection) -> None:
     management.close()
 
     assert raised is False
+
+
+def test_publish_to_invalid_destination(connection: Connection) -> None:
+
+    queue_name = "test-queue"
+
+    raised = False
+
+    publisher = None
+    try:
+        publisher = connection.publisher("/invalid-destination/" + queue_name)
+        publisher.publish(Message(body="test"))
+    except ArgumentOutOfRangeException:
+        raised = True
+    except Exception:
+        raised = False
+
+    if publisher is not None:
+        publisher.close()
+
+    assert raised is True
 
 
 def test_publish_exchange(connection: Connection) -> None:
