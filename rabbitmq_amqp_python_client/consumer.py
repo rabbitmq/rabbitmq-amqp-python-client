@@ -40,15 +40,18 @@ class Consumer:
             self._receiver.close()
 
     def run(self) -> None:
+        logger.debug("Running the consumer: starting to consume")
         if self._receiver is not None:
             self._receiver.container.run()
 
     def stop(self) -> None:
+        logger.debug("Stopping the consumer: starting to consume")
         if self._receiver is not None:
             self._receiver.container.stop_events()
             self._receiver.container.stop()
 
     def _create_receiver(self, addr: str) -> BlockingReceiver:
+        logger.debug("Creating the receiver")
         return self._conn.create_receiver(
             addr, options=ReceiverOptionUnsettled(addr), handler=self._handler
         )
