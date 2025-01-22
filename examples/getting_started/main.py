@@ -1,7 +1,7 @@
 # type: ignore
 
 
-from rabbitmq_amqp_python_client import (
+from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,
     AddressHelper,
     AMQPMessagingHandler,
     BindingSpecification,
@@ -59,7 +59,9 @@ class MyMessageHandler(AMQPMessagingHandler):
 
 
 def create_connection() -> Connection:
-    connection = Connection("amqp://guest:guest@localhost:5672/")
+    connection = Connection("amqps://guest:guest@localhost:5672/")
+    # in case of SSL
+    # connection = Connection("amqps://guest:guest@localhost:5671/", ssl_context=SSlConfigurationContext(ca_cert="/Users/dpalaia/projects/rabbitmq-stream-go-client/compose/tls/tls-gen/basic/result/ca_certificate.pem"))
     connection.dial()
 
     return connection

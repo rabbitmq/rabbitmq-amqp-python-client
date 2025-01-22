@@ -5,6 +5,7 @@ from rabbitmq_amqp_python_client import (
     AMQPMessagingHandler,
     Connection,
     Event,
+    SSlConfigurationContext,
     symbol,
 )
 
@@ -12,6 +13,20 @@ from rabbitmq_amqp_python_client import (
 @pytest.fixture()
 def connection(pytestconfig):
     connection = Connection("amqp://guest:guest@localhost:5672/")
+    connection.dial()
+    try:
+        yield connection
+
+    finally:
+        connection.close()
+
+
+@pytest.fixture()
+def connection_ssl(pytestconfig):
+    connection = Connection(
+        "amqps://guest:guest@localhost:5671/",
+        ssl_context=SSlConfigurationContext(ca_cert="./.ci/certs/ca_certificate.pem"),
+    )
     connection.dial()
     try:
         yield connection
