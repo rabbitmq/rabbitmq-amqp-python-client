@@ -10,6 +10,6 @@ class ClientCert:
 
 
 @dataclass
-class SSlConfigurationContext:
+class SslConfigurationContext:
     ca_cert: str
     client_cert: Optional[ClientCert] = None

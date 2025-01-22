@@ -9,19 +9,19 @@ from .publisher import Publisher
 from .qpid.proton._handlers import MessagingHandler
 from .qpid.proton._transport import SSLDomain
 from .qpid.proton.utils import BlockingConnection
-from .ssl_configuration import SSlConfigurationContext
+from .ssl_configuration import SslConfigurationContext
 
 logger = logging.getLogger(__name__)
 
 
 class Connection:
     def __init__(
-        self, addr: str, ssl_context: Optional[SSlConfigurationContext] = None
+        self, addr: str, ssl_context: Optional[SslConfigurationContext] = None
     ):
         self._addr: str = addr
         self._conn: BlockingConnection
         self._management: Management
-        self._conf_ssl_context: Optional[SSlConfigurationContext] = ssl_context
+        self._conf_ssl_context: Optional[SslConfigurationContext] = ssl_context
         self._ssl_domain = None
 
     def dial(self) -> None:
