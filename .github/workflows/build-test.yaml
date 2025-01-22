@@ -17,25 +17,52 @@ jobs:
         python-version: [3.9]
         os: [ubuntu-22.04]
     runs-on: ${{ matrix.os }}
-    services:
-      rabbitmq-server:
-        image: rabbitmq:4.0.3-management
-        ports:
-          - 5672:5672
-          - 15672:15672
+
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v4
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and export
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          tags: rabbitmq_tls:latest
+          outputs: type=docker,dest=/tmp/rabbitmq_tls.tar
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rabbitmq_tls
+          path: /tmp/rabbitmq_tls.tar
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rabbitmq_tls
+          path: /tmp
+      - name: Load image
+        run: |
+          docker load --input /tmp/rabbitmq_tls.tar
+          docker image ls -a
+          docker run -d --rm --name rabbitmq-stream-client-test \
+          -p 5552:5552 -p 5672:5672 -p 5671:5671 -p 5551:5551 -p 15672:15672 \
+          -e RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS="-rabbitmq_stream advertised_host localhost" \
+          rabbitmq_tls
+      - name: wait for running
+        run: |
+          docker exec rabbitmq-stream-client-test /bin/bash -c 'ps -aux'
+          docker exec rabbitmq-stream-client-test /bin/bash -c 'sleep 10'
+          docker exec rabbitmq-stream-client-test /bin/bash -c 'rabbitmqctl status'
+          docker exec rabbitmq-stream-client-test /bin/bash -c 'rabbitmqctl wait --pid 1 --timeout 70'
       - name: Install and configure Poetry
         uses: snok/install-poetry@v1
         with:
           version: 1.4.2
           virtualenvs-create: true
           virtualenvs-in-project: false
-      - name: Enable RabbitMQ Plugins
-        run: docker exec ${{ job.services.rabbitmq-server.id }} rabbitmq-plugins enable rabbitmq_stream rabbitmq_stream_management rabbitmq_amqp1_0
+
       - name: poetry install
         run: poetry install --no-root
       - name: isort check-only

@@ -10,6 +10,7 @@ from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,
     ExchangeSpecification,
     Message,
     QuorumQueueSpecification,
+    SSlConfigurationContext,
 )
 
 
@@ -59,9 +60,15 @@ class MyMessageHandler(AMQPMessagingHandler):
 
 
 def create_connection() -> Connection:
-    connection = Connection("amqps://guest:guest@localhost:5672/")
+    # connection = Connection("amqps://guest:guest@localhost:5672/")
     # in case of SSL
-    # connection = Connection("amqps://guest:guest@localhost:5671/", ssl_context=SSlConfigurationContext(ca_cert="/Users/dpalaia/projects/rabbitmq-stream-go-client/compose/tls/tls-gen/basic/result/ca_certificate.pem"))
+    ca_cert_file = (
+        "/Users/dpalaia/projects/rabbitmq-stream-go-client/.ci/certs/ca_certificate.pem"
+    )
+    connection = Connection(
+        "amqps://guest:guest@localhost:5671/",
+        ssl_context=SSlConfigurationContext(ca_cert=ca_cert_file),
+    )
     connection.dial()
 
     return connection

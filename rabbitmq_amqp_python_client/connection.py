@@ -28,16 +28,19 @@ class Connection:
         logger.debug("Establishing a connection to the amqp server")
         if self._conf_ssl_context is not None:
             logger.debug("Enabling SSL")
+
             self._ssl_domain = SSLDomain(SSLDomain.MODE_CLIENT)
-            self._ssl_domain.set_trusted_ca_db(self._conf_ssl_context.ca_cert)
+            if self._ssl_domain is not None:
+                self._ssl_domain.set_trusted_ca_db(self._conf_ssl_context.ca_cert)
             # for mutual authentication
             if self._conf_ssl_context.client_cert is not None:
                 logger.debug("Enabling mutual authentication as well")
-                self._ssl_domain.set_credentials(
-                    self._conf_ssl_context.client_cert.client_cert,
-                    self._conf_ssl_context.client_cert.client_key,
-                    self._conf_ssl_context.client_cert.password,
-                )
+                if self._ssl_domain is not None:
+                    self._ssl_domain.set_credentials(
+                        self._conf_ssl_context.client_cert.client_cert,
+                        self._conf_ssl_context.client_cert.client_key,
+                        self._conf_ssl_context.client_cert.password,
+                    )
         self._conn = BlockingConnection(self._addr, ssl_domain=self._ssl_domain)
         self._open()
         logger.debug("Connection to the server established")

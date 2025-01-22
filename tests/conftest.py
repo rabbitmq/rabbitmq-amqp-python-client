@@ -25,7 +25,7 @@ def connection(pytestconfig):
 def connection_ssl(pytestconfig):
     connection = Connection(
         "amqps://guest:guest@localhost:5671/",
-        ssl_context=SSlConfigurationContext(ca_cert="./.ci/certs/ca_certificate.pem"),
+        ssl_context=SSlConfigurationContext(ca_cert=".ci/certs/ca_certificate.pem"),
     )
     connection.dial()
     try:
