@@ -27,6 +27,9 @@ from typing import (
     List,
     Optional,
     Union,
+    Annotated,
+    TypeVar,
+
 )
 
 from ._delivery import Delivery
@@ -101,6 +104,12 @@ class BlockingLink:
             if not self.connection.closing:
                 raise LinkDetached(self.link)
 
+    def is_closed(self) -> bool:
+        if self.link.state & Endpoint.REMOTE_CLOSED:
+            print("is closed")
+            self.link.close()
+            return True
+
     def close(self):
         """
         Close the link.
@@ -155,7 +164,7 @@ class BlockingSender(BlockingLink):
     def send(
         self,
         msg: "Message",
-        timeout: Union[None, Literal[False], float] = False,
+        timeout: Union[None, Literal[False], float] = 10,
         error_states: Optional[List["DispositionType"]] = None,
     ) -> Delivery:
         """
@@ -171,6 +180,8 @@ class BlockingSender(BlockingLink):
         :return: Delivery object for this message.
         """
 
+        if self.is_closed() is True:
+            raise LinkDetached(self.link)
         delivery = self.link.send(msg)
         self.connection.wait(
             lambda: _is_settled(delivery),
@@ -261,6 +272,7 @@ class BlockingReceiver(BlockingLink):
         if (
             self.link.source
             and self.link.source.address
+            and self.link.remote_source.address
             and self.link.source.address != self.link.remote_source.address
         ):
             # this may be followed by a detach, which may contain an error condition, so wait a little...
@@ -393,6 +405,9 @@ class ConnectionClosed(ConnectionException):
         super(ConnectionClosed, self).__init__(txt)
 
 
+MT = TypeVar("MT")
+CB = Annotated[Callable[[MT], None], "Message callback type"]
+
 class BlockingConnection(Handler):
     """
     A synchronous style connection wrapper.
@@ -423,6 +438,7 @@ class BlockingConnection(Handler):
         heartbeat: Optional[float] = None,
         urls: Optional[List[str]] = None,
         reconnect: Union[None, Literal[False], "Backoff"] = None,
+        on_disconnection_handler: Optional[CB] = None,
         **kwargs
     ) -> None:
         self.disconnected = False
@@ -432,6 +448,7 @@ class BlockingConnection(Handler):
         self.container.start()
         self.conn = None
         self.closing = False
+        self._on_disconnection_handler = on_disconnection_handler
         # Preserve previous behaviour if neither reconnect nor urls are supplied
         if url is not None and urls is None and reconnect is None:
             reconnect = False
@@ -613,10 +630,11 @@ class BlockingConnection(Handler):
                         raise Timeout(txt)
             finally:
                 self.container.timeout = container_timeout
-        if self.disconnected and not self._is_closed():
-            raise ConnectionException(
-                "Connection %s disconnected: %s" % (self.url, self.disconnected)
-            )
+        #if self.disconnected and not self._is_closed():
+            #raise ConnectionException(
+            #    "Connection %s disconnected: %s" % (self.url, self.disconnected)
+            #)
+            #self._on_disconnection_handler()
 
     def on_link_remote_close(self, event: "Event") -> None:
         """
@@ -631,7 +649,11 @@ class BlockingConnection(Handler):
         """
         Event callback for when the link peer closes the connection.
         """
+        #import traceback
+        #traceback.print_stack()
+        print("connection remote closed")
         if event.connection.state & Endpoint.LOCAL_ACTIVE:
+            event.container.schedule(0, self._on_disconnection_handler())
             event.connection.close()
             if not self.closing:
                 raise ConnectionClosed(event.connection)

@@ -24,6 +24,8 @@ from .queues import (
     StreamSpecification,
 )
 
+from .qpid.proton._utils import ConnectionClosed
+
 try:
     __version__ = metadata.version(__package__)
     __license__ = metadata.metadata(__package__)["license"]
@@ -52,4 +54,5 @@ __all__ = [
     "ExchangeType",
     "AddressHelper",
     "DeliveryConsumerHandler",
+    "ConnectionClosed",
 ]

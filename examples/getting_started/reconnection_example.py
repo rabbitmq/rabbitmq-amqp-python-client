@@ -36,9 +36,12 @@ def on_disconnected():
     addr_queue = AddressHelper.queue_address(queue_name)
 
     connection = create_connection()
-    management = connection.management()
-    publisher = connection.publisher(addr)
-    consumer = connection.consumer(addr_queue, handler=MyMessageHandler())
+    if management is not None:
+        management = connection.management()
+    if publisher is not None:
+        publisher = connection.publisher(addr)
+    if consumer is not None:
+        consumer = connection.consumer(addr_queue, handler=MyMessageHandler())
 
 
 class MyMessageHandler(DeliveryConsumerHandler):
@@ -98,7 +101,7 @@ def main() -> None:
     exchange_name = "test-exchange"
     queue_name = "example-queue"
     routing_key = "routing-key"
-    messages_to_publish = 10000000
+    messages_to_publish = 50000
 
     global connection
     global management
@@ -147,9 +150,14 @@ def main() -> None:
     while True:
         for i in range(messages_to_publish):
 
-            if i % 10000 == 0:
+            if i % 1000 == 0:
                 print("publishing")
-            status = publisher.publish(Message(body="test"))
+            try:
+                status = publisher.publish(Message(body="test"))
+            except ConnectionClosed:
+                print("publisher closing exception, resubmitting")
+                time.sleep(1)
+                continue
 
         print("closing")
         try:

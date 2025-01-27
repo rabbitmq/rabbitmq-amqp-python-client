@@ -6,19 +6,23 @@ from .management import Management
 from .publisher import Publisher
 from .qpid.proton._handlers import MessagingHandler
 from .qpid.proton.utils import BlockingConnection
+from typing import Callable, Any, Annotated, TypeVar
 
 logger = logging.getLogger(__name__)
 
+MT = TypeVar("MT")
+CB = Annotated[Callable[[MT], None], "Message callback type"]
 
 class Connection:
-    def __init__(self, addr: str):
+    def __init__(self, addr: str, on_disconnection_handler: Optional[CB] = None):
         self._addr: str = addr
         self._conn: BlockingConnection
         self._management: Management
+        self._on_disconnection_handler = on_disconnection_handler
 
     def dial(self) -> None:
         logger.debug("Establishing a connection to the amqp server")
-        self._conn = BlockingConnection(self._addr)
+        self._conn = BlockingConnection(self._addr, on_disconnection_handler=self._on_disconnection_handler)
         self._open()
         logger.debug("Connection to the server established")
 
