@@ -1,7 +1,8 @@
 import logging
 from typing import Optional
 
-from .options import SenderOption
+from .options import SenderOptionUnseattle
+from .qpid.proton._delivery import Delivery
 from .qpid.proton._message import Message
 from .qpid.proton.utils import (
     BlockingConnection,
@@ -23,9 +24,9 @@ class Publisher:
             logger.debug("Creating Sender")
             self._sender = self._create_sender(self._addr)
 
-    def publish(self, message: Message) -> None:
+    def publish(self, message: Message) -> Delivery:
         if self._sender is not None:
-            self._sender.send(message)
+            return self._sender.send(message)
 
     def close(self) -> None:
         logger.debug("Closing Sender")
@@ -33,4 +34,4 @@ class Publisher:
             self._sender.close()
 
     def _create_sender(self, addr: str) -> BlockingSender:
-        return self._conn.create_sender(addr, options=SenderOption(addr))
+        return self._conn.create_sender(addr, options=SenderOptionUnseattle(addr))

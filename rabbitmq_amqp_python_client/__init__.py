@@ -58,4 +58,5 @@ __all__ = [
     "ArgumentOutOfRangeException",
     "SslConfigurationContext",
     "ClientCert",
+    "Delivery",
 ]

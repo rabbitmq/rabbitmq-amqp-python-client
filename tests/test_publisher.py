@@ -18,17 +18,24 @@ def test_publish_queue(connection: Connection) -> None:
 
     raised = False
 
+    publisher = None
+    accepted = False
+
     try:
         publisher = connection.publisher("/queues/" + queue_name)
-        publisher.publish(Message(body="test"))
+        status = publisher.publish(Message(body="test"))
+        if status.ACCEPTED:
+            accepted = True
     except Exception:
         raised = True
 
-    publisher.close()
+    if publisher is not None:
+        publisher.close()
 
     management.delete_queue(queue_name)
     management.close()
 
+    assert accepted is True
     assert raised is False
 
 
@@ -98,10 +105,13 @@ def test_publish_exchange(connection: Connection) -> None:
     addr = AddressHelper.exchange_address(exchange_name, routing_key)
 
     raised = False
+    accepted = False
 
     try:
         publisher = connection.publisher(addr)
-        publisher.publish(Message(body="test"))
+        status = publisher.publish(Message(body="test"))
+        if status.ACCEPTED:
+            accepted = True
     except Exception:
         raised = True
 
@@ -111,6 +121,7 @@ def test_publish_exchange(connection: Connection) -> None:
     management.delete_queue(queue_name)
     management.close()
 
+    assert accepted is True
     assert raised is False
 
 

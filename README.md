@@ -9,6 +9,13 @@ This library is in early stages of development. It is meant to be used with Rabb
 - poetry install: resolves and install dependencies
 - poetry run pytest: run the tests
 
+## Installation
+
+The client is distributed via [`PIP`](https://pypi.org/project/rabbitmq-amqp-python-client/):
+```bash
+ pip install rabbitmq-amqp-python-client
+```
+
 ## Getting Started
 
 An example is provided in ./getting_started_main.py you can run it after starting a RabbitMQ 4.0 broker with:
