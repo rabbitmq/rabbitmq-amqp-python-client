@@ -39,6 +39,29 @@ def test_publish_queue(connection: Connection) -> None:
     assert raised is False
 
 
+def test_publish_ssl(connection_ssl: Connection) -> None:
+
+    queue_name = "test-queue"
+    management = connection_ssl.management()
+
+    management.declare_queue(QuorumQueueSpecification(name=queue_name))
+
+    raised = False
+
+    try:
+        publisher = connection_ssl.publisher("/queues/" + queue_name)
+        publisher.publish(Message(body="test"))
+    except Exception:
+        raised = True
+
+    publisher.close()
+
+    management.delete_queue(queue_name)
+    management.close()
+
+    assert raised is False
+
+
 def test_publish_to_invalid_destination(connection: Connection) -> None:
 
     queue_name = "test-queue"

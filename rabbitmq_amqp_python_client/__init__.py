@@ -22,6 +22,10 @@ from .queues import (
     QuorumQueueSpecification,
     StreamSpecification,
 )
+from .ssl_configuration import (
+    ClientCert,
+    SslConfigurationContext,
+)
 
 try:
     __version__ = metadata.version(__package__)
@@ -52,5 +56,7 @@ __all__ = [
     "AddressHelper",
     "AMQPMessagingHandler",
     "ArgumentOutOfRangeException",
+    "SslConfigurationContext",
+    "ClientCert",
     "Delivery",
 ]
