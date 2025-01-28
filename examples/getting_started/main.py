@@ -70,7 +70,7 @@ def main() -> None:
     exchange_name = "test-exchange"
     queue_name = "example-queue"
     routing_key = "routing-key"
-    messages_to_publish = 100
+    messages_to_publish = 100000
 
     print("connection to amqp server")
     connection = create_connection()
@@ -109,7 +109,13 @@ def main() -> None:
 
     # publish 10 messages
     for i in range(messages_to_publish):
-        publisher.publish(Message(body="test"))
+        status = publisher.publish(Message(body="test"))
+        if status.ACCEPTED:
+            print("message accepted")
+        elif status.RELEASED:
+            print("message not routed")
+        elif status.REJECTED:
+            print("message not rejected")
 
     publisher.close()
 
