@@ -71,6 +71,11 @@ if TYPE_CHECKING:
     )
     from ._transport import SSLDomain
 
+from typing import Annotated, TypeVar
+
+MT = TypeVar("MT")
+CB = Annotated[Callable[[MT], None], "Message callback type"]
+
 
 class BlockingLink:
     def __init__(
@@ -423,6 +428,7 @@ class BlockingConnection(Handler):
         heartbeat: Optional[float] = None,
         urls: Optional[List[str]] = None,
         reconnect: Union[None, Literal[False], "Backoff"] = None,
+        on_disconnection_handler: Optional[CB] = None,
         **kwargs
     ) -> None:
         self.disconnected = False
@@ -432,6 +438,7 @@ class BlockingConnection(Handler):
         self.container.start()
         self.conn = None
         self.closing = False
+        self._on_disconnection_handler = on_disconnection_handler
         # Preserve previous behaviour if neither reconnect nor urls are supplied
         if url is not None and urls is None and reconnect is None:
             reconnect = False
@@ -632,6 +639,8 @@ class BlockingConnection(Handler):
         Event callback for when the link peer closes the connection.
         """
         if event.connection.state & Endpoint.LOCAL_ACTIVE:
+            if self._on_disconnection_handler is not None:
+                event.container.schedule(0, self._on_disconnection_handler())
             event.connection.close()
             if not self.closing:
                 raise ConnectionClosed(event.connection)

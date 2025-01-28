@@ -16,6 +16,7 @@ from .qpid.proton._data import symbol  # noqa: E402
 from .qpid.proton._delivery import Delivery
 from .qpid.proton._events import Event
 from .qpid.proton._message import Message
+from .qpid.proton._utils import ConnectionClosed
 from .qpid.proton.handlers import MessagingHandler
 from .queues import (
     ClassicQueueSpecification,
@@ -59,4 +60,5 @@ __all__ = [
     "SslConfigurationContext",
     "ClientCert",
     "Delivery",
+    "ConnectionClosed",
 ]

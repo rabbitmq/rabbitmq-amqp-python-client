@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Annotated, Callable, Optional, TypeVar
 
 from .address_helper import validate_address
 from .consumer import Consumer
@@ -13,14 +13,21 @@ from .ssl_configuration import SslConfigurationContext
 
 logger = logging.getLogger(__name__)
 
+MT = TypeVar("MT")
+CB = Annotated[Callable[[MT], None], "Message callback type"]
+
 
 class Connection:
     def __init__(
-        self, addr: str, ssl_context: Optional[SslConfigurationContext] = None
+        self,
+        addr: str,
+        ssl_context: Optional[SslConfigurationContext] = None,
+        on_disconnection_handler: Optional[CB] = None,  # type: ignore
     ):
         self._addr: str = addr
         self._conn: BlockingConnection
         self._management: Management
+        self._on_disconnection_handler = on_disconnection_handler
         self._conf_ssl_context: Optional[SslConfigurationContext] = ssl_context
         self._ssl_domain = None
 
@@ -41,7 +48,11 @@ class Connection:
                         self._conf_ssl_context.client_cert.client_key,
                         self._conf_ssl_context.client_cert.password,
                     )
-        self._conn = BlockingConnection(self._addr, ssl_domain=self._ssl_domain)
+        self._conn = BlockingConnection(
+            self._addr,
+            ssl_domain=self._ssl_domain,
+            on_disconnection_handler=self._on_disconnection_handler,
+        )
         self._open()
         logger.debug("Connection to the server established")
 

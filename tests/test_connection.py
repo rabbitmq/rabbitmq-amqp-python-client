@@ -5,6 +5,13 @@ from rabbitmq_amqp_python_client import (
 )
 
 
+def on_disconnected():
+
+    print("disconnected")
+    global disconnected
+    disconnected = True
+
+
 def test_connection() -> None:
     connection = Connection("amqp://guest:guest@localhost:5672/")
     connection.dial()
