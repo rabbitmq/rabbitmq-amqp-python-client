@@ -5,21 +5,13 @@ from rabbitmq_amqp_python_client import (
     ArgumentOutOfRangeException,
     BindingSpecification,
     Connection,
+    ConnectionClosed,
     ExchangeSpecification,
     Message,
     QuorumQueueSpecification,
 )
 
 from .http_requests import delete_all_connections
-
-disconnected = False
-
-
-def on_disconnected():
-
-    print("disconnected")
-    global disconnected
-    disconnected = True
 
 
 def test_publish_queue(connection: Connection) -> None:
@@ -166,31 +158,85 @@ def test_publish_purge(connection: Connection) -> None:
     assert message_purged == 20
 
 
-def test_disconnection() -> None:
-    connection = Connection(
+def test_disconnection_reconnection() -> None:
+    disconnected = False
+    reconnected = False
+    generic_exception_raised = False
+    publisher = None
+    queue_name = "test-queue"
+    connection_test = None
+
+    time.sleep(60)
+
+    def on_disconnected():
+
+        nonlocal publisher
+        nonlocal queue_name
+        nonlocal connection_test
+
+        # reconnect
+        if connection_test is not None:
+            connection_test = Connection("amqp://guest:guest@localhost:5672/")
+            connection_test.dial()
+
+        if publisher is not None:
+            publisher = connection_test.publisher("/queues/" + queue_name)
+
+        nonlocal reconnected
+        reconnected = True
+
+    connection_test = Connection(
         "amqp://guest:guest@localhost:5672/", on_disconnection_handler=on_disconnected
     )
-    connection.dial()
+    connection_test.dial()
     # delay
-    time.sleep(10)
-    messages_to_publish = 20
+    time.sleep(5)
+    messages_to_publish = 10000
     queue_name = "test-queue"
-    management = connection.management()
+    management = connection_test.management()
 
     management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
-    try:
-        publisher = connection.publisher("/queues/" + queue_name)
+    management.close()
+
+    publisher = connection_test.publisher("/queues/" + queue_name)
+    while True:
+
         for i in range(messages_to_publish):
             if i == 5:
                 # simulate a disconnection
                 delete_all_connections()
-            publisher.publish(Message(body="test"))
+            try:
+                publisher.publish(Message(body="test"))
 
-    except Exception:
-        pass
+            except ConnectionClosed:
+                disconnected = True
+                continue
 
-    connection.close()
+            except Exception:
+                generic_exception_raised = True
 
-    global disconnected
+        break
+
+    publisher.close()
+
+    # cleanup, we need to create a new connection as the previous one
+    # was closed by the test
+
+    connection_test = Connection("amqp://guest:guest@localhost:5672/")
+    connection_test.dial()
+
+    management = connection_test.management()
+
+    # purge the queue and check number of published messages
+    message_purged = management.purge_queue(queue_name)
+
+    management.delete_queue(queue_name)
+    management.close()
+
+    connection_test.close()
+
+    assert generic_exception_raised is False
     assert disconnected is True
+    assert reconnected is True
+    assert message_purged == messages_to_publish - 1

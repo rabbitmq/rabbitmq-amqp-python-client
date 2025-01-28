@@ -15,15 +15,13 @@ def get_connections_names() -> list:
     return connection_names
 
 
-def delete_connections(connection_names: []) -> int:
+def delete_connections(connection_names: []) -> None:
     for connection_name in connection_names:
         request = (
             "http://guest:guest@localhost:15672/api/connections/"
             + urllib.parse.quote(connection_name)
         )
-        response = requests.delete(request, auth=HTTPBasicAuth("guest", "guest"))
-        print("response code" + str(response))
-        return response.status_code
+        requests.delete(request, auth=HTTPBasicAuth("guest", "guest"))
 
 
 def delete_all_connections() -> None:
