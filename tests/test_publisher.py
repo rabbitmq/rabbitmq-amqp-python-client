@@ -1,3 +1,5 @@
+import time
+
 from rabbitmq_amqp_python_client import (
     AddressHelper,
     ArgumentOutOfRangeException,
@@ -7,6 +9,17 @@ from rabbitmq_amqp_python_client import (
     Message,
     QuorumQueueSpecification,
 )
+
+from .http_requests import delete_all_connections
+
+disconnected = False
+
+
+def on_disconnected():
+
+    print("disconnected")
+    global disconnected
+    disconnected = True
 
 
 def test_publish_queue(connection: Connection) -> None:
@@ -151,3 +164,33 @@ def test_publish_purge(connection: Connection) -> None:
 
     assert raised is False
     assert message_purged == 20
+
+
+def test_disconnection() -> None:
+    connection = Connection(
+        "amqp://guest:guest@localhost:5672/", on_disconnection_handler=on_disconnected
+    )
+    connection.dial()
+    # delay
+    time.sleep(10)
+    messages_to_publish = 20
+    queue_name = "test-queue"
+    management = connection.management()
+
+    management.declare_queue(QuorumQueueSpecification(name=queue_name))
+
+    try:
+        publisher = connection.publisher("/queues/" + queue_name)
+        for i in range(messages_to_publish):
+            if i == 5:
+                # simulate a disconnection
+                delete_all_connections()
+            publisher.publish(Message(body="test"))
+
+    except Exception:
+        pass
+
+    connection.close()
+
+    global disconnected
+    assert disconnected is True
