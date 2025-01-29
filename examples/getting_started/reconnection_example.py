@@ -91,6 +91,12 @@ class MyMessageHandler(AMQPMessagingHandler):
 
 
 def create_connection() -> Connection:
+    # for multinode specify a list of urls and fill the field urls of Connection instead of url
+    # urls = [
+    #    "amqp://ha_tls-rabbit_node0-1:5602/",
+    #    "amqp://ha_tls-rabbit_node0-2:5602/",
+    #    "amqp://ha_tls-rabbit_node0-3:5602/",
+    # ]
     connection = Connection(
         "amqp://guest:guest@localhost:5672/", on_disconnection_handler=on_disconnected
     )
