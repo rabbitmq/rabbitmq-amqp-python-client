@@ -166,8 +166,6 @@ def test_disconnection_reconnection() -> None:
     queue_name = "test-queue"
     connection_test = None
 
-    time.sleep(60)
-
     def on_disconnected():
 
         nonlocal publisher

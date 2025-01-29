@@ -1,8 +1,14 @@
+import time
+
 from rabbitmq_amqp_python_client import (
     ClientCert,
     Connection,
+    ConnectionClosed,
     SslConfigurationContext,
+    StreamSpecification,
 )
+
+from .http_requests import delete_all_connections
 
 
 def on_disconnected():
@@ -30,3 +36,53 @@ def test_connection_ssl() -> None:
         ),
     )
     connection.dial()
+
+
+def test_connection_reconnection() -> None:
+
+    reconnected = False
+    connection = None
+    disconnected = False
+
+    def on_disconnected():
+
+        nonlocal connection
+
+        # reconnect
+        if connection is not None:
+            connection = Connection("amqp://guest:guest@localhost:5672/")
+            connection.dial()
+
+        nonlocal reconnected
+        reconnected = True
+
+    connection = Connection(
+        "amqp://guest:guest@localhost:5672/", on_disconnection_handler=on_disconnected
+    )
+    connection.dial()
+
+    # delay
+    time.sleep(5)
+    # simulate a disconnection
+    delete_all_connections()
+    # raise a reconnection
+    management = connection.management()
+    stream_name = "test_stream_info_with_validation"
+    queue_specification = StreamSpecification(
+        name=stream_name,
+    )
+
+    try:
+        management.declare_queue(queue_specification)
+    except ConnectionClosed:
+        disconnected = True
+
+    # check that we reconnected
+    management = connection.management()
+    management.declare_queue(queue_specification)
+    management.delete_queue(stream_name)
+    management.close()
+    connection.close()
+
+    assert disconnected is True
+    assert reconnected is True
