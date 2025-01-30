@@ -1,16 +1,51 @@
 # type: ignore
 
 
-from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,; SslConfigurationContext,; ClientCert,
+import time
+
+from rabbitmq_amqp_python_client import (
     AddressHelper,
     AMQPMessagingHandler,
     BindingSpecification,
     Connection,
+    ConnectionClosed,
     Event,
     ExchangeSpecification,
     Message,
     QuorumQueueSpecification,
 )
+
+connection = None
+management = None
+publisher = None
+consumer = None
+
+
+# disconnection callback
+# here you can cleanup or reconnect
+def on_disconnection():
+
+    print("disconnected")
+    exchange_name = "test-exchange"
+    queue_name = "example-queue"
+    routing_key = "routing-key"
+
+    global connection
+    global management
+    global publisher
+    global consumer
+
+    addr = AddressHelper.exchange_address(exchange_name, routing_key)
+    addr_queue = AddressHelper.queue_address(queue_name)
+
+    if connection is not None:
+        connection = create_connection()
+    if management is not None:
+        management = connection.management()
+    if publisher is not None:
+        publisher = connection.publisher(addr)
+    if consumer is not None:
+        consumer = connection.consumer(addr_queue, handler=MyMessageHandler())
 
 
 class MyMessageHandler(AMQPMessagingHandler):
@@ -20,7 +55,7 @@ class MyMessageHandler(AMQPMessagingHandler):
         self._count = 0
 
     def on_message(self, event: Event):
-        print("received message: " + str(event.message.body))
+        print("received message: " + str(event.message.annotations))
 
         # accepting
         self.delivery_context.accept(event)
@@ -59,18 +94,17 @@ class MyMessageHandler(AMQPMessagingHandler):
 
 
 def create_connection() -> Connection:
-    connection = Connection("amqp://guest:guest@localhost:5672/")
-    # in case of SSL enablement
-    # ca_cert_file = ".ci/certs/ca_certificate.pem"
-    # client_cert = ".ci/certs/client_certificate.pem"
-    # client_key = ".ci/certs/client_key.pem"
-    # connection = Connection(
-    #    "amqps://guest:guest@localhost:5671/",
-    #    ssl_context=SslConfigurationContext(
-    #        ca_cert=ca_cert_file,
-    #        client_cert=ClientCert(client_cert=client_cert, client_key=client_key),
-    #    ),
-    # )
+    # for multinode specify a list of urls and fill the field urls of Connection instead of url
+    # urls = [
+    #    "amqp://ha_tls-rabbit_node0-1:5682/",
+    #    "amqp://ha_tls-rabbit_node1-1:5692/",
+    #    "amqp://ha_tls-rabbit_node2-1:5602/",
+    # ]
+    # connection = Connection(urls=urls, on_disconnection_handler=on_disconnected)
+    connection = Connection(
+        url="amqp://guest:guest@localhost:5672/",
+        on_disconnection_handler=on_disconnection,
+    )
     connection.dial()
 
     return connection
@@ -81,12 +115,19 @@ def main() -> None:
     exchange_name = "test-exchange"
     queue_name = "example-queue"
     routing_key = "routing-key"
-    messages_to_publish = 100000
+    messages_to_publish = 50000
+
+    global connection
+    global management
+    global publisher
+    global consumer
 
     print("connection to amqp server")
-    connection = create_connection()
+    if connection is None:
+        connection = create_connection()
 
-    management = connection.management()
+    if management is None:
+        management = connection.management()
 
     print("declaring exchange and queue")
     management.declare_exchange(ExchangeSpecification(name=exchange_name, arguments={}))
@@ -110,7 +151,8 @@ def main() -> None:
     addr_queue = AddressHelper.queue_address(queue_name)
 
     print("create a publisher and publish a test message")
-    publisher = connection.publisher(addr)
+    if publisher is None:
+        publisher = connection.publisher(addr)
 
     print("purging the queue")
     messages_purged = management.purge_queue(queue_name)
@@ -119,26 +161,43 @@ def main() -> None:
     # management.close()
 
     # publish 10 messages
-    for i in range(messages_to_publish):
-        status = publisher.publish(Message(body="test"))
-        if status.ACCEPTED:
-            print("message accepted")
-        elif status.RELEASED:
-            print("message not routed")
-        elif status.REJECTED:
-            print("message not rejected")
+    while True:
+        for i in range(messages_to_publish):
 
-    publisher.close()
+            if i % 1000 == 0:
+                print("publishing")
+            try:
+                publisher.publish(Message(body="test"))
+            except ConnectionClosed:
+                print("publisher closing exception, resubmitting")
+                continue
+
+        print("closing")
+        try:
+            publisher.close()
+        except ConnectionClosed:
+            print("publisher closing exception, resubmitting")
+            continue
+        break
 
     print(
         "create a consumer and consume the test message - press control + c to terminate to consume"
     )
-    consumer = connection.consumer(addr_queue, handler=MyMessageHandler())
+    if consumer is None:
+        consumer = connection.consumer(addr_queue, handler=MyMessageHandler())
 
-    try:
-        consumer.run()
-    except KeyboardInterrupt:
-        pass
+    while True:
+        try:
+            consumer.run()
+        except KeyboardInterrupt:
+            pass
+        except ConnectionClosed:
+            time.sleep(1)
+            continue
+        except Exception as e:
+            print("consumer exited for exception " + str(e))
+
+        break
 
     print("cleanup")
     consumer.close()
