@@ -59,7 +59,7 @@ class MyMessageHandler(AMQPMessagingHandler):
 
 
 def create_connection() -> Connection:
-    connection = Connection("amqps://guest:guest@localhost:5672/")
+    connection = Connection("amqp://guest:guest@localhost:5672/")
     # in case of SSL enablement
     # ca_cert_file = ".ci/certs/ca_certificate.pem"
     # client_cert = ".ci/certs/client_certificate.pem"

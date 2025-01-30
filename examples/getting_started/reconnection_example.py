@@ -21,7 +21,9 @@ publisher = None
 consumer = None
 
 
-def on_disconnected():
+# disconnection callback
+# here you can cleanup or reconnect
+def on_disconnection():
 
     print("disconnected")
     exchange_name = "test-exchange"
@@ -36,7 +38,8 @@ def on_disconnected():
     addr = AddressHelper.exchange_address(exchange_name, routing_key)
     addr_queue = AddressHelper.queue_address(queue_name)
 
-    connection = create_connection()
+    if connection is not None:
+        connection = create_connection()
     if management is not None:
         management = connection.management()
     if publisher is not None:
@@ -93,12 +96,14 @@ class MyMessageHandler(AMQPMessagingHandler):
 def create_connection() -> Connection:
     # for multinode specify a list of urls and fill the field urls of Connection instead of url
     # urls = [
-    #    "amqp://ha_tls-rabbit_node0-1:5602/",
-    #    "amqp://ha_tls-rabbit_node0-2:5602/",
-    #    "amqp://ha_tls-rabbit_node0-3:5602/",
+    #    "amqp://ha_tls-rabbit_node0-1:5682/",
+    #    "amqp://ha_tls-rabbit_node1-1:5692/",
+    #    "amqp://ha_tls-rabbit_node2-1:5602/",
     # ]
+    # connection = Connection(urls=urls, on_disconnection_handler=on_disconnected)
     connection = Connection(
-        "amqp://guest:guest@localhost:5672/", on_disconnection_handler=on_disconnected
+        url="amqp://guest:guest@localhost:5672/",
+        on_disconnection_handler=on_disconnection,
     )
     connection.dial()
 
