@@ -28,6 +28,8 @@ from .ssl_configuration import (
     SslConfigurationContext,
 )
 
+from .entities import StreamFilterOptions
+
 try:
     __version__ = metadata.version(__package__)
     __license__ = metadata.metadata(__package__)["license"]
@@ -61,4 +63,5 @@ __all__ = [
     "ClientCert",
     "Delivery",
     "ConnectionClosed",
+    "StreamFilterOptions",
 ]

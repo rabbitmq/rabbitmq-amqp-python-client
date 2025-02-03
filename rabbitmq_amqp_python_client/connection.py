@@ -11,6 +11,8 @@ from .qpid.proton._transport import SSLDomain
 from .qpid.proton.utils import BlockingConnection
 from .ssl_configuration import SslConfigurationContext
 
+from.entities import StreamFilterOptions
+
 logger = logging.getLogger(__name__)
 
 MT = TypeVar("MT")
@@ -84,11 +86,11 @@ class Connection:
         return publisher
 
     def consumer(
-        self, destination: str, handler: Optional[MessagingHandler] = None
+        self, destination: str, handler: Optional[MessagingHandler] = None, stream_filter_options: Optional[StreamFilterOptions] = None
     ) -> Consumer:
         if validate_address(destination) is False:
             raise ArgumentOutOfRangeException(
                 "destination address must start with /queues or /exchanges"
             )
-        consumer = Consumer(self._conn, destination, handler)
+        consumer = Consumer(self._conn, destination, handler, stream_filter_options)
         return consumer

@@ -1,8 +1,12 @@
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 
+from .qpid.proton._data import symbol, Described
 from .common import ExchangeType, QueueType
 
+STREAM_FILTER_SPEC = "rabbitmq:stream-filter"
+STREAM_OFFSET_SPEC = "rabbitmq:stream-offset-spec"
+STREAM_FILTER_MATCH_UNFILTERED = "rabbitmq:stream-match-unfiltered"
 
 @dataclass
 class ExchangeSpecification:
@@ -33,3 +37,16 @@ class BindingSpecification:
     source_exchange: str
     destination_queue: str
     binding_key: str
+
+
+class StreamFilterOptions:
+
+    def __init__(self):
+        self._filter_set: Dict[symbol, Described] = {}
+
+    def offset(self, offset: int):
+        #self._filter_set[symbol(STREAM_FILTER_SPEC)] = Described(symbol(STREAM_FILTER_SPEC), "first")
+        self._filter_set[symbol('rabbitmq:stream-offset-spec')] = Described(symbol('rabbitmq:stream-offset-spec'), 0)
+
+    def filters(self) -> Dict[symbol, Described]:
+        return self._filter_set

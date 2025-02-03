@@ -9,6 +9,7 @@ from rabbitmq_amqp_python_client import (
     ExchangeSpecification,
     Message,
     QuorumQueueSpecification,
+    StreamSpecification,
 )
 
 from .http_requests import delete_all_connections
@@ -238,3 +239,28 @@ def test_disconnection_reconnection() -> None:
     assert disconnected is True
     assert reconnected is True
     assert message_purged == messages_to_publish - 1
+
+
+def test_queue_info_for_stream_with_validations(connection: Connection) -> None:
+
+    stream_name = "test_stream_info_with_validation"
+    messages_to_send = 200
+
+    queue_specification = StreamSpecification(
+        name=stream_name,
+    )
+    management = connection.management()
+    management.declare_queue(queue_specification)
+
+    print("before creating publisher")
+
+    publisher = connection.publisher("/queues/" + stream_name)
+
+    print("after creating publisher")
+
+    for i in range(messages_to_send):
+
+        publisher.publish(Message(body="test"))
+
+
+

@@ -86,9 +86,10 @@ class MyMessageHandlerAccept(AMQPMessagingHandler):
         self._received = 0
 
     def on_message(self, event: Event):
+        print("received message: " + str(event.message.body))
         self.delivery_context.accept(event)
         self._received = self._received + 1
-        if self._received == 1000:
+        if self._received == 10:
             event.connection.close()
             raise ConsumerTestException("consumed")
 
