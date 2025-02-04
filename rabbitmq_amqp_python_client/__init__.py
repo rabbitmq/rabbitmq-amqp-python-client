@@ -8,6 +8,8 @@ from .consumer import Consumer
 from .entities import (
     BindingSpecification,
     ExchangeSpecification,
+    OffsetSpecification,
+    StreamFilterOptions,
 )
 from .exceptions import ArgumentOutOfRangeException
 from .management import Management
@@ -27,8 +29,6 @@ from .ssl_configuration import (
     ClientCert,
     SslConfigurationContext,
 )
-
-from .entities import StreamFilterOptions
 
 try:
     __version__ = metadata.version(__package__)
@@ -64,4 +64,5 @@ __all__ = [
     "Delivery",
     "ConnectionClosed",
     "StreamFilterOptions",
+    "OffsetSpecification",
 ]

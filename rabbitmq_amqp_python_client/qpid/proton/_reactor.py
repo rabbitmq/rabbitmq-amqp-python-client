@@ -814,7 +814,6 @@ class Filter(ReceiverOption):
     """
 
     def __init__(self, filter_set: Dict[symbol, Described] = {}) -> None:
-        print("filterset: " + str(filter_set))
         self.filter_set = filter_set
 
     def apply(self, receiver: "Receiver") -> None:

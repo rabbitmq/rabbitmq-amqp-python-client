@@ -3,6 +3,7 @@ from typing import Annotated, Callable, Optional, TypeVar
 
 from .address_helper import validate_address
 from .consumer import Consumer
+from .entities import StreamFilterOptions
 from .exceptions import ArgumentOutOfRangeException
 from .management import Management
 from .publisher import Publisher
@@ -10,8 +11,6 @@ from .qpid.proton._handlers import MessagingHandler
 from .qpid.proton._transport import SSLDomain
 from .qpid.proton.utils import BlockingConnection
 from .ssl_configuration import SslConfigurationContext
-
-from.entities import StreamFilterOptions
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +85,10 @@ class Connection:
         return publisher
 
     def consumer(
-        self, destination: str, handler: Optional[MessagingHandler] = None, stream_filter_options: Optional[StreamFilterOptions] = None
+        self,
+        destination: str,
+        handler: Optional[MessagingHandler] = None,
+        stream_filter_options: Optional[StreamFilterOptions] = None,
     ) -> Consumer:
         if validate_address(destination) is False:
             raise ArgumentOutOfRangeException(

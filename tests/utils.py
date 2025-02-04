@@ -17,12 +17,9 @@ def create_connection() -> Connection:
 
 
 def publish_messages(connection: Connection, messages_to_send: int, queue_name) -> None:
-    print("before creating publisher")
     publisher = connection.publisher("/queues/" + queue_name)
-    print("after creating publisher")
     # publish messages_to_send messages
     for i in range(messages_to_send):
-        print("sending message")
         publisher.publish(Message(body="test" + str(i)))
     publisher.close()
 

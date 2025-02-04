@@ -1,10 +1,13 @@
+from .entities import StreamFilterOptions
 from .qpid.proton._data import (  # noqa: E402
     PropertyDict,
-    symbol, Described,
+    symbol,
 )
 from .qpid.proton._endpoints import Link  # noqa: E402
-from .qpid.proton.reactor import LinkOption, Filter  # noqa: E402
-from .entities import StreamFilterOptions
+from .qpid.proton.reactor import (  # noqa: E402
+    Filter,
+    LinkOption,
+)
 
 
 class SenderOption(LinkOption):  # type: ignore
@@ -53,7 +56,6 @@ class ReceiverOptionUnsettled(LinkOption):  # type: ignore
     def __init__(self, addr: str):
         self._addr = addr
 
-
     def apply(self, link: Link) -> None:
         link.target.address = self._addr
         link.snd_settle_mode = Link.SND_UNSETTLED
@@ -64,11 +66,11 @@ class ReceiverOptionUnsettled(LinkOption):  # type: ignore
     def test(self, link: Link) -> bool:
         return bool(link.is_receiver)
 
+
 class ReceiverOptionUnsettledWithFilters(Filter):  # type: ignore
     def __init__(self, addr: str, filter_options: StreamFilterOptions):
-        super().__init__(filter_options.filters())
+        super().__init__(filter_options.filter_set())
         self._addr = addr
-
 
     def apply(self, link: Link) -> None:
         link.source.filter.put_dict(self.filter_set)

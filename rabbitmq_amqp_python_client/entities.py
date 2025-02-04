@@ -1,12 +1,14 @@
 from dataclasses import dataclass
-from typing import Any, Optional, Dict
+from enum import Enum
+from typing import Any, Dict, Optional, Union
 
-from .qpid.proton._data import symbol, Described
 from .common import ExchangeType, QueueType
+from .qpid.proton._data import Described, symbol
 
 STREAM_FILTER_SPEC = "rabbitmq:stream-filter"
 STREAM_OFFSET_SPEC = "rabbitmq:stream-offset-spec"
 STREAM_FILTER_MATCH_UNFILTERED = "rabbitmq:stream-match-unfiltered"
+
 
 @dataclass
 class ExchangeSpecification:
@@ -32,6 +34,12 @@ class QueueInfo:
     consumer_count: int = 0
 
 
+class OffsetSpecification(Enum):
+    first = ("first",)
+    next = ("next",)
+    last = ("last",)
+
+
 @dataclass
 class BindingSpecification:
     source_exchange: str
@@ -41,11 +49,28 @@ class BindingSpecification:
 
 class StreamFilterOptions:
 
-    def __init__(self):
+    def __init__(self):  # type: ignore
         self._filter_set: Dict[symbol, Described] = {}
 
-    def offset(self, offset: int):
-        self._filter_set[symbol('rabbitmq:stream-offset-spec')] = Described(symbol('rabbitmq:stream-offset-spec'), "first")
+    def offset(self, offset_spefication: Union[OffsetSpecification, int]) -> None:
+        if isinstance(offset_spefication, int):
+            self._filter_set[symbol(STREAM_OFFSET_SPEC)] = Described(
+                symbol(STREAM_OFFSET_SPEC), offset_spefication
+            )
+        else:
+            self._filter_set[symbol(STREAM_OFFSET_SPEC)] = Described(
+                symbol(STREAM_OFFSET_SPEC), offset_spefication.name
+            )
 
-    def filters(self) -> Dict[symbol, Described]:
+    def apply_filters(self, filters: list[str]) -> None:
+        self._filter_set[symbol(STREAM_FILTER_SPEC)] = Described(
+            symbol(STREAM_FILTER_SPEC), filters
+        )
+
+    def filter_match_unfiltered(self, filter_match_unfiltered: bool) -> None:
+        self._filter_set[symbol(STREAM_FILTER_MATCH_UNFILTERED)] = Described(
+            symbol(STREAM_FILTER_MATCH_UNFILTERED), filter_match_unfiltered
+        )
+
+    def filter_set(self) -> Dict[symbol, Described]:
         return self._filter_set

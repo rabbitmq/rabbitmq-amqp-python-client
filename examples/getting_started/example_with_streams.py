@@ -1,15 +1,14 @@
 # type: ignore
 
-
 from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,; SslConfigurationContext,; ClientCert,
     AddressHelper,
     AMQPMessagingHandler,
-    BindingSpecification,
     Connection,
     Event,
-    ExchangeSpecification,
     Message,
-    QuorumQueueSpecification,
+    OffsetSpecification,
+    StreamFilterOptions,
+    StreamSpecification,
 )
 
 
@@ -77,83 +76,49 @@ def create_connection() -> Connection:
 
 
 def main() -> None:
-
-    exchange_name = "test-exchange"
     queue_name = "example-queue"
-    routing_key = "routing-key"
-    messages_to_publish = 100000
+    messages_to_publish = 100
 
     print("connection to amqp server")
     connection = create_connection()
 
     management = connection.management()
 
-    print("declaring exchange and queue")
-    management.declare_exchange(ExchangeSpecification(name=exchange_name, arguments={}))
-
-    management.declare_queue(
-        QuorumQueueSpecification(name=queue_name)
-        # QuorumQueueSpecification(name=queue_name, dead_letter_exchange="dead-letter")
-    )
-
-    print("binding queue to exchange")
-    bind_name = management.bind(
-        BindingSpecification(
-            source_exchange=exchange_name,
-            destination_queue=queue_name,
-            binding_key=routing_key,
-        )
-    )
-
-    addr = AddressHelper.exchange_address(exchange_name, routing_key)
+    management.declare_queue(StreamSpecification(name=queue_name))
 
     addr_queue = AddressHelper.queue_address(queue_name)
 
-    print("create a publisher and publish a test message")
-    publisher = connection.publisher(addr)
+    consumer_connection = create_connection()
 
-    print("purging the queue")
-    messages_purged = management.purge_queue(queue_name)
+    stream_filter_options = StreamFilterOptions()
+    # can be first, last, next or an offset long
+    stream_filter_options.offset(OffsetSpecification.first)
 
-    print("messages purged: " + str(messages_purged))
-    # management.close()
-
-    # publish 10 messages
-    for i in range(messages_to_publish):
-        status = publisher.publish(Message(body="test"))
-        if status.ACCEPTED:
-            print("message accepted")
-        elif status.RELEASED:
-            print("message not routed")
-        elif status.REJECTED:
-            print("message not rejected")
-
-    publisher.close()
-
+    consumer = consumer_connection.consumer(
+        addr_queue,
+        handler=MyMessageHandler(),
+        stream_filter_options=stream_filter_options,
+    )
     print(
         "create a consumer and consume the test message - press control + c to terminate to consume"
     )
-    consumer = connection.consumer(addr_queue, handler=MyMessageHandler())
+
+    # print("create a publisher and publish a test message")
+    publisher = connection.publisher(addr_queue)
+
+    for i in range(messages_to_publish):
+        publisher.publish(Message(body="test: " + str(i)))
+
+    publisher.close()
 
     try:
         consumer.run()
     except KeyboardInterrupt:
         pass
 
-    print("cleanup")
-    consumer.close()
-    # once we finish consuming if we close the connection we need to create a new one
-    # connection = create_connection()
-    # management = connection.management()
-
-    print("unbind")
-    management.unbind(bind_name)
-
+    #
     print("delete queue")
-    management.delete_queue(queue_name)
-
-    print("delete exchange")
-    management.delete_exchange(exchange_name)
+    # management.delete_queue(queue_name)
 
     print("closing connections")
     management.close()

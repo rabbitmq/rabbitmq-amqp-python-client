@@ -261,6 +261,3 @@ def test_queue_info_for_stream_with_validations(connection: Connection) -> None:
     for i in range(messages_to_send):
 
         publisher.publish(Message(body="test"))
-
-
-

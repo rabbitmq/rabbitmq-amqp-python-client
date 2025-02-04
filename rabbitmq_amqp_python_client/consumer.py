@@ -1,15 +1,17 @@
 import logging
 from typing import Optional
 
-from .options import ReceiverOptionUnsettled, ReceiverOptionUnsettledWithFilters
+from .entities import StreamFilterOptions
+from .options import (
+    ReceiverOptionUnsettled,
+    ReceiverOptionUnsettledWithFilters,
+)
 from .qpid.proton._handlers import MessagingHandler
 from .qpid.proton._message import Message
 from .qpid.proton.utils import (
     BlockingConnection,
     BlockingReceiver,
 )
-
-from.entities import StreamFilterOptions
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +22,7 @@ class Consumer:
         conn: BlockingConnection,
         addr: str,
         handler: Optional[MessagingHandler] = None,
-        stream_options: Optional[StreamFilterOptions] = None
+        stream_options: Optional[StreamFilterOptions] = None,
     ):
         self._receiver: Optional[BlockingReceiver] = None
         self._conn = conn
@@ -58,15 +60,15 @@ class Consumer:
         logger.debug("Creating the receiver")
         if self._stream_options is None:
             receiver = self._conn.create_receiver(
-            addr, options=ReceiverOptionUnsettled(addr), handler=self._handler
+                addr, options=ReceiverOptionUnsettled(addr), handler=self._handler
             )
             receiver.credit = 1
         else:
-            print("stream option is not None")
             receiver = self._conn.create_receiver(
-                addr, options=ReceiverOptionUnsettledWithFilters(addr, self._stream_options), handler=self._handler
+                addr,
+                options=ReceiverOptionUnsettledWithFilters(addr, self._stream_options),
+                handler=self._handler,
             )
             receiver.credit = 1
 
         return receiver
-
