@@ -80,6 +80,8 @@ def create_connection() -> Connection:
 
 def threaded_function(addr_queue):
     connection = create_connection()
+    offset_specification = StreamFilterOptions()
+    offset_specification.offset(10)
     consumer = connection.consumer(addr_queue, handler=MyMessageHandler())
     try:
         consumer.run()
@@ -101,10 +103,10 @@ def main() -> None:
     print("declaring exchange and queue")
     # management.declare_exchange(ExchangeSpecification(name=exchange_name, arguments={}))
 
-    management.declare_queue(
-        StreamSpecification(name=queue_name)
+    #management.declare_queue(
+    #    StreamSpecification(name=queue_name)
         # QuorumQueueSpecification(name=queue_name, dead_letter_exchange="dead-letter")
-    )
+    #)
 
     print("binding queue to exchange")
     # bind_name = management.bind(
@@ -124,7 +126,7 @@ def main() -> None:
     ## press control + c to terminate the consumer
 
     # print("create a publisher and publish a test message")
-    publisher = connection.publisher(addr_queue)
+    #publisher = connection.publisher(addr_queue)
 
     # print("purging the queue")
     # messages_purged = management.purge_queue(queue_name)
@@ -133,8 +135,8 @@ def main() -> None:
     # management.close()
 
     # publish 10 messages
-    for i in range(messages_to_publish):
-        status = publisher.publish(Message(body="test"))
+    #for i in range(messages_to_publish):
+    #    status = publisher.publish(Message(body="test"))
     #     # if status.ACCEPTED:
     #     #    print("message accepted")
     #     # elif status.RELEASED:
@@ -142,7 +144,7 @@ def main() -> None:
     #     # elif status.REJECTED:
     #     #    print("message not rejected")
     #
-    publisher.close()
+    #publisher.close()
     #
     # print(
     #     "create a consumer and consume the test message - press control + c to terminate to consume"
