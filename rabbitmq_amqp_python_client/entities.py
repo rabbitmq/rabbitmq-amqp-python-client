@@ -45,8 +45,6 @@ class StreamFilterOptions:
         self._filter_set: Dict[symbol, Described] = {}
 
     def offset(self, offset: int):
-        #self._filter_set[symbol(STREAM_FILTER_SPEC)] = Described(symbol(STREAM_FILTER_SPEC), "first")
-        print("im here")
         self._filter_set[symbol('rabbitmq:stream-offset-spec')] = Described(symbol('rabbitmq:stream-offset-spec'), "first")
 
     def filters(self) -> Dict[symbol, Described]:
