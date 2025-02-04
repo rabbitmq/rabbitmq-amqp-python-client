@@ -1,3 +1,5 @@
+from typing import Optional
+
 from rabbitmq_amqp_python_client import (
     BindingSpecification,
     Connection,
@@ -16,11 +18,21 @@ def create_connection() -> Connection:
     return connection_consumer
 
 
-def publish_messages(connection: Connection, messages_to_send: int, queue_name) -> None:
+def publish_messages(
+    connection: Connection,
+    messages_to_send: int,
+    queue_name,
+    filters: Optional[list[str]] = None,
+) -> None:
+    annotations = {}
+    if filters is not None:
+        for filter in filters:
+            annotations = {"x-stream-filter-value": filter}
+
     publisher = connection.publisher("/queues/" + queue_name)
     # publish messages_to_send messages
     for i in range(messages_to_send):
-        publisher.publish(Message(body="test" + str(i)))
+        publisher.publish(Message(body="test" + str(i), annotations=annotations))
     publisher.close()
 
 

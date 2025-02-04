@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Literal, Optional, Union
 
 from .entities import StreamFilterOptions
 from .options import (
@@ -36,9 +36,9 @@ class Consumer:
             logger.debug("Creating Sender")
             self._receiver = self._create_receiver(self._addr)
 
-    def consume(self) -> Message:
+    def consume(self, timeout: Union[None, Literal[False], float] = False) -> Message:
         if self._receiver is not None:
-            return self._receiver.receive()
+            return self._receiver.receive(timeout=timeout)
 
     def close(self) -> None:
         logger.debug("Closing the receiver")
