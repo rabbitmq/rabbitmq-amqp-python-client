@@ -82,7 +82,7 @@ def threaded_function(addr_queue):
     connection = create_connection()
     offset_specification = StreamFilterOptions()
     offset_specification.offset(10)
-    consumer = connection.consumer(addr_queue, handler=MyMessageHandler())
+    consumer = connection.consumer(addr_queue, handler=MyMessageHandler(), stream_filter_options=offset_specification)
     try:
         consumer.run()
     except KeyboardInterrupt:

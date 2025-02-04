@@ -1,6 +1,6 @@
 from .qpid.proton._data import (  # noqa: E402
     PropertyDict,
-    symbol,
+    symbol, Described,
 )
 from .qpid.proton._endpoints import Link  # noqa: E402
 from .qpid.proton.reactor import LinkOption, Filter  # noqa: E402
@@ -71,11 +71,7 @@ class ReceiverOptionUnsettledWithFilters(Filter):  # type: ignore
 
 
     def apply(self, link: Link) -> None:
-        link.target.address = self._addr
-        link.snd_settle_mode = Link.SND_UNSETTLED
-        link.rcv_settle_mode = Link.RCV_FIRST
-        link.properties = PropertyDict({symbol("paired"): True})
-        link.source.dynamic = False
+        link.source.filter.put_dict(self.filter_set)
 
     def test(self, link: Link) -> bool:
         return bool(link.is_receiver)
