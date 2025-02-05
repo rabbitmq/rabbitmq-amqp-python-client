@@ -1,7 +1,11 @@
 import logging
-from typing import Optional
+from typing import Literal, Optional, Union
 
-from .options import ReceiverOptionUnsettled
+from .entities import StreamOptions
+from .options import (
+    ReceiverOptionUnsettled,
+    ReceiverOptionUnsettledWithFilters,
+)
 from .qpid.proton._handlers import MessagingHandler
 from .qpid.proton._message import Message
 from .qpid.proton.utils import (
@@ -18,11 +22,13 @@ class Consumer:
         conn: BlockingConnection,
         addr: str,
         handler: Optional[MessagingHandler] = None,
+        stream_options: Optional[StreamOptions] = None,
     ):
         self._receiver: Optional[BlockingReceiver] = None
         self._conn = conn
         self._addr = addr
         self._handler = handler
+        self._stream_options = stream_options
         self._open()
 
     def _open(self) -> None:
@@ -30,9 +36,9 @@ class Consumer:
             logger.debug("Creating Sender")
             self._receiver = self._create_receiver(self._addr)
 
-    def consume(self) -> Message:
+    def consume(self, timeout: Union[None, Literal[False], float] = False) -> Message:
         if self._receiver is not None:
-            return self._receiver.receive()
+            return self._receiver.receive(timeout=timeout)
 
     def close(self) -> None:
         logger.debug("Closing the receiver")
@@ -52,6 +58,16 @@ class Consumer:
 
     def _create_receiver(self, addr: str) -> BlockingReceiver:
         logger.debug("Creating the receiver")
-        return self._conn.create_receiver(
-            addr, options=ReceiverOptionUnsettled(addr), handler=self._handler
-        )
+        if self._stream_options is None:
+            receiver = self._conn.create_receiver(
+                addr, options=ReceiverOptionUnsettled(addr), handler=self._handler
+            )
+
+        else:
+            receiver = self._conn.create_receiver(
+                addr,
+                options=ReceiverOptionUnsettledWithFilters(addr, self._stream_options),
+                handler=self._handler,
+            )
+
+        return receiver

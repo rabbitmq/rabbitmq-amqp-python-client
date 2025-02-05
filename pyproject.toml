@@ -17,6 +17,7 @@ mypy = "^0.910"
 pytest = "^7.4.0"
 black = "^24.3.0"
 python-qpid-proton = "^0.39.0"
+requests = "^2.31.0"
 
 [build-system]
 requires = ["poetry-core"]

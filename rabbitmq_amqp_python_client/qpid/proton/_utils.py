@@ -71,6 +71,11 @@ if TYPE_CHECKING:
     )
     from ._transport import SSLDomain
 
+from typing import Annotated, TypeVar
+
+MT = TypeVar("MT")
+CB = Annotated[Callable[[MT], None], "Message callback type"]
+
 
 class BlockingLink:
     def __init__(
@@ -423,38 +428,49 @@ class BlockingConnection(Handler):
         heartbeat: Optional[float] = None,
         urls: Optional[List[str]] = None,
         reconnect: Union[None, Literal[False], "Backoff"] = None,
+        on_disconnection_handler: Optional[CB] = None,
         **kwargs
     ) -> None:
-        self.disconnected = False
-        self.timeout = timeout or 60
-        self.container = container or Container()
-        self.container.timeout = self.timeout
-        self.container.start()
-        self.conn = None
-        self.closing = False
+
         # Preserve previous behaviour if neither reconnect nor urls are supplied
-        if url is not None and urls is None and reconnect is None:
-            reconnect = False
-            url = Url(url).defaults()
-        failed = True
-        try:
+        if urls is None:
+            urls = []
+            urls.append(url)
+
+        # multinode reimplementation (default one wasn't working properly)
+        attempt = 0
+        for i in range(len(urls)):
+            attempt = attempt + 1
+            self.disconnected = False
+            self.timeout = timeout or 60
+            self.container = container or Container()
+            self.container.timeout = self.timeout
+            self.container.start()
+            self.conn = None
+            self.closing = False
+            self._on_disconnection_handler = on_disconnection_handler
+
+            url_it = urls[i]
             self.conn = self.container.connect(
-                url=url,
+                url=Url(url_it).defaults(),
                 handler=self,
                 ssl_domain=ssl_domain,
-                reconnect=reconnect,
+                reconnect=False,
                 heartbeat=heartbeat,
-                urls=urls,
+                urls=None,
                 **kwargs
             )
-            self.wait(
-                lambda: not (self.conn.state & Endpoint.REMOTE_UNINIT),
-                msg="Opening connection",
-            )
-            failed = False
-        finally:
-            if failed and self.conn:
-                self.close()
+            try:
+                self.wait(
+                    lambda: not (self.conn.state & Endpoint.REMOTE_UNINIT),
+                    msg="Opening connection",
+                )
+
+            except ConnectionException:
+                self.conn.close()
+                if attempt == len(urls):
+                    raise
+                continue
 
     def create_sender(
         self,
@@ -632,6 +648,8 @@ class BlockingConnection(Handler):
         Event callback for when the link peer closes the connection.
         """
         if event.connection.state & Endpoint.LOCAL_ACTIVE:
+            if self._on_disconnection_handler is not None:
+                event.container.schedule(0, self._on_disconnection_handler())
             event.connection.close()
             if not self.closing:
                 raise ConnectionClosed(event.connection)
