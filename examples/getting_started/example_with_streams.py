@@ -19,7 +19,12 @@ class MyMessageHandler(AMQPMessagingHandler):
         self._count = 0
 
     def on_message(self, event: Event):
-        print("received message: " + str(event.message.body))
+        print(
+            "received message from stream: "
+            + str(event.message.body)
+            + " with offset: "
+            + str(event.message.annotations["x-stream-offset"])
+        )
 
         # accepting
         self.delivery_context.accept(event)
@@ -92,6 +97,7 @@ def main() -> None:
 
     stream_filter_options = StreamFilterOptions()
     # can be first, last, next or an offset long
+    # you can also specify stream filters
     stream_filter_options.offset(OffsetSpecification.first)
 
     consumer = consumer_connection.consumer(
@@ -118,7 +124,7 @@ def main() -> None:
 
     #
     print("delete queue")
-    # management.delete_queue(queue_name)
+    management.delete_queue(queue_name)
 
     print("closing connections")
     management.close()

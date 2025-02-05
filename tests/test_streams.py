@@ -266,3 +266,40 @@ def test_stream_filtering_not_present(connection: Connection) -> None:
     management.delete_queue(stream_name)
 
     assert raised is True
+
+
+def test_stream_match_unfiltered(connection: Connection) -> None:
+
+    consumer = None
+    stream_name = "test_stream_info_with_filtering"
+    messages_to_send = 10
+
+    queue_specification = StreamSpecification(
+        name=stream_name,
+    )
+    management = connection.management()
+    management.declare_queue(queue_specification)
+
+    addr_queue = AddressHelper.queue_address(stream_name)
+
+    # consume and then publish
+    try:
+        stream_filter_options = StreamFilterOptions()
+        stream_filter_options.apply_filters(["banana"])
+        stream_filter_options.filter_match_unfiltered(True)
+        connection_consumer = create_connection()
+        consumer = connection_consumer.consumer(
+            addr_queue,
+            handler=MyMessageHandlerAcceptStreamOffset(),
+            stream_filter_options=stream_filter_options,
+        )
+        # send with annotations filter banana
+        publish_messages(connection, messages_to_send, stream_name)
+        consumer.run()
+    # ack to terminate the consumer
+    except ConsumerTestException:
+        pass
+
+    consumer.close()
+
+    management.delete_queue(stream_name)
