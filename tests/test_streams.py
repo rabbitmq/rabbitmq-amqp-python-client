@@ -2,7 +2,7 @@ from rabbitmq_amqp_python_client import (
     AddressHelper,
     Connection,
     OffsetSpecification,
-    StreamFilterOptions,
+    StreamOptions,
     StreamSpecification,
 )
 
@@ -58,7 +58,7 @@ def test_stream_read_from_last(connection: Connection) -> None:
 
     addr_queue = AddressHelper.queue_address(stream_name)
 
-    stream_filter_options = StreamFilterOptions()
+    stream_filter_options = StreamOptions()
     stream_filter_options.offset(OffsetSpecification.last)
 
     # consume and then publish
@@ -97,7 +97,7 @@ def test_stream_read_from_offset_zero(connection: Connection) -> None:
     # publish and then consume
     publish_messages(connection, messages_to_send, stream_name)
 
-    stream_filter_options = StreamFilterOptions()
+    stream_filter_options = StreamOptions()
     stream_filter_options.offset(0)
 
     try:
@@ -135,7 +135,7 @@ def test_stream_read_from_offset_first(connection: Connection) -> None:
     # publish and then consume
     publish_messages(connection, messages_to_send, stream_name)
 
-    stream_filter_options = StreamFilterOptions()
+    stream_filter_options = StreamOptions()
     stream_filter_options.offset(OffsetSpecification.first)
 
     try:
@@ -173,7 +173,7 @@ def test_stream_read_from_offset_ten(connection: Connection) -> None:
     # publish and then consume
     publish_messages(connection, messages_to_send, stream_name)
 
-    stream_filter_options = StreamFilterOptions()
+    stream_filter_options = StreamOptions()
     stream_filter_options.offset(10)
 
     try:
@@ -211,7 +211,7 @@ def test_stream_filtering(connection: Connection) -> None:
 
     # consume and then publish
     try:
-        stream_filter_options = StreamFilterOptions()
+        stream_filter_options = StreamOptions()
         stream_filter_options.apply_filters(["banana"])
         connection_consumer = create_connection()
         consumer = connection_consumer.consumer(
@@ -246,7 +246,7 @@ def test_stream_filtering_not_present(connection: Connection) -> None:
     addr_queue = AddressHelper.queue_address(stream_name)
 
     # consume and then publish
-    stream_filter_options = StreamFilterOptions()
+    stream_filter_options = StreamOptions()
     stream_filter_options.apply_filters(["apple"])
     connection_consumer = create_connection()
     consumer = connection_consumer.consumer(
@@ -284,7 +284,7 @@ def test_stream_match_unfiltered(connection: Connection) -> None:
 
     # consume and then publish
     try:
-        stream_filter_options = StreamFilterOptions()
+        stream_filter_options = StreamOptions()
         stream_filter_options.apply_filters(["banana"])
         stream_filter_options.filter_match_unfiltered(True)
         connection_consumer = create_connection()

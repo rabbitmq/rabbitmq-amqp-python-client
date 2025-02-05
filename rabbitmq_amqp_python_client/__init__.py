@@ -9,7 +9,7 @@ from .entities import (
     BindingSpecification,
     ExchangeSpecification,
     OffsetSpecification,
-    StreamFilterOptions,
+    StreamOptions,
 )
 from .exceptions import ArgumentOutOfRangeException
 from .management import Management
@@ -63,6 +63,6 @@ __all__ = [
     "ClientCert",
     "Delivery",
     "ConnectionClosed",
-    "StreamFilterOptions",
+    "StreamOptions",
     "OffsetSpecification",
 ]

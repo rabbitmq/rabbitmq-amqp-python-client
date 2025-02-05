@@ -1,7 +1,7 @@
 import logging
 from typing import Literal, Optional, Union
 
-from .entities import StreamFilterOptions
+from .entities import StreamOptions
 from .options import (
     ReceiverOptionUnsettled,
     ReceiverOptionUnsettledWithFilters,
@@ -22,7 +22,7 @@ class Consumer:
         conn: BlockingConnection,
         addr: str,
         handler: Optional[MessagingHandler] = None,
-        stream_options: Optional[StreamFilterOptions] = None,
+        stream_options: Optional[StreamOptions] = None,
     ):
         self._receiver: Optional[BlockingReceiver] = None
         self._conn = conn

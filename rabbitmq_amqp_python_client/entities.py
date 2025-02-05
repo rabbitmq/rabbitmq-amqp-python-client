@@ -47,7 +47,7 @@ class BindingSpecification:
     binding_key: str
 
 
-class StreamFilterOptions:
+class StreamOptions:
 
     def __init__(self):  # type: ignore
         self._filter_set: Dict[symbol, Described] = {}

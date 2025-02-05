@@ -3,7 +3,7 @@ from typing import Annotated, Callable, Optional, TypeVar
 
 from .address_helper import validate_address
 from .consumer import Consumer
-from .entities import StreamFilterOptions
+from .entities import StreamOptions
 from .exceptions import ArgumentOutOfRangeException
 from .management import Management
 from .publisher import Publisher
@@ -88,7 +88,7 @@ class Connection:
         self,
         destination: str,
         handler: Optional[MessagingHandler] = None,
-        stream_filter_options: Optional[StreamFilterOptions] = None,
+        stream_filter_options: Optional[StreamOptions] = None,
     ) -> Consumer:
         if validate_address(destination) is False:
             raise ArgumentOutOfRangeException(
