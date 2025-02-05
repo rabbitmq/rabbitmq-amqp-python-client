@@ -73,6 +73,11 @@ class ReceiverOptionUnsettledWithFilters(Filter):  # type: ignore
         self._addr = addr
 
     def apply(self, link: Link) -> None:
+        link.target.address = self._addr
+        link.snd_settle_mode = Link.SND_UNSETTLED
+        link.rcv_settle_mode = Link.RCV_FIRST
+        link.properties = PropertyDict({symbol("paired"): True})
+        link.source.dynamic = False
         link.source.filter.put_dict(self.filter_set)
 
     def test(self, link: Link) -> bool:

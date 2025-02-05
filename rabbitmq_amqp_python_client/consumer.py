@@ -62,13 +62,12 @@ class Consumer:
             receiver = self._conn.create_receiver(
                 addr, options=ReceiverOptionUnsettled(addr), handler=self._handler
             )
-            receiver.credit = 1
+
         else:
             receiver = self._conn.create_receiver(
                 addr,
                 options=ReceiverOptionUnsettledWithFilters(addr, self._stream_options),
                 handler=self._handler,
             )
-            receiver.credit = 1
 
         return receiver
