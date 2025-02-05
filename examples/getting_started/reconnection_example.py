@@ -2,6 +2,8 @@
 
 
 import time
+from dataclasses import dataclass
+from typing import Optional
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
@@ -9,16 +11,27 @@ from rabbitmq_amqp_python_client import (
     BindingSpecification,
     Connection,
     ConnectionClosed,
+    Consumer,
     Event,
     ExchangeSpecification,
+    Management,
     Message,
+    Publisher,
     QuorumQueueSpecification,
 )
 
-connection = None
-management = None
-publisher = None
-consumer = None
+
+# here we keep track of the objects we need to reconnect
+@dataclass
+class ConnectionConfiguration:
+    connection: Optional[Connection] = None
+    management: Optional[Management] = None
+    publisher: Optional[Publisher] = None
+    consumer: Optional[Consumer] = None
+
+
+connection_configuration = ConnectionConfiguration()
+messages_to_publish = 50000
 
 
 # disconnection callback
@@ -30,22 +43,27 @@ def on_disconnection():
     queue_name = "example-queue"
     routing_key = "routing-key"
 
-    global connection
-    global management
-    global publisher
-    global consumer
+    global connection_configuration
 
     addr = AddressHelper.exchange_address(exchange_name, routing_key)
     addr_queue = AddressHelper.queue_address(queue_name)
 
-    if connection is not None:
-        connection = create_connection()
-    if management is not None:
-        management = connection.management()
-    if publisher is not None:
-        publisher = connection.publisher(addr)
-    if consumer is not None:
-        consumer = connection.consumer(addr_queue, handler=MyMessageHandler())
+    if connection_configuration.connection is not None:
+        connection_configuration.connection = create_connection()
+    if connection_configuration.management is not None:
+        connection_configuration.management = (
+            connection_configuration.connection.management()
+        )
+    if connection_configuration.publisher is not None:
+        connection_configuration.publisher = (
+            connection_configuration.connection.publisher(addr)
+        )
+    if connection_configuration.consumer is not None:
+        connection_configuration.consumer = (
+            connection_configuration.connection.consumer(
+                addr_queue, handler=MyMessageHandler()
+            )
+        )
 
 
 class MyMessageHandler(AMQPMessagingHandler):
@@ -55,7 +73,8 @@ class MyMessageHandler(AMQPMessagingHandler):
         self._count = 0
 
     def on_message(self, event: Event):
-        print("received message: " + str(event.message.annotations))
+        if self._count % 1000 == 0:
+            print("received 100 message: " + str(event.message.body))
 
         # accepting
         self.delivery_context.accept(event)
@@ -74,11 +93,9 @@ class MyMessageHandler(AMQPMessagingHandler):
         # in case of rejection with annotations added
         # self.delivery_context.discard_with_annotations(event)
 
-        print("count " + str(self._count))
-
         self._count = self._count + 1
 
-        if self._count == 100:
+        if self._count == messages_to_publish:
             print("closing receiver")
             # if you want you can add cleanup operations here
             # event.receiver.close()
@@ -115,30 +132,30 @@ def main() -> None:
     exchange_name = "test-exchange"
     queue_name = "example-queue"
     routing_key = "routing-key"
-    messages_to_publish = 50000
 
-    global connection
-    global management
-    global publisher
-    global consumer
+    global connection_configuration
 
     print("connection to amqp server")
-    if connection is None:
-        connection = create_connection()
+    if connection_configuration.connection is None:
+        connection_configuration.connection = create_connection()
 
-    if management is None:
-        management = connection.management()
+    if connection_configuration.management is None:
+        connection_configuration.management = (
+            connection_configuration.connection.management()
+        )
 
     print("declaring exchange and queue")
-    management.declare_exchange(ExchangeSpecification(name=exchange_name, arguments={}))
+    connection_configuration.management.declare_exchange(
+        ExchangeSpecification(name=exchange_name, arguments={})
+    )
 
-    management.declare_queue(
+    connection_configuration.management.declare_queue(
         QuorumQueueSpecification(name=queue_name)
         # QuorumQueueSpecification(name=queue_name, dead_letter_exchange="dead-letter")
     )
 
     print("binding queue to exchange")
-    bind_name = management.bind(
+    bind_name = connection_configuration.management.bind(
         BindingSpecification(
             source_exchange=exchange_name,
             destination_queue=queue_name,
@@ -151,30 +168,34 @@ def main() -> None:
     addr_queue = AddressHelper.queue_address(queue_name)
 
     print("create a publisher and publish a test message")
-    if publisher is None:
-        publisher = connection.publisher(addr)
+    if connection_configuration.publisher is None:
+        connection_configuration.publisher = (
+            connection_configuration.connection.publisher(addr)
+        )
 
     print("purging the queue")
-    messages_purged = management.purge_queue(queue_name)
+    messages_purged = connection_configuration.management.purge_queue(queue_name)
 
     print("messages purged: " + str(messages_purged))
     # management.close()
 
-    # publish 10 messages
+    # publishing messages
     while True:
         for i in range(messages_to_publish):
 
             if i % 1000 == 0:
-                print("publishing")
+                print("published 1000 messages...")
             try:
-                publisher.publish(Message(body="test"))
+                if connection_configuration.publisher is not None:
+                    connection_configuration.publisher.publish(Message(body="test"))
             except ConnectionClosed:
                 print("publisher closing exception, resubmitting")
                 continue
 
-        print("closing")
+        print("closing publisher")
         try:
-            publisher.close()
+            if connection_configuration.publisher is not None:
+                connection_configuration.publisher.close()
         except ConnectionClosed:
             print("publisher closing exception, resubmitting")
             continue
@@ -183,12 +204,16 @@ def main() -> None:
     print(
         "create a consumer and consume the test message - press control + c to terminate to consume"
     )
-    if consumer is None:
-        consumer = connection.consumer(addr_queue, handler=MyMessageHandler())
+    if connection_configuration.consumer is None:
+        connection_configuration.consumer = (
+            connection_configuration.connection.consumer(
+                addr_queue, handler=MyMessageHandler()
+            )
+        )
 
     while True:
         try:
-            consumer.run()
+            connection_configuration.consumer.run()
         except KeyboardInterrupt:
             pass
         except ConnectionClosed:
@@ -200,24 +225,24 @@ def main() -> None:
         break
 
     print("cleanup")
-    consumer.close()
+    connection_configuration.consumer.close()
     # once we finish consuming if we close the connection we need to create a new one
     # connection = create_connection()
     # management = connection.management()
 
     print("unbind")
-    management.unbind(bind_name)
+    connection_configuration.management.unbind(bind_name)
 
     print("delete queue")
-    management.delete_queue(queue_name)
+    connection_configuration.management.delete_queue(queue_name)
 
     print("delete exchange")
-    management.delete_exchange(exchange_name)
+    connection_configuration.management.delete_exchange(exchange_name)
 
     print("closing connections")
-    management.close()
+    connection_configuration.management.close()
     print("after management closing")
-    connection.close()
+    connection_configuration.connection.close()
     print("after connection closing")
 
 

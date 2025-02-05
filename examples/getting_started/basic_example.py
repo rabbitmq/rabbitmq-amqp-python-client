@@ -12,6 +12,8 @@ from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,; SslConfig
     QuorumQueueSpecification,
 )
 
+messages_to_publish = 100
+
 
 class MyMessageHandler(AMQPMessagingHandler):
 
@@ -43,7 +45,7 @@ class MyMessageHandler(AMQPMessagingHandler):
 
         self._count = self._count + 1
 
-        if self._count == 100:
+        if self._count == messages_to_publish:
             print("closing receiver")
             # if you want you can add cleanup operations here
             # event.receiver.close()
@@ -81,7 +83,6 @@ def main() -> None:
     exchange_name = "test-exchange"
     queue_name = "example-queue"
     routing_key = "routing-key"
-    messages_to_publish = 100000
 
     print("connection to amqp server")
     connection = create_connection()

@@ -7,7 +7,7 @@ from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,; SslConfig
     Event,
     Message,
     OffsetSpecification,
-    StreamFilterOptions,
+    StreamOptions,
     StreamSpecification,
 )
 
@@ -95,9 +95,9 @@ def main() -> None:
 
     consumer_connection = create_connection()
 
-    stream_filter_options = StreamFilterOptions()
+    stream_filter_options = StreamOptions()
     # can be first, last, next or an offset long
-    # you can also specify stream filters
+    # you can also specify stream filters with methods: apply_filters and filter_match_unfiltered
     stream_filter_options.offset(OffsetSpecification.first)
 
     consumer = consumer_connection.consumer(
