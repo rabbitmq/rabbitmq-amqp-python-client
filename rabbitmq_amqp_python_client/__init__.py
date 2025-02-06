@@ -15,7 +15,7 @@ from .exceptions import ArgumentOutOfRangeException
 from .management import Management
 from .publisher import Publisher
 from .qpid.proton._data import symbol  # noqa: E402
-from .qpid.proton._delivery import Delivery
+from .qpid.proton._delivery import Delivery, Disposition
 from .qpid.proton._events import Event
 from .qpid.proton._message import Message
 from .qpid.proton._utils import ConnectionClosed
@@ -65,4 +65,5 @@ __all__ = [
     "ConnectionClosed",
     "StreamOptions",
     "OffsetSpecification",
+    "Disposition",
 ]

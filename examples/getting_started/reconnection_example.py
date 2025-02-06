@@ -31,7 +31,7 @@ class ConnectionConfiguration:
 
 
 connection_configuration = ConnectionConfiguration()
-messages_to_publish = 50000
+MESSAGES_TO_PUBLSH = 50000
 
 
 # disconnection callback
@@ -95,7 +95,7 @@ class MyMessageHandler(AMQPMessagingHandler):
 
         self._count = self._count + 1
 
-        if self._count == messages_to_publish:
+        if self._count == MESSAGES_TO_PUBLSH:
             print("closing receiver")
             # if you want you can add cleanup operations here
             # event.receiver.close()
@@ -181,7 +181,7 @@ def main() -> None:
 
     # publishing messages
     while True:
-        for i in range(messages_to_publish):
+        for i in range(MESSAGES_TO_PUBLSH):
 
             if i % 1000 == 0:
                 print("published 1000 messages...")

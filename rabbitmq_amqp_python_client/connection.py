@@ -89,10 +89,13 @@ class Connection:
         destination: str,
         handler: Optional[MessagingHandler] = None,
         stream_filter_options: Optional[StreamOptions] = None,
+        credit: Optional[int] = None,
     ) -> Consumer:
         if validate_address(destination) is False:
             raise ArgumentOutOfRangeException(
                 "destination address must start with /queues or /exchanges"
             )
-        consumer = Consumer(self._conn, destination, handler, stream_filter_options)
+        consumer = Consumer(
+            self._conn, destination, handler, stream_filter_options, credit
+        )
         return consumer
