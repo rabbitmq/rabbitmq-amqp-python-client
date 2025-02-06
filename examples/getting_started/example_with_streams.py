@@ -90,11 +90,11 @@ def main() -> None:
     # can be first, last, next or an offset long
     # you can also specify stream filters with methods: apply_filters and filter_match_unfiltered
     stream_filter_options.offset(OffsetSpecification.first)
-    stream_filter_options.apply_filters(["banana"])
+    stream_filter_options.filter_values(["banana"])
 
     consumer = consumer_connection.consumer(
         addr_queue,
-        handler=MyMessageHandler(),
+        message_handler=MyMessageHandler(),
         stream_filter_options=stream_filter_options,
     )
     print(

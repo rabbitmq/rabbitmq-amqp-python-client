@@ -135,7 +135,7 @@ def main() -> None:
     print(
         "create a consumer and consume the test message - press control + c to terminate to consume"
     )
-    consumer = connection.consumer(addr_queue, handler=MyMessageHandler())
+    consumer = connection.consumer(addr_queue, message_handler=MyMessageHandler())
 
     try:
         consumer.run()

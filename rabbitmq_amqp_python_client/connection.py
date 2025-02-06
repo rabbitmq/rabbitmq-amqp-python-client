@@ -22,16 +22,16 @@ class Connection:
     def __init__(
         self,
         # single-node mode
-        url: Optional[str] = None,
+        uri: Optional[str] = None,
         # multi-node mode
-        urls: Optional[list[str]] = None,
+        uris: Optional[list[str]] = None,
         ssl_context: Optional[SslConfigurationContext] = None,
         on_disconnection_handler: Optional[CB] = None,  # type: ignore
     ):
-        if url is None and urls is None:
+        if uri is None and uris is None:
             raise ValueError("You need to specify at least an addr or a list of addr")
-        self._addr: Optional[str] = url
-        self._addrs: Optional[list[str]] = urls
+        self._addr: Optional[str] = uri
+        self._addrs: Optional[list[str]] = uris
         self._conn: BlockingConnection
         self._management: Management
         self._on_disconnection_handler = on_disconnection_handler
@@ -87,7 +87,7 @@ class Connection:
     def consumer(
         self,
         destination: str,
-        handler: Optional[MessagingHandler] = None,
+        message_handler: Optional[MessagingHandler] = None,
         stream_filter_options: Optional[StreamOptions] = None,
         credit: Optional[int] = None,
     ) -> Consumer:
@@ -96,6 +96,6 @@ class Connection:
                 "destination address must start with /queues or /exchanges"
             )
         consumer = Consumer(
-            self._conn, destination, handler, stream_filter_options, credit
+            self._conn, destination, message_handler, stream_filter_options, credit
         )
         return consumer

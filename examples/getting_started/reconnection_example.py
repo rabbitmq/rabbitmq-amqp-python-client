@@ -61,7 +61,7 @@ def on_disconnection():
     if connection_configuration.consumer is not None:
         connection_configuration.consumer = (
             connection_configuration.connection.consumer(
-                addr_queue, handler=MyMessageHandler()
+                addr_queue, message_handler=MyMessageHandler()
             )
         )
 
@@ -111,15 +111,15 @@ class MyMessageHandler(AMQPMessagingHandler):
 
 
 def create_connection() -> Connection:
-    # for multinode specify a list of urls and fill the field urls of Connection instead of url
-    # urls = [
+    # for multinode specify a list of urls and fill the field uris of Connection instead of url
+    # uris = [
     #    "amqp://ha_tls-rabbit_node0-1:5682/",
     #    "amqp://ha_tls-rabbit_node1-1:5692/",
     #    "amqp://ha_tls-rabbit_node2-1:5602/",
     # ]
-    # connection = Connection(urls=urls, on_disconnection_handler=on_disconnected)
+    # connection = Connection(uris=uris, on_disconnection_handler=on_disconnected)
     connection = Connection(
-        url="amqp://guest:guest@localhost:5672/",
+        uri="amqp://guest:guest@localhost:5672/",
         on_disconnection_handler=on_disconnection,
     )
     connection.dial()
@@ -207,7 +207,7 @@ def main() -> None:
     if connection_configuration.consumer is None:
         connection_configuration.consumer = (
             connection_configuration.connection.consumer(
-                addr_queue, handler=MyMessageHandler()
+                addr_queue, message_handler=MyMessageHandler()
             )
         )
 
