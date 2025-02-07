@@ -2,6 +2,20 @@
 
 This library is in early stages of development. It is meant to be used with RabbitMQ 4.0.
 
+# Table of Contents
+
+- [How to Build the project and run the tests](#How-to-Build-the-project-and-run-the-tests)
+- [Installation](#Installation)
+- [Getting started](#Getting-Started)
+    * [Creating a connection](#Creating-a-connection)
+    * [Managing resources](#Managing-resources)
+    * [Publishing messages](#Publishing-messages)
+    * [Consuming messages](#Consuming-messages)
+    * [Support for streams](#support-for-streams)
+    * [SSL connection](#ssl-connections)
+    * [Managing disconnections](#Managing-disconnections)
+
+
 ## How to Build the project and run the tests
 
 - Start a RabbitMQ 4.x broker
@@ -18,7 +32,7 @@ The client is distributed via [`PIP`](https://pypi.org/project/rabbitmq-amqp-pyt
 
 ## Getting Started
 
-An example is provided in ./getting_started_main.py you can run it after starting a RabbitMQ 4.0 broker with:
+An example is provided [`here`](./examples/getting_started/basic_example.py) you can run it after starting a RabbitMQ 4.0 broker with:
 
 poetry run python ./examples/getting_started/main.py
 
@@ -108,6 +122,33 @@ Then from connection get a consumer object:
 ```
 
 The consumer will run indefinitively waiting for messages to arrive.
+
+### Support for streams
+
+The client natively supports streams: https://www.rabbitmq.com/blog/2021/07/13/rabbitmq-streams-overview
+
+You can consume from a given offset or specify a default starting point (FIRST, NEXT, LAST).
+
+Streams filtering is also supported: https://www.rabbitmq.com/blog/2023/10/16/stream-filtering
+
+You can check the [`stream example`](./examples/getting_started/example_with_streams.py) to see how to work with RabbitMQ streams.
+
+### SSL connections
+
+The client supports TLS/SSL connections.
+
+You can check the [`ssl example`](./examples/getting_started/tls_example.py) to see how to establish a secured connection
+
+
+### Managing disconnections
+
+At this stage the client doesn't support auto-reconnect but a callback is invoked everytime a remote disconnection is detected.
+You can use this callback to implement your own logic and eventually attempt a reconnection.
+
+You can check the [`reconnection example`](./examples/getting_started/reconnection_example.py) to see how to manage disconnections and
+eventually attempt a reconnection
+
+
 
 
 

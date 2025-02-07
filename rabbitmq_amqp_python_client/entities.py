@@ -62,7 +62,7 @@ class StreamOptions:
                 symbol(STREAM_OFFSET_SPEC), offset_spefication.name
             )
 
-    def apply_filters(self, filters: list[str]) -> None:
+    def filter_values(self, filters: list[str]) -> None:
         self._filter_set[symbol(STREAM_FILTER_SPEC)] = Described(
             symbol(STREAM_FILTER_SPEC), filters
         )

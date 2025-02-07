@@ -11,6 +11,8 @@ from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,; SslConfig
     StreamSpecification,
 )
 
+MESSAGES_TO_PUBLISH = 100
+
 
 class MyMessageHandler(AMQPMessagingHandler):
 
@@ -19,6 +21,7 @@ class MyMessageHandler(AMQPMessagingHandler):
         self._count = 0
 
     def on_message(self, event: Event):
+        # just messages with banana filters get received
         print(
             "received message from stream: "
             + str(event.message.body)
@@ -47,7 +50,7 @@ class MyMessageHandler(AMQPMessagingHandler):
 
         self._count = self._count + 1
 
-        if self._count == 100:
+        if self._count == MESSAGES_TO_PUBLISH:
             print("closing receiver")
             # if you want you can add cleanup operations here
             # event.receiver.close()
@@ -64,17 +67,6 @@ class MyMessageHandler(AMQPMessagingHandler):
 
 def create_connection() -> Connection:
     connection = Connection("amqp://guest:guest@localhost:5672/")
-    # in case of SSL enablement
-    # ca_cert_file = ".ci/certs/ca_certificate.pem"
-    # client_cert = ".ci/certs/client_certificate.pem"
-    # client_key = ".ci/certs/client_key.pem"
-    # connection = Connection(
-    #    "amqps://guest:guest@localhost:5671/",
-    #    ssl_context=SslConfigurationContext(
-    #        ca_cert=ca_cert_file,
-    #        client_cert=ClientCert(client_cert=client_cert, client_key=client_key),
-    #    ),
-    # )
     connection.dial()
 
     return connection
@@ -82,7 +74,6 @@ def create_connection() -> Connection:
 
 def main() -> None:
     queue_name = "example-queue"
-    messages_to_publish = 100
 
     print("connection to amqp server")
     connection = create_connection()
@@ -99,10 +90,11 @@ def main() -> None:
     # can be first, last, next or an offset long
     # you can also specify stream filters with methods: apply_filters and filter_match_unfiltered
     stream_filter_options.offset(OffsetSpecification.first)
+    stream_filter_options.filter_values(["banana"])
 
     consumer = consumer_connection.consumer(
         addr_queue,
-        handler=MyMessageHandler(),
+        message_handler=MyMessageHandler(),
         stream_filter_options=stream_filter_options,
     )
     print(
@@ -112,8 +104,22 @@ def main() -> None:
     # print("create a publisher and publish a test message")
     publisher = connection.publisher(addr_queue)
 
-    for i in range(messages_to_publish):
-        publisher.publish(Message(body="test: " + str(i)))
+    # publish with a filter of apple
+    for i in range(MESSAGES_TO_PUBLISH):
+        publisher.publish(
+            Message(
+                body="apple: " + str(i), annotations={"x-stream-filter-value": "apple"}
+            )
+        )
+
+    # publish with a filter of banana
+    for i in range(MESSAGES_TO_PUBLISH):
+        publisher.publish(
+            Message(
+                body="banana: " + str(i),
+                annotations={"x-stream-filter-value": "banana"},
+            )
+        )
 
     publisher.close()
 

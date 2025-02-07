@@ -38,14 +38,14 @@ class AddressHelper:
         return path
 
     @staticmethod
-    def queue_address(queue_name: str) -> str:
-        path = "/queues/" + encode_path_segment(queue_name)
+    def queue_address(name: str) -> str:
+        path = "/queues/" + encode_path_segment(name)
 
         return path
 
     @staticmethod
-    def purge_queue_address(queue_name: str) -> str:
-        path = "/queues/" + encode_path_segment(queue_name) + "/messages"
+    def purge_queue_address(name: str) -> str:
+        path = "/queues/" + encode_path_segment(name) + "/messages"
 
         return path
 

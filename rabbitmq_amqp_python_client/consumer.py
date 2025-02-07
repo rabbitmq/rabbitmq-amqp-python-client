@@ -23,12 +23,14 @@ class Consumer:
         addr: str,
         handler: Optional[MessagingHandler] = None,
         stream_options: Optional[StreamOptions] = None,
+        credit: Optional[int] = None,
     ):
         self._receiver: Optional[BlockingReceiver] = None
         self._conn = conn
         self._addr = addr
         self._handler = handler
         self._stream_options = stream_options
+        self._credit = credit
         self._open()
 
     def _open(self) -> None:
@@ -69,5 +71,8 @@ class Consumer:
                 options=ReceiverOptionUnsettledWithFilters(addr, self._stream_options),
                 handler=self._handler,
             )
+
+        if self._credit is not None:
+            receiver.credit = self._credit
 
         return receiver

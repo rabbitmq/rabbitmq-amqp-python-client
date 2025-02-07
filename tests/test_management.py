@@ -82,7 +82,7 @@ def test_queue_info_with_validations(management: Management) -> None:
     )
     management.declare_queue(queue_specification)
 
-    queue_info = management.queue_info(queue_name=queue_name)
+    queue_info = management.queue_info(name=queue_name)
 
     management.delete_queue(queue_name)
 
@@ -101,7 +101,7 @@ def test_queue_info_for_stream_with_validations(management: Management) -> None:
     )
     management.declare_queue(queue_specification)
 
-    stream_info = management.queue_info(queue_name=stream_name)
+    stream_info = management.queue_info(name=stream_name)
 
     management.delete_queue(stream_name)
 

@@ -247,9 +247,9 @@ class Management:
 
         return body
 
-    def delete_exchange(self, exchange_name: str) -> None:
+    def delete_exchange(self, name: str) -> None:
         logger.debug("delete_exchange operation called")
-        path = AddressHelper.exchange_address(exchange_name)
+        path = AddressHelper.exchange_address(name)
 
         self.request(
             None,
@@ -260,9 +260,9 @@ class Management:
             ],
         )
 
-    def delete_queue(self, queue_name: str) -> None:
+    def delete_queue(self, name: str) -> None:
         logger.debug("delete_queue operation called")
-        path = AddressHelper.queue_address(queue_name)
+        path = AddressHelper.queue_address(name)
 
         self.request(
             None,
@@ -323,9 +323,9 @@ class Management:
             ],
         )
 
-    def purge_queue(self, queue_name: str) -> int:
+    def purge_queue(self, name: str) -> int:
         logger.debug("purge_queue operation called")
-        path = AddressHelper.purge_queue_address(queue_name)
+        path = AddressHelper.purge_queue_address(name)
 
         response = self.request(
             None,
@@ -338,9 +338,9 @@ class Management:
 
         return int(response.body["message_count"])
 
-    def queue_info(self, queue_name: str) -> QueueInfo:
+    def queue_info(self, name: str) -> QueueInfo:
         logger.debug("queue_info operation called")
-        path = AddressHelper.queue_address(queue_name)
+        path = AddressHelper.queue_address(name)
 
         message = self.request(
             None,

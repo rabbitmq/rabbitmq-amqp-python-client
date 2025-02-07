@@ -88,7 +88,7 @@ def test_consumer_async_queue_accept(connection: Connection) -> None:
     # we closed the connection so we need to open a new one
     connection_consumer = create_connection()
     consumer = connection_consumer.consumer(
-        addr_queue, handler=MyMessageHandlerAccept()
+        addr_queue, message_handler=MyMessageHandlerAccept()
     )
 
     try:
@@ -125,7 +125,9 @@ def test_consumer_async_queue_no_ack(connection: Connection) -> None:
     # we closed the connection so we need to open a new one
     connection_consumer = create_connection()
 
-    consumer = connection_consumer.consumer(addr_queue, handler=MyMessageHandlerNoack())
+    consumer = connection_consumer.consumer(
+        addr_queue, message_handler=MyMessageHandlerNoack()
+    )
 
     try:
         consumer.run()
@@ -172,7 +174,7 @@ def test_consumer_async_queue_with_discard(connection: Connection) -> None:
     connection_consumer = create_connection()
 
     consumer = connection_consumer.consumer(
-        addr_queue, handler=MyMessageHandlerDiscard()
+        addr_queue, message_handler=MyMessageHandlerDiscard()
     )
 
     try:
@@ -228,7 +230,7 @@ def test_consumer_async_queue_with_discard_with_annotations(
     connection_consumer = create_connection()
 
     consumer = connection_consumer.consumer(
-        addr_queue, handler=MyMessageHandlerDiscardWithAnnotations()
+        addr_queue, message_handler=MyMessageHandlerDiscardWithAnnotations()
     )
 
     try:
@@ -278,7 +280,7 @@ def test_consumer_async_queue_with_requeue(connection: Connection) -> None:
     connection_consumer = create_connection()
 
     consumer = connection_consumer.consumer(
-        addr_queue, handler=MyMessageHandlerRequeue()
+        addr_queue, message_handler=MyMessageHandlerRequeue()
     )
 
     try:
@@ -316,7 +318,7 @@ def test_consumer_async_queue_with_requeue_with_annotations(
     connection_consumer = create_connection()
 
     consumer = connection_consumer.consumer(
-        addr_queue, handler=MyMessageHandlerRequeueWithAnnotations()
+        addr_queue, message_handler=MyMessageHandlerRequeueWithAnnotations()
     )
 
     try:
@@ -363,7 +365,7 @@ def test_consumer_async_queue_with_requeue_with_invalid_annotations(
 
     try:
         consumer = connection_consumer.consumer(
-            addr_queue, handler=MyMessageHandlerRequeueWithInvalidAnnotations()
+            addr_queue, message_handler=MyMessageHandlerRequeueWithInvalidAnnotations()
         )
 
         consumer.run()
