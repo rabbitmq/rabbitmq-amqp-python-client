@@ -11,13 +11,6 @@ from rabbitmq_amqp_python_client import (
 )
 
 
-def create_connection() -> Connection:
-    connection_consumer = Connection("amqp://guest:guest@localhost:5672/")
-    connection_consumer.dial()
-
-    return connection_consumer
-
-
 def publish_messages(
     connection: Connection,
     messages_to_send: int,

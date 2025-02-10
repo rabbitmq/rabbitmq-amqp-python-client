@@ -72,7 +72,7 @@ class Connection:
         return self._management
 
     # closes the connection to the AMQP 1.0 server.
-    def close(self) -> None:
+    def _close(self) -> None:
         logger.debug("Closing connection")
         self._conn.close()
 

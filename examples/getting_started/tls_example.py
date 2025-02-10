@@ -12,6 +12,7 @@ from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,; SslConfig
     Message,
     QuorumQueueSpecification,
     SslConfigurationContext,
+    Environment,
 )
 
 messages_to_publish = 100
@@ -62,12 +63,12 @@ class MyMessageHandler(AMQPMessagingHandler):
         print("link closed")
 
 
-def create_connection() -> Connection:
+def create_connection(environment: Environment) -> Connection:
     # in case of SSL enablement
     ca_cert_file = ".ci/certs/ca_certificate.pem"
     client_cert = ".ci/certs/client_certificate.pem"
     client_key = ".ci/certs/client_key.pem"
-    connection = Connection(
+    connection = environment.connection(
         "amqps://guest:guest@localhost:5671/",
         ssl_context=SslConfigurationContext(
             ca_cert=ca_cert_file,
@@ -84,9 +85,10 @@ def main() -> None:
     exchange_name = "test-exchange"
     queue_name = "example-queue"
     routing_key = "routing-key"
+    environment = Environment()
 
     print("connection to amqp server")
-    connection = create_connection()
+    connection = create_connection(environment)
 
     management = connection.management()
 
@@ -160,7 +162,7 @@ def main() -> None:
     print("closing connections")
     management.close()
     print("after management closing")
-    connection.close()
+    environment.close()
     print("after connection closing")
 
 

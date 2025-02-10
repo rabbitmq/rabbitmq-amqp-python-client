@@ -2,6 +2,7 @@ from rabbitmq_amqp_python_client import (
     AddressHelper,
     ArgumentOutOfRangeException,
     Connection,
+    Environment,
     QuorumQueueSpecification,
 )
 
@@ -17,7 +18,6 @@ from .conftest import (
 )
 from .utils import (
     cleanup_dead_lettering,
-    create_connection,
     publish_messages,
     setup_dead_lettering,
 )
@@ -71,7 +71,9 @@ def test_consumer_invalid_destination(connection: Connection) -> None:
     assert raised is True
 
 
-def test_consumer_async_queue_accept(connection: Connection) -> None:
+def test_consumer_async_queue_accept(
+    connection: Connection, environment: Environment
+) -> None:
 
     messages_to_send = 1000
 
@@ -86,7 +88,8 @@ def test_consumer_async_queue_accept(connection: Connection) -> None:
     publish_messages(connection, messages_to_send, queue_name)
 
     # we closed the connection so we need to open a new one
-    connection_consumer = create_connection()
+    connection_consumer = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection_consumer.dial()
     consumer = connection_consumer.consumer(
         addr_queue, message_handler=MyMessageHandlerAccept()
     )
@@ -108,7 +111,9 @@ def test_consumer_async_queue_accept(connection: Connection) -> None:
     assert message_count == 0
 
 
-def test_consumer_async_queue_no_ack(connection: Connection) -> None:
+def test_consumer_async_queue_no_ack(
+    connection: Connection, environment: Environment
+) -> None:
 
     messages_to_send = 1000
 
@@ -123,7 +128,8 @@ def test_consumer_async_queue_no_ack(connection: Connection) -> None:
     publish_messages(connection, messages_to_send, queue_name)
 
     # we closed the connection so we need to open a new one
-    connection_consumer = create_connection()
+    connection_consumer = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection_consumer.dial()
 
     consumer = connection_consumer.consumer(
         addr_queue, message_handler=MyMessageHandlerNoack()
@@ -146,7 +152,9 @@ def test_consumer_async_queue_no_ack(connection: Connection) -> None:
     assert message_count > 0
 
 
-def test_consumer_async_queue_with_discard(connection: Connection) -> None:
+def test_consumer_async_queue_with_discard(
+    connection: Connection, environment: Environment
+) -> None:
     messages_to_send = 1000
 
     queue_dead_lettering = "queue-dead-letter"
@@ -171,7 +179,8 @@ def test_consumer_async_queue_with_discard(connection: Connection) -> None:
     publish_messages(connection, messages_to_send, queue_name)
 
     # we closed the connection so we need to open a new one
-    connection_consumer = create_connection()
+    connection_consumer = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection_consumer.dial()
 
     consumer = connection_consumer.consumer(
         addr_queue, message_handler=MyMessageHandlerDiscard()
@@ -201,7 +210,7 @@ def test_consumer_async_queue_with_discard(connection: Connection) -> None:
 
 
 def test_consumer_async_queue_with_discard_with_annotations(
-    connection: Connection,
+    connection: Connection, environment: Environment
 ) -> None:
     messages_to_send = 1000
 
@@ -227,7 +236,8 @@ def test_consumer_async_queue_with_discard_with_annotations(
     addr_queue_dl = AddressHelper.queue_address(queue_dead_lettering)
 
     # we closed the connection so we need to open a new one
-    connection_consumer = create_connection()
+    connection_consumer = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection_consumer.dial()
 
     consumer = connection_consumer.consumer(
         addr_queue, message_handler=MyMessageHandlerDiscardWithAnnotations()
@@ -263,9 +273,12 @@ def test_consumer_async_queue_with_discard_with_annotations(
     assert message_count_dead_lettering == messages_to_send
 
 
-def test_consumer_async_queue_with_requeue(connection: Connection) -> None:
+def test_consumer_async_queue_with_requeue(
+    connection: Connection, environment: Environment
+) -> None:
     messages_to_send = 1000
 
+    environment = Environment()
     queue_name = "test-queue-async-requeue"
 
     management = connection.management()
@@ -277,7 +290,8 @@ def test_consumer_async_queue_with_requeue(connection: Connection) -> None:
     publish_messages(connection, messages_to_send, queue_name)
 
     # we closed the connection so we need to open a new one
-    connection_consumer = create_connection()
+    connection_consumer = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection_consumer.dial()
 
     consumer = connection_consumer.consumer(
         addr_queue, message_handler=MyMessageHandlerRequeue()
@@ -300,7 +314,7 @@ def test_consumer_async_queue_with_requeue(connection: Connection) -> None:
 
 
 def test_consumer_async_queue_with_requeue_with_annotations(
-    connection: Connection,
+    connection: Connection, environment: Environment
 ) -> None:
     messages_to_send = 1000
 
@@ -315,7 +329,8 @@ def test_consumer_async_queue_with_requeue_with_annotations(
     publish_messages(connection, messages_to_send, queue_name)
 
     # we closed the connection so we need to open a new one
-    connection_consumer = create_connection()
+    connection_consumer = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection_consumer.dial()
 
     consumer = connection_consumer.consumer(
         addr_queue, message_handler=MyMessageHandlerRequeueWithAnnotations()
@@ -346,6 +361,7 @@ def test_consumer_async_queue_with_requeue_with_annotations(
 
 def test_consumer_async_queue_with_requeue_with_invalid_annotations(
     connection: Connection,
+    environment: Environment,
 ) -> None:
     messages_to_send = 1000
     test_failure = True
@@ -361,7 +377,8 @@ def test_consumer_async_queue_with_requeue_with_invalid_annotations(
     publish_messages(connection, messages_to_send, queue_name)
 
     # we closed the connection so we need to open a new one
-    connection_consumer = create_connection()
+    connection_consumer = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection_consumer.dial()
 
     try:
         consumer = connection_consumer.consumer(

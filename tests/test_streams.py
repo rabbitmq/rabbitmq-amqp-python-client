@@ -1,6 +1,7 @@
 from rabbitmq_amqp_python_client import (
     AddressHelper,
     Connection,
+    Environment,
     OffsetSpecification,
     StreamOptions,
     StreamSpecification,
@@ -10,10 +11,12 @@ from .conftest import (
     ConsumerTestException,
     MyMessageHandlerAcceptStreamOffset,
 )
-from .utils import create_connection, publish_messages
+from .utils import publish_messages
 
 
-def test_stream_read_from_last_default(connection: Connection) -> None:
+def test_stream_read_from_last_default(
+    connection: Connection, environment: Environment
+) -> None:
 
     consumer = None
     stream_name = "test_stream_info_with_validation"
@@ -29,7 +32,10 @@ def test_stream_read_from_last_default(connection: Connection) -> None:
 
     # consume and then publish
     try:
-        connection_consumer = create_connection()
+        connection_consumer = environment.connection(
+            "amqp://guest:guest@localhost:5672/"
+        )
+        connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue, message_handler=MyMessageHandlerAcceptStreamOffset()
         )
@@ -44,7 +50,9 @@ def test_stream_read_from_last_default(connection: Connection) -> None:
     management.delete_queue(stream_name)
 
 
-def test_stream_read_from_last(connection: Connection) -> None:
+def test_stream_read_from_last(
+    connection: Connection, environment: Environment
+) -> None:
 
     consumer = None
     stream_name = "test_stream_info_with_validation"
@@ -63,7 +71,10 @@ def test_stream_read_from_last(connection: Connection) -> None:
 
     # consume and then publish
     try:
-        connection_consumer = create_connection()
+        connection_consumer = environment.connection(
+            "amqp://guest:guest@localhost:5672/"
+        )
+        connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),
@@ -80,7 +91,9 @@ def test_stream_read_from_last(connection: Connection) -> None:
     management.delete_queue(stream_name)
 
 
-def test_stream_read_from_offset_zero(connection: Connection) -> None:
+def test_stream_read_from_offset_zero(
+    connection: Connection, environment: Environment
+) -> None:
 
     consumer = None
     stream_name = "test_stream_info_with_validation"
@@ -101,7 +114,10 @@ def test_stream_read_from_offset_zero(connection: Connection) -> None:
     stream_filter_options.offset(0)
 
     try:
-        connection_consumer = create_connection()
+        connection_consumer = environment.connection(
+            "amqp://guest:guest@localhost:5672/"
+        )
+        connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(0),
@@ -118,7 +134,9 @@ def test_stream_read_from_offset_zero(connection: Connection) -> None:
     management.delete_queue(stream_name)
 
 
-def test_stream_read_from_offset_first(connection: Connection) -> None:
+def test_stream_read_from_offset_first(
+    connection: Connection, environment: Environment
+) -> None:
 
     consumer = None
     stream_name = "test_stream_info_with_validation"
@@ -139,7 +157,10 @@ def test_stream_read_from_offset_first(connection: Connection) -> None:
     stream_filter_options.offset(OffsetSpecification.first)
 
     try:
-        connection_consumer = create_connection()
+        connection_consumer = environment.connection(
+            "amqp://guest:guest@localhost:5672/"
+        )
+        connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(0),
@@ -156,7 +177,9 @@ def test_stream_read_from_offset_first(connection: Connection) -> None:
     management.delete_queue(stream_name)
 
 
-def test_stream_read_from_offset_ten(connection: Connection) -> None:
+def test_stream_read_from_offset_ten(
+    connection: Connection, environment: Environment
+) -> None:
 
     consumer = None
     stream_name = "test_stream_info_with_validation"
@@ -177,7 +200,10 @@ def test_stream_read_from_offset_ten(connection: Connection) -> None:
     stream_filter_options.offset(10)
 
     try:
-        connection_consumer = create_connection()
+        connection_consumer = environment.connection(
+            "amqp://guest:guest@localhost:5672/"
+        )
+        connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(10),
@@ -195,7 +221,7 @@ def test_stream_read_from_offset_ten(connection: Connection) -> None:
     management.delete_queue(stream_name)
 
 
-def test_stream_filtering(connection: Connection) -> None:
+def test_stream_filtering(connection: Connection, environment: Environment) -> None:
 
     consumer = None
     stream_name = "test_stream_info_with_filtering"
@@ -213,7 +239,11 @@ def test_stream_filtering(connection: Connection) -> None:
     try:
         stream_filter_options = StreamOptions()
         stream_filter_options.filter_values(["banana"])
-        connection_consumer = create_connection()
+        connection_consumer = environment.connection(
+            "amqp://guest:guest@localhost:5672/"
+        )
+        connection_consumer.dial()
+
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),
@@ -231,7 +261,9 @@ def test_stream_filtering(connection: Connection) -> None:
     management.delete_queue(stream_name)
 
 
-def test_stream_filtering_not_present(connection: Connection) -> None:
+def test_stream_filtering_not_present(
+    connection: Connection, environment: Environment
+) -> None:
 
     raised = False
     stream_name = "test_stream_info_with_filtering"
@@ -248,7 +280,9 @@ def test_stream_filtering_not_present(connection: Connection) -> None:
     # consume and then publish
     stream_filter_options = StreamOptions()
     stream_filter_options.filter_values(["apple"])
-    connection_consumer = create_connection()
+    connection_consumer = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection_consumer.dial()
+
     consumer = connection_consumer.consumer(
         addr_queue, stream_filter_options=stream_filter_options
     )
@@ -268,7 +302,9 @@ def test_stream_filtering_not_present(connection: Connection) -> None:
     assert raised is True
 
 
-def test_stream_match_unfiltered(connection: Connection) -> None:
+def test_stream_match_unfiltered(
+    connection: Connection, environment: Environment
+) -> None:
 
     consumer = None
     stream_name = "test_stream_info_with_filtering"
@@ -287,7 +323,10 @@ def test_stream_match_unfiltered(connection: Connection) -> None:
         stream_filter_options = StreamOptions()
         stream_filter_options.filter_values(["banana"])
         stream_filter_options.filter_match_unfiltered(True)
-        connection_consumer = create_connection()
+        connection_consumer = environment.connection(
+            "amqp://guest:guest@localhost:5672/"
+        )
+        connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),

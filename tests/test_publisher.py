@@ -6,6 +6,7 @@ from rabbitmq_amqp_python_client import (
     BindingSpecification,
     Connection,
     ConnectionClosed,
+    Environment,
     ExchangeSpecification,
     Message,
     QuorumQueueSpecification,
@@ -166,6 +167,7 @@ def test_disconnection_reconnection() -> None:
     publisher = None
     queue_name = "test-queue"
     connection_test = None
+    environment = Environment()
 
     def on_disconnected():
 
@@ -175,7 +177,9 @@ def test_disconnection_reconnection() -> None:
 
         # reconnect
         if connection_test is not None:
-            connection_test = Connection("amqp://guest:guest@localhost:5672/")
+            connection_test = environment.connection(
+                "amqp://guest:guest@localhost:5672/"
+            )
             connection_test.dial()
 
         if publisher is not None:
@@ -184,7 +188,7 @@ def test_disconnection_reconnection() -> None:
         nonlocal reconnected
         reconnected = True
 
-    connection_test = Connection(
+    connection_test = environment.connection(
         "amqp://guest:guest@localhost:5672/", on_disconnection_handler=on_disconnected
     )
     connection_test.dial()
@@ -233,7 +237,7 @@ def test_disconnection_reconnection() -> None:
     management.delete_queue(queue_name)
     management.close()
 
-    connection_test.close()
+    environment.close()
 
     assert generic_exception_raised is False
     assert disconnected is True

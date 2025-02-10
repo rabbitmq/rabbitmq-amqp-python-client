@@ -38,12 +38,13 @@ poetry run python ./examples/getting_started/main.py
 
 ### Creating a connection
 
-A connection to the RabbitMQ AMQP 1.0 server can be established using the Connection object.
+A connection to the RabbitMQ AMQP 1.0 server can be established using the Environment object.
 
 For example:
 
 ```python
-    connection = Connection("amqp://guest:guest@localhost:5672/")
+    environment = Environment()
+    connection = environment.connection("amqp://guest:guest@localhost:5672/")
     connection.dial()
 ```
 

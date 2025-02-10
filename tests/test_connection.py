@@ -4,6 +4,7 @@ from rabbitmq_amqp_python_client import (
     ClientCert,
     Connection,
     ConnectionClosed,
+    Environment,
     SslConfigurationContext,
     StreamSpecification,
 )
@@ -19,16 +20,18 @@ def on_disconnected():
 
 
 def test_connection() -> None:
-    connection = Connection("amqp://guest:guest@localhost:5672/")
+    environment = Environment()
+    connection = environment.connection("amqp://guest:guest@localhost:5672/")
     connection.dial()
-    connection.close()
+    environment.close()
 
 
 def test_connection_ssl() -> None:
+    environment = Environment()
     ca_cert_file = ".ci/certs/ca_certificate.pem"
     client_cert = ".ci/certs/client_certificate.pem"
     client_key = ".ci/certs/client_key.pem"
-    connection = Connection(
+    connection = environment.connection(
         "amqps://guest:guest@localhost:5671/",
         ssl_context=SslConfigurationContext(
             ca_cert=ca_cert_file,
@@ -36,6 +39,8 @@ def test_connection_ssl() -> None:
         ),
     )
     connection.dial()
+
+    environment.close()
 
 
 def test_connection_reconnection() -> None:
@@ -56,7 +61,9 @@ def test_connection_reconnection() -> None:
         nonlocal reconnected
         reconnected = True
 
-    connection = Connection(
+    environment = Environment()
+
+    connection = environment.connection(
         "amqp://guest:guest@localhost:5672/", on_disconnection_handler=on_disconnected
     )
     connection.dial()
@@ -81,8 +88,8 @@ def test_connection_reconnection() -> None:
     management = connection.management()
     management.declare_queue(queue_specification)
     management.delete_queue(stream_name)
+    environment.close()
     management.close()
-    connection.close()
 
     assert disconnected is True
     assert reconnected is True

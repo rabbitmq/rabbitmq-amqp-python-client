@@ -11,6 +11,7 @@ from .entities import (
     OffsetSpecification,
     StreamOptions,
 )
+from .environment import Environment
 from .exceptions import ArgumentOutOfRangeException
 from .management import Management
 from .publisher import Publisher
@@ -66,4 +67,5 @@ __all__ = [
     "StreamOptions",
     "OffsetSpecification",
     "Disposition",
+    "Environment",
 ]
