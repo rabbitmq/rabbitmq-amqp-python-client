@@ -16,15 +16,15 @@ class Environment:
     def connection(
         self,
         # single-node mode
-        url: Optional[str] = None,
+        uri: Optional[str] = None,
         # multi-node mode
-        urls: Optional[list[str]] = None,
+        uris: Optional[list[str]] = None,
         ssl_context: Optional[SslConfigurationContext] = None,
         on_disconnection_handler: Optional[CB] = None,  # type: ignore
     ) -> Connection:
         connection = Connection(
-            url=url,
-            urls=urls,
+            uri=uri,
+            uris=uris,
             ssl_context=ssl_context,
             on_disconnection_handler=on_disconnection_handler,
         )

@@ -7,11 +7,11 @@ from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,; SslConfig
     BindingSpecification,
     Connection,
     Disposition,
+    Environment,
     Event,
     ExchangeSpecification,
     Message,
     QuorumQueueSpecification,
-    Environment,
 )
 
 MESSAGES_TO_PUBLISH = 100

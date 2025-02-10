@@ -4,12 +4,12 @@ from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,; SslConfig
     AddressHelper,
     AMQPMessagingHandler,
     Connection,
+    Environment,
     Event,
     Message,
     OffsetSpecification,
     StreamOptions,
     StreamSpecification,
-    Environment,
 )
 
 MESSAGES_TO_PUBLISH = 100

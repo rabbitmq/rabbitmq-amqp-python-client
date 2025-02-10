@@ -12,16 +12,18 @@ from rabbitmq_amqp_python_client import (
     Connection,
     ConnectionClosed,
     Consumer,
+    Environment,
     Event,
     ExchangeSpecification,
     Management,
     Message,
     Publisher,
     QuorumQueueSpecification,
-    Environment,
 )
 
 environment = Environment()
+
+
 # here we keep track of the objects we need to reconnect
 @dataclass
 class ConnectionConfiguration:
