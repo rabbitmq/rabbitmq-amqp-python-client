@@ -43,6 +43,34 @@ def test_connection_ssl() -> None:
     environment.close()
 
 
+def test_environment_connections_management() -> None:
+
+    environment = Environment()
+    connection = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection.dial()
+    connection2 = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection2.dial()
+    connection3 = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection3.dial()
+
+    assert len(environment.connections()) == 3
+
+    # this shouldn't happen but we test it anyway
+    connection._close()
+
+    assert len(environment.connections()) == 2
+
+    connection2._close()
+
+    assert len(environment.connections()) == 1
+
+    connection3._close()
+
+    assert len(environment.connections()) == 0
+
+    environment.close()
+
+
 def test_connection_reconnection() -> None:
 
     reconnected = False
