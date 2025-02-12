@@ -25,7 +25,7 @@ class ClassicQueueSpecification(QueueSpecification):
 
 @dataclass
 class QuorumQueueSpecification(QueueSpecification):
-    deliver_limit: Optional[str] = None
+    deliver_limit: Optional[int] = None
     dead_letter_strategy: Optional[str] = None
     quorum_initial_group_size: Optional[int] = None
     cluster_target_size: Optional[int] = None
