@@ -369,4 +369,6 @@ class Management:
             leader=queue_info["leader"],
             members=queue_info["replicas"],
             arguments=queue_info["arguments"],
+            message_count=queue_info["message_count"],
+            consumer_count=queue_info["consumer_count"],
         )
