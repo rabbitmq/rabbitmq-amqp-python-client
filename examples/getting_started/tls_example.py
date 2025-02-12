@@ -93,7 +93,7 @@ def main() -> None:
     management = connection.management()
 
     print("declaring exchange and queue")
-    management.declare_exchange(ExchangeSpecification(name=exchange_name, arguments={}))
+    management.declare_exchange(ExchangeSpecification(name=exchange_name))
 
     management.declare_queue(
         QuorumQueueSpecification(name=queue_name)

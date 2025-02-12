@@ -150,7 +150,7 @@ def main() -> None:
 
     print("declaring exchange and queue")
     connection_configuration.management.declare_exchange(
-        ExchangeSpecification(name=exchange_name, arguments={})
+        ExchangeSpecification(name=exchange_name)
     )
 
     connection_configuration.management.declare_queue(

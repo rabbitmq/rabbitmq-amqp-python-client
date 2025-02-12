@@ -97,7 +97,7 @@ def test_publish_exchange(connection: Connection) -> None:
     management = connection.management()
     routing_key = "routing-key"
 
-    management.declare_exchange(ExchangeSpecification(name=exchange_name, arguments={}))
+    management.declare_exchange(ExchangeSpecification(name=exchange_name))
 
     management.declare_queue(QuorumQueueSpecification(name=queue_name))
 

@@ -17,7 +17,7 @@ def test_declare_delete_exchange(management: Management) -> None:
     exchange_name = "test-exchange"
 
     exchange_info = management.declare_exchange(
-        ExchangeSpecification(name=exchange_name, arguments={})
+        ExchangeSpecification(name=exchange_name)
     )
 
     assert exchange_info.name == exchange_name
@@ -43,7 +43,7 @@ def test_bind_exchange_to_queue(management: Management) -> None:
     queue_name = "test-bind-exchange-to-queue-queue"
     routing_key = "routing-key"
 
-    management.declare_exchange(ExchangeSpecification(name=exchange_name, arguments={}))
+    management.declare_exchange(ExchangeSpecification(name=exchange_name))
 
     management.declare_queue(QuorumQueueSpecification(name=queue_name))
 

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, Optional, Union
 
@@ -13,7 +13,7 @@ STREAM_FILTER_MATCH_UNFILTERED = "rabbitmq:stream-match-unfiltered"
 @dataclass
 class ExchangeSpecification:
     name: str
-    arguments: dict[str, str]
+    arguments: dict[str, str] = field(default_factory=dict)
     exchange_type: ExchangeType = ExchangeType.direct
     is_auto_delete: bool = False
     is_internal: bool = False
@@ -24,7 +24,7 @@ class ExchangeSpecification:
 class QueueInfo:
     name: str
     arguments: dict[str, Any]
-    queue_type: QueueType = QueueType.quorum
+    queue_type: QueueType = QueueType.classic
     is_exclusive: Optional[bool] = None
     is_auto_delete: bool = False
     is_durable: bool = True
