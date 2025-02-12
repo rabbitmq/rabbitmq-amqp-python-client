@@ -40,6 +40,8 @@ except metadata.PackageNotFoundError:
 
 del metadata
 
+OutcomeState = Disposition
+
 __all__ = [
     "Connection",
     "Management",
@@ -62,10 +64,9 @@ __all__ = [
     "ArgumentOutOfRangeException",
     "SslConfigurationContext",
     "ClientCert",
-    "Delivery",
     "ConnectionClosed",
     "StreamOptions",
     "OffsetSpecification",
-    "Disposition",
+    "OutcomeState",
     "Environment",
 ]

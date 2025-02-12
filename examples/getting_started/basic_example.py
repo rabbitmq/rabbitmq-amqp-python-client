@@ -6,11 +6,11 @@ from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,; SslConfig
     AMQPMessagingHandler,
     BindingSpecification,
     Connection,
-    Disposition,
     Environment,
     Event,
     ExchangeSpecification,
     Message,
+    OutcomeState,
     QuorumQueueSpecification,
 )
 
@@ -126,11 +126,11 @@ def main() -> None:
     for i in range(MESSAGES_TO_PUBLISH):
         print("publishing")
         status = publisher.publish(Message(body="test"))
-        if status.remote_state == Disposition.ACCEPTED:
+        if status.remote_state == OutcomeState.ACCEPTED:
             print("message accepted")
-        elif status.remote_state == Disposition.RELEASED:
+        elif status.remote_state == OutcomeState.RELEASED:
             print("message not routed")
-        elif status.remote_state == Disposition.REJECTED:
+        elif status.remote_state == OutcomeState.REJECTED:
             print("message not rejected")
 
     publisher.close()
