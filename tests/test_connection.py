@@ -56,15 +56,15 @@ def test_environment_connections_management() -> None:
     assert len(environment.connections()) == 3
 
     # this shouldn't happen but we test it anyway
-    connection._close()
+    connection.close()
 
     assert len(environment.connections()) == 2
 
-    connection2._close()
+    connection2.close()
 
     assert len(environment.connections()) == 1
 
-    connection3._close()
+    connection3.close()
 
     assert len(environment.connections()) == 0
 

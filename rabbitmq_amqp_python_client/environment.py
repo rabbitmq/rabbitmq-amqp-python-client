@@ -37,10 +37,11 @@ class Environment:
         connection._set_environment_connection_list(self._connections)
         return connection
 
+    # closes all active connections
     def close(self) -> None:
         logger.debug("Environment: Closing all pending connections")
         for connection in self._connections:
-            connection._close()
+            connection.close()
 
     def connections(self) -> list[Connection]:
         return self._connections
