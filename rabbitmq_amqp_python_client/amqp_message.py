@@ -1,4 +1,4 @@
-from typing import Optional, Union, cast
+from typing import Union, cast
 from uuid import UUID
 
 from proton._data import Described
@@ -16,13 +16,14 @@ class AmqpMessage(Message):  # type: ignore
         **kwargs,
     ):
         super().__init__(body=body, **kwargs)
-        self._addr: Optional[str] = None
+        self._addr: str = ""
         self._native_message = None
 
     def to_address(self, addr: str) -> None:
+        self.address = addr
         self._addr = addr
 
-    def address(self) -> Optional[str]:
+    def get_address(self) -> str:
         return self._addr
 
     def native_message(self) -> Message:

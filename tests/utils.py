@@ -4,9 +4,11 @@ from rabbitmq_amqp_python_client import (
     AmqpMessage,
     BindingSpecification,
     Connection,
+    Delivery,
     ExchangeSpecification,
     ExchangeType,
     Management,
+    Publisher,
     QuorumQueueSpecification,
 )
 
@@ -27,6 +29,13 @@ def publish_messages(
     for i in range(messages_to_send):
         publisher.publish(AmqpMessage(body="test" + str(i), annotations=annotations))
     publisher.close()
+
+
+def publish_per_message(publisher: Publisher, addr: str) -> Delivery:
+    message = AmqpMessage(body="test")
+    message.to_address(addr)
+    status = publisher.publish(message)
+    return status
 
 
 def setup_dead_lettering(management: Management) -> str:
@@ -53,6 +62,25 @@ def setup_dead_lettering(management: Management) -> str:
     )
 
     return bind_path
+
+
+def create_binding(
+    management: Management, exchange_name: str, queue_name: str, routing_key: str
+) -> str:
+
+    management.declare_exchange(ExchangeSpecification(name=exchange_name))
+
+    management.declare_queue(QuorumQueueSpecification(name=queue_name))
+
+    bind_name = management.bind(
+        BindingSpecification(
+            source_exchange=exchange_name,
+            destination_queue=queue_name,
+            binding_key=routing_key,
+        )
+    )
+
+    return bind_name
 
 
 def cleanup_dead_lettering(management: Management, bind_path: str) -> None:

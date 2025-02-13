@@ -4,16 +4,16 @@ from rabbitmq_amqp_python_client import (
     AddressHelper,
     AmqpMessage,
     ArgumentOutOfRangeException,
-    BindingSpecification,
     Connection,
     ConnectionClosed,
     Environment,
-    ExchangeSpecification,
+    OutcomeState,
     QuorumQueueSpecification,
     StreamSpecification,
 )
 
 from .http_requests import delete_all_connections
+from .utils import create_binding, publish_per_message
 
 
 def test_publish_queue(connection: Connection) -> None:
@@ -31,7 +31,7 @@ def test_publish_queue(connection: Connection) -> None:
     try:
         publisher = connection.publisher("/queues/" + queue_name)
         status = publisher.publish(AmqpMessage(body="test"))
-        if status.ACCEPTED:
+        if status.remote_state == OutcomeState.ACCEPTED:
             accepted = True
     except Exception:
         raised = True
@@ -43,6 +43,52 @@ def test_publish_queue(connection: Connection) -> None:
     management.close()
 
     assert accepted is True
+    assert raised is False
+
+
+def test_publish_per_message(connection: Connection) -> None:
+
+    queue_name = "test-queue-1"
+    queue_name_2 = "test-queue-2"
+    management = connection.management()
+
+    management.declare_queue(QuorumQueueSpecification(name=queue_name))
+    management.declare_queue(QuorumQueueSpecification(name=queue_name_2))
+
+    raised = False
+
+    publisher = None
+    accepted = False
+    accepted_2 = True
+
+    try:
+        publisher = connection.publisher()
+        status = publish_per_message(
+            publisher, addr=AddressHelper.queue_address(queue_name)
+        )
+        if status.remote_state == OutcomeState.ACCEPTED:
+            accepted = True
+        status = publish_per_message(
+            publisher, addr=AddressHelper.queue_address(queue_name_2)
+        )
+        if status.remote_state == OutcomeState.ACCEPTED:
+            accepted_2 = True
+    except Exception:
+        raised = True
+
+    if publisher is not None:
+        publisher.close()
+
+    purged_messages_queue_1 = management.purge_queue(queue_name)
+    purged_messages_queue_2 = management.purge_queue(queue_name_2)
+    management.delete_queue(queue_name)
+    management.delete_queue(queue_name_2)
+    management.close()
+
+    assert accepted is True
+    assert accepted_2 is True
+    assert purged_messages_queue_1 == 1
+    assert purged_messages_queue_2 == 1
     assert raised is False
 
 
@@ -90,6 +136,28 @@ def test_publish_to_invalid_destination(connection: Connection) -> None:
     assert raised is True
 
 
+def test_publish_per_message_to_invalid_destination(connection: Connection) -> None:
+
+    queue_name = "test-queue-1"
+    raised = False
+
+    message = AmqpMessage(body="test")
+    message.to_address("/invalid_destination/" + queue_name)
+    publisher = connection.publisher()
+
+    try:
+        publisher.publish(message)
+    except ArgumentOutOfRangeException:
+        raised = True
+    except Exception:
+        raised = False
+
+    if publisher is not None:
+        publisher.close()
+
+    assert raised is True
+
+
 def test_publish_exchange(connection: Connection) -> None:
 
     exchange_name = "test-exchange"
@@ -97,17 +165,7 @@ def test_publish_exchange(connection: Connection) -> None:
     management = connection.management()
     routing_key = "routing-key"
 
-    management.declare_exchange(ExchangeSpecification(name=exchange_name))
-
-    management.declare_queue(QuorumQueueSpecification(name=queue_name))
-
-    management.bind(
-        BindingSpecification(
-            source_exchange=exchange_name,
-            destination_queue=queue_name,
-            binding_key=routing_key,
-        )
-    )
+    bind_name = create_binding(management, exchange_name, queue_name, routing_key)
 
     addr = AddressHelper.exchange_address(exchange_name, routing_key)
 
@@ -124,6 +182,7 @@ def test_publish_exchange(connection: Connection) -> None:
 
     publisher.close()
 
+    management.unbind(bind_name)
     management.delete_exchange(exchange_name)
     management.delete_queue(queue_name)
     management.close()
@@ -265,3 +324,50 @@ def test_queue_info_for_stream_with_validations(connection: Connection) -> None:
     for i in range(messages_to_send):
 
         publisher.publish(AmqpMessage(body="test"))
+
+'''
+def test_publish_per_message_exchange(connection: Connection) -> None:
+
+    exchange_name = "test-exchange-per-message"
+    queue_name = "test-queue-per-message"
+    management = connection.management()
+    routing_key = "routing-key-per-message"
+
+    bind_name = create_binding(management, exchange_name, queue_name, routing_key)
+
+    raised = False
+
+    publisher = None
+    # accepted = False
+    accepted_2 = False
+
+    try:
+        publisher = connection.publisher()
+        # status = publish_per_message(
+        #    publisher, addr=AddressHelper.exchange_address(exchange_name, routing_key)
+        # )
+        # if status.remote_state == OutcomeState.ACCEPTED:
+        #    accepted = True
+        status = publish_per_message(
+            publisher, addr=AddressHelper.queue_address(queue_name)
+        )
+        if status.remote_state == OutcomeState.ACCEPTED:
+            accepted_2 = True
+    except Exception:
+        raised = True
+
+    # if publisher is not None:
+    publisher.close()
+
+    purged_messages_queue = management.purge_queue(queue_name)
+    management.unbind(bind_name)
+    management.delete_exchange(exchange_name)
+    management.delete_queue(queue_name)
+
+    management.close()
+
+    # assert accepted is True
+    assert accepted_2 is True
+    assert purged_messages_queue == 1
+    assert raised is False
+'''
