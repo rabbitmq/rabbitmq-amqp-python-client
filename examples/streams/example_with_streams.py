@@ -4,6 +4,7 @@ from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,; SslConfig
     AddressHelper,
     AMQPMessagingHandler,
     Connection,
+    Environment,
     Event,
     Message,
     OffsetSpecification,
@@ -65,8 +66,19 @@ class MyMessageHandler(AMQPMessagingHandler):
         print("link closed")
 
 
-def create_connection() -> Connection:
-    connection = Connection("amqp://guest:guest@localhost:5672/")
+def create_connection(environment: Environment) -> Connection:
+    connection = environment.connection("amqp://guest:guest@localhost:5672/")
+    # in case of SSL enablement
+    # ca_cert_file = ".ci/certs/ca_certificate.pem"
+    # client_cert = ".ci/certs/client_certificate.pem"
+    # client_key = ".ci/certs/client_key.pem"
+    # connection = Connection(
+    #    "amqps://guest:guest@localhost:5671/",
+    #    ssl_context=SslConfigurationContext(
+    #        ca_cert=ca_cert_file,
+    #        client_cert=ClientCert(client_cert=client_cert, client_key=client_key),
+    #    ),
+    # )
     connection.dial()
 
     return connection
@@ -76,7 +88,8 @@ def main() -> None:
     queue_name = "example-queue"
 
     print("connection to amqp server")
-    connection = create_connection()
+    environment = Environment()
+    connection = create_connection(environment)
 
     management = connection.management()
 
@@ -84,7 +97,7 @@ def main() -> None:
 
     addr_queue = AddressHelper.queue_address(queue_name)
 
-    consumer_connection = create_connection()
+    consumer_connection = create_connection(environment)
 
     stream_filter_options = StreamOptions()
     # can be first, last, next or an offset long
@@ -135,7 +148,7 @@ def main() -> None:
     print("closing connections")
     management.close()
     print("after management closing")
-    connection.close()
+    environment.close()
     print("after connection closing")
 
 

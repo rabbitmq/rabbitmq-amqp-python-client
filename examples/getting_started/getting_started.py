@@ -5,16 +5,16 @@ from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,; SslConfig
     AddressHelper,
     AMQPMessagingHandler,
     BindingSpecification,
-    ClientCert,
     Connection,
+    Environment,
     Event,
     ExchangeSpecification,
     Message,
+    OutcomeState,
     QuorumQueueSpecification,
-    SslConfigurationContext,
 )
 
-messages_to_publish = 100
+MESSAGES_TO_PUBLISH = 100
 
 
 class MyMessageHandler(AMQPMessagingHandler):
@@ -47,7 +47,7 @@ class MyMessageHandler(AMQPMessagingHandler):
 
         self._count = self._count + 1
 
-        if self._count == messages_to_publish:
+        if self._count == MESSAGES_TO_PUBLISH:
             print("closing receiver")
             # if you want you can add cleanup operations here
             # event.receiver.close()
@@ -62,18 +62,19 @@ class MyMessageHandler(AMQPMessagingHandler):
         print("link closed")
 
 
-def create_connection() -> Connection:
+def create_connection(environment: Environment) -> Connection:
+    connection = environment.connection("amqp://guest:guest@localhost:5672/")
     # in case of SSL enablement
-    ca_cert_file = ".ci/certs/ca_certificate.pem"
-    client_cert = ".ci/certs/client_certificate.pem"
-    client_key = ".ci/certs/client_key.pem"
-    connection = Connection(
-        "amqps://guest:guest@localhost:5671/",
-        ssl_context=SslConfigurationContext(
-            ca_cert=ca_cert_file,
-            client_cert=ClientCert(client_cert=client_cert, client_key=client_key),
-        ),
-    )
+    # ca_cert_file = ".ci/certs/ca_certificate.pem"
+    # client_cert = ".ci/certs/client_certificate.pem"
+    # client_key = ".ci/certs/client_key.pem"
+    # connection = Connection(
+    #    "amqps://guest:guest@localhost:5671/",
+    #    ssl_context=SslConfigurationContext(
+    #        ca_cert=ca_cert_file,
+    #        client_cert=ClientCert(client_cert=client_cert, client_key=client_key),
+    #    ),
+    # )
     connection.dial()
 
     return connection
@@ -86,12 +87,13 @@ def main() -> None:
     routing_key = "routing-key"
 
     print("connection to amqp server")
-    connection = create_connection()
+    environment = Environment()
+    connection = create_connection(environment)
 
     management = connection.management()
 
     print("declaring exchange and queue")
-    management.declare_exchange(ExchangeSpecification(name=exchange_name, arguments={}))
+    management.declare_exchange(ExchangeSpecification(name=exchange_name))
 
     management.declare_queue(
         QuorumQueueSpecification(name=queue_name)
@@ -121,13 +123,14 @@ def main() -> None:
     # management.close()
 
     # publish 10 messages
-    for i in range(messages_to_publish):
+    for i in range(MESSAGES_TO_PUBLISH):
+        print("publishing")
         status = publisher.publish(Message(body="test"))
-        if status.ACCEPTED:
+        if status.remote_state == OutcomeState.ACCEPTED:
             print("message accepted")
-        elif status.RELEASED:
+        elif status.remote_state == OutcomeState.RELEASED:
             print("message not routed")
-        elif status.REJECTED:
+        elif status.remote_state == OutcomeState.REJECTED:
             print("message not rejected")
 
     publisher.close()
@@ -160,7 +163,7 @@ def main() -> None:
     print("closing connections")
     management.close()
     print("after management closing")
-    connection.close()
+    environment.close()
     print("after connection closing")
 
 

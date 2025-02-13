@@ -32,18 +32,19 @@ The client is distributed via [`PIP`](https://pypi.org/project/rabbitmq-amqp-pyt
 
 ## Getting Started
 
-An example is provided [`here`](./examples/getting_started/basic_example.py) you can run it after starting a RabbitMQ 4.0 broker with:
+An example is provided [`here`](./examples/getting_started/getting_started.py) you can run it after starting a RabbitMQ 4.0 broker with:
 
-poetry run python ./examples/getting_started/main.py
+poetry run python ./examples/getting_started/getting_started.py
 
 ### Creating a connection
 
-A connection to the RabbitMQ AMQP 1.0 server can be established using the Connection object.
+A connection to the RabbitMQ AMQP 1.0 server can be established using the Environment object.
 
 For example:
 
 ```python
-    connection = Connection("amqp://guest:guest@localhost:5672/")
+    environment = Environment()
+    connection = environment.connection("amqp://guest:guest@localhost:5672/")
     connection.dial()
 ```
 
@@ -131,13 +132,13 @@ You can consume from a given offset or specify a default starting point (FIRST, 
 
 Streams filtering is also supported: https://www.rabbitmq.com/blog/2023/10/16/stream-filtering
 
-You can check the [`stream example`](./examples/getting_started/example_with_streams.py) to see how to work with RabbitMQ streams.
+You can check the [`stream example`](./examples/streams/example_with_streams.py) to see how to work with RabbitMQ streams.
 
 ### SSL connections
 
 The client supports TLS/SSL connections.
 
-You can check the [`ssl example`](./examples/getting_started/tls_example.py) to see how to establish a secured connection
+You can check the [`ssl example`](./examples/tls/tls_example.py) to see how to establish a secured connection
 
 
 ### Managing disconnections
@@ -145,7 +146,7 @@ You can check the [`ssl example`](./examples/getting_started/tls_example.py) to 
 At this stage the client doesn't support auto-reconnect but a callback is invoked everytime a remote disconnection is detected.
 You can use this callback to implement your own logic and eventually attempt a reconnection.
 
-You can check the [`reconnection example`](./examples/getting_started/reconnection_example.py) to see how to manage disconnections and
+You can check the [`reconnection example`](./examples/reconnection/reconnection_example.py) to see how to manage disconnections and
 eventually attempt a reconnection
 
 

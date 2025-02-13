@@ -12,6 +12,7 @@ from rabbitmq_amqp_python_client import (
     Connection,
     ConnectionClosed,
     Consumer,
+    Environment,
     Event,
     ExchangeSpecification,
     Management,
@@ -19,6 +20,8 @@ from rabbitmq_amqp_python_client import (
     Publisher,
     QuorumQueueSpecification,
 )
+
+environment = Environment()
 
 
 # here we keep track of the objects we need to reconnect
@@ -118,8 +121,9 @@ def create_connection() -> Connection:
     #    "amqp://ha_tls-rabbit_node2-1:5602/",
     # ]
     # connection = Connection(uris=uris, on_disconnection_handler=on_disconnected)
-    connection = Connection(
-        uri="amqp://guest:guest@localhost:5672/",
+
+    connection = environment.connection(
+        url="amqp://guest:guest@localhost:5672/",
         on_disconnection_handler=on_disconnection,
     )
     connection.dial()
@@ -146,7 +150,7 @@ def main() -> None:
 
     print("declaring exchange and queue")
     connection_configuration.management.declare_exchange(
-        ExchangeSpecification(name=exchange_name, arguments={})
+        ExchangeSpecification(name=exchange_name)
     )
 
     connection_configuration.management.declare_queue(
@@ -242,7 +246,7 @@ def main() -> None:
     print("closing connections")
     connection_configuration.management.close()
     print("after management closing")
-    connection_configuration.connection.close()
+    environment.close()
     print("after connection closing")
 
 

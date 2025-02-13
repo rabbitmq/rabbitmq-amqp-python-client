@@ -5,15 +5,17 @@ from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,; SslConfig
     AddressHelper,
     AMQPMessagingHandler,
     BindingSpecification,
+    ClientCert,
     Connection,
-    Disposition,
+    Environment,
     Event,
     ExchangeSpecification,
     Message,
     QuorumQueueSpecification,
+    SslConfigurationContext,
 )
 
-MESSAGES_TO_PUBLISH = 100
+messages_to_publish = 100
 
 
 class MyMessageHandler(AMQPMessagingHandler):
@@ -46,7 +48,7 @@ class MyMessageHandler(AMQPMessagingHandler):
 
         self._count = self._count + 1
 
-        if self._count == MESSAGES_TO_PUBLISH:
+        if self._count == messages_to_publish:
             print("closing receiver")
             # if you want you can add cleanup operations here
             # event.receiver.close()
@@ -61,8 +63,18 @@ class MyMessageHandler(AMQPMessagingHandler):
         print("link closed")
 
 
-def create_connection() -> Connection:
-    connection = Connection("amqp://guest:guest@localhost:5672/")
+def create_connection(environment: Environment) -> Connection:
+    # in case of SSL enablement
+    ca_cert_file = ".ci/certs/ca_certificate.pem"
+    client_cert = ".ci/certs/client_certificate.pem"
+    client_key = ".ci/certs/client_key.pem"
+    connection = environment.connection(
+        "amqps://guest:guest@localhost:5671/",
+        ssl_context=SslConfigurationContext(
+            ca_cert=ca_cert_file,
+            client_cert=ClientCert(client_cert=client_cert, client_key=client_key),
+        ),
+    )
     connection.dial()
 
     return connection
@@ -73,14 +85,15 @@ def main() -> None:
     exchange_name = "test-exchange"
     queue_name = "example-queue"
     routing_key = "routing-key"
+    environment = Environment()
 
     print("connection to amqp server")
-    connection = create_connection()
+    connection = create_connection(environment)
 
     management = connection.management()
 
     print("declaring exchange and queue")
-    management.declare_exchange(ExchangeSpecification(name=exchange_name, arguments={}))
+    management.declare_exchange(ExchangeSpecification(name=exchange_name))
 
     management.declare_queue(
         QuorumQueueSpecification(name=queue_name)
@@ -110,14 +123,13 @@ def main() -> None:
     # management.close()
 
     # publish 10 messages
-    for i in range(MESSAGES_TO_PUBLISH):
-        print("publishing")
+    for i in range(messages_to_publish):
         status = publisher.publish(Message(body="test"))
-        if status.remote_state == Disposition.ACCEPTED:
+        if status.ACCEPTED:
             print("message accepted")
-        elif status.remote_state == Disposition.RELEASED:
+        elif status.RELEASED:
             print("message not routed")
-        elif status.remote_state == Disposition.REJECTED:
+        elif status.REJECTED:
             print("message not rejected")
 
     publisher.close()
@@ -150,7 +162,7 @@ def main() -> None:
     print("closing connections")
     management.close()
     print("after management closing")
-    connection.close()
+    environment.close()
     print("after connection closing")
 
 

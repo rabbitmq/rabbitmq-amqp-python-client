@@ -6,7 +6,7 @@ from rabbitmq_amqp_python_client import (
     AddressHelper,
     AMQPMessagingHandler,
     ClientCert,
-    Connection,
+    Environment,
     Event,
     SslConfigurationContext,
     symbol,
@@ -14,22 +14,34 @@ from rabbitmq_amqp_python_client import (
 
 
 @pytest.fixture()
+def environment(pytestconfig):
+    environment = Environment()
+    try:
+        yield environment
+
+    finally:
+        environment.close()
+
+
+@pytest.fixture()
 def connection(pytestconfig):
-    connection = Connection("amqp://guest:guest@localhost:5672/")
+    environment = Environment()
+    connection = environment.connection("amqp://guest:guest@localhost:5672/")
     connection.dial()
     try:
         yield connection
 
     finally:
-        connection.close()
+        environment.close()
 
 
 @pytest.fixture()
 def connection_ssl(pytestconfig):
+    environment = Environment()
     ca_cert_file = ".ci/certs/ca_certificate.pem"
     client_cert = ".ci/certs/client_certificate.pem"
     client_key = ".ci/certs/client_key.pem"
-    connection = Connection(
+    connection = environment.connection(
         "amqps://guest:guest@localhost:5671/",
         ssl_context=SslConfigurationContext(
             ca_cert=ca_cert_file,
@@ -41,25 +53,26 @@ def connection_ssl(pytestconfig):
         yield connection
 
     finally:
-        connection.close()
+        environment.close()
 
 
 @pytest.fixture()
 def management(pytestconfig):
-    connection = Connection("amqp://guest:guest@localhost:5672/")
+    environment = Environment()
+    connection = environment.connection("amqp://guest:guest@localhost:5672/")
     connection.dial()
     try:
         management = connection.management()
         yield management
 
     finally:
-        management.close()
-        connection.close()
+        environment.close()
 
 
 @pytest.fixture()
 def consumer(pytestconfig):
-    connection = Connection("amqp://guest:guest@localhost:5672/")
+    environment = Environment()
+    connection = environment.connection("amqp://guest:guest@localhost:5672/")
     connection.dial()
     try:
         queue_name = "test-queue"
@@ -69,7 +82,7 @@ def consumer(pytestconfig):
 
     finally:
         consumer.close()
-        connection.close()
+        environment.close()
 
 
 class ConsumerTestException(BaseException):

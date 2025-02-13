@@ -37,6 +37,11 @@ class Connection:
         self._on_disconnection_handler = on_disconnection_handler
         self._conf_ssl_context: Optional[SslConfigurationContext] = ssl_context
         self._ssl_domain = None
+        self._connections = []  # type: ignore
+        self._index: int = -1
+
+    def _set_environment_connection_list(self, connections: []):  # type: ignore
+        self._connections = connections
 
     def dial(self) -> None:
         logger.debug("Establishing a connection to the amqp server")
@@ -75,6 +80,7 @@ class Connection:
     def close(self) -> None:
         logger.debug("Closing connection")
         self._conn.close()
+        self._connections.remove(self)
 
     def publisher(self, destination: str) -> Publisher:
         if validate_address(destination) is False:
