@@ -3,13 +3,13 @@
 
 from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,; SslConfigurationContext,; ClientCert,
     AddressHelper,
+    AmqpMessage,
     AMQPMessagingHandler,
     BindingSpecification,
     Connection,
     Environment,
     Event,
     ExchangeSpecification,
-    Message,
     OutcomeState,
     QuorumQueueSpecification,
 )
@@ -125,7 +125,7 @@ def main() -> None:
     # publish 10 messages
     for i in range(MESSAGES_TO_PUBLISH):
         print("publishing")
-        status = publisher.publish(Message(body="test"))
+        status = publisher.publish(AmqpMessage(body="test"))
         if status.remote_state == OutcomeState.ACCEPTED:
             print("message accepted")
         elif status.remote_state == OutcomeState.RELEASED:

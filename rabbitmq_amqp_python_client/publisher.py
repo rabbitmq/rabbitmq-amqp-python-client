@@ -1,9 +1,9 @@
 import logging
 from typing import Optional
 
+from .amqp_message import AmqpMessage
 from .options import SenderOptionUnseattle
 from .qpid.proton._delivery import Delivery
-from .qpid.proton._message import Message
 from .qpid.proton.utils import (
     BlockingConnection,
     BlockingSender,
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class Publisher:
-    def __init__(self, conn: BlockingConnection, addr: str):
+    def __init__(self, conn: BlockingConnection, addr: str = ""):
         self._sender: Optional[BlockingSender] = None
         self._conn = conn
         self._addr = addr
@@ -24,9 +24,9 @@ class Publisher:
             logger.debug("Creating Sender")
             self._sender = self._create_sender(self._addr)
 
-    def publish(self, message: Message) -> Delivery:
+    def publish(self, message: AmqpMessage) -> Delivery:
         if self._sender is not None:
-            return self._sender.send(message)
+            return self._sender.send(message.native_message())
 
     def close(self) -> None:
         logger.debug("Closing Sender")

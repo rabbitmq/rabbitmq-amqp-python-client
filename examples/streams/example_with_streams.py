@@ -2,11 +2,11 @@
 
 from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,; SslConfigurationContext,; ClientCert,
     AddressHelper,
+    AmqpMessage,
     AMQPMessagingHandler,
     Connection,
     Environment,
     Event,
-    Message,
     OffsetSpecification,
     StreamOptions,
     StreamSpecification,
@@ -120,7 +120,7 @@ def main() -> None:
     # publish with a filter of apple
     for i in range(MESSAGES_TO_PUBLISH):
         publisher.publish(
-            Message(
+            AmqpMessage(
                 body="apple: " + str(i), annotations={"x-stream-filter-value": "apple"}
             )
         )
@@ -128,7 +128,7 @@ def main() -> None:
     # publish with a filter of banana
     for i in range(MESSAGES_TO_PUBLISH):
         publisher.publish(
-            Message(
+            AmqpMessage(
                 body="banana: " + str(i),
                 annotations={"x-stream-filter-value": "banana"},
             )

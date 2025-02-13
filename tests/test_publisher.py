@@ -2,13 +2,13 @@ import time
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
+    AmqpMessage,
     ArgumentOutOfRangeException,
     BindingSpecification,
     Connection,
     ConnectionClosed,
     Environment,
     ExchangeSpecification,
-    Message,
     QuorumQueueSpecification,
     StreamSpecification,
 )
@@ -30,7 +30,7 @@ def test_publish_queue(connection: Connection) -> None:
 
     try:
         publisher = connection.publisher("/queues/" + queue_name)
-        status = publisher.publish(Message(body="test"))
+        status = publisher.publish(AmqpMessage(body="test"))
         if status.ACCEPTED:
             accepted = True
     except Exception:
@@ -57,7 +57,7 @@ def test_publish_ssl(connection_ssl: Connection) -> None:
 
     try:
         publisher = connection_ssl.publisher("/queues/" + queue_name)
-        publisher.publish(Message(body="test"))
+        publisher.publish(AmqpMessage(body="test"))
     except Exception:
         raised = True
 
@@ -78,7 +78,7 @@ def test_publish_to_invalid_destination(connection: Connection) -> None:
     publisher = None
     try:
         publisher = connection.publisher("/invalid-destination/" + queue_name)
-        publisher.publish(Message(body="test"))
+        publisher.publish(AmqpMessage(body="test"))
     except ArgumentOutOfRangeException:
         raised = True
     except Exception:
@@ -116,7 +116,7 @@ def test_publish_exchange(connection: Connection) -> None:
 
     try:
         publisher = connection.publisher(addr)
-        status = publisher.publish(Message(body="test"))
+        status = publisher.publish(AmqpMessage(body="test"))
         if status.ACCEPTED:
             accepted = True
     except Exception:
@@ -145,7 +145,7 @@ def test_publish_purge(connection: Connection) -> None:
     try:
         publisher = connection.publisher("/queues/" + queue_name)
         for i in range(messages_to_publish):
-            publisher.publish(Message(body="test"))
+            publisher.publish(AmqpMessage(body="test"))
     except Exception:
         raised = True
 
@@ -210,7 +210,7 @@ def test_disconnection_reconnection() -> None:
                 # simulate a disconnection
                 delete_all_connections()
             try:
-                publisher.publish(Message(body="test"))
+                publisher.publish(AmqpMessage(body="test"))
 
             except ConnectionClosed:
                 disconnected = True
@@ -264,4 +264,4 @@ def test_queue_info_for_stream_with_validations(connection: Connection) -> None:
 
     for i in range(messages_to_send):
 
-        publisher.publish(Message(body="test"))
+        publisher.publish(AmqpMessage(body="test"))

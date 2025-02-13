@@ -1,13 +1,13 @@
 import logging
-from typing import Literal, Optional, Union
+from typing import Literal, Optional, Union, cast
 
+from .amqp_message import AmqpMessage
 from .entities import StreamOptions
 from .options import (
     ReceiverOptionUnsettled,
     ReceiverOptionUnsettledWithFilters,
 )
 from .qpid.proton._handlers import MessagingHandler
-from .qpid.proton._message import Message
 from .qpid.proton.utils import (
     BlockingConnection,
     BlockingReceiver,
@@ -38,9 +38,12 @@ class Consumer:
             logger.debug("Creating Sender")
             self._receiver = self._create_receiver(self._addr)
 
-    def consume(self, timeout: Union[None, Literal[False], float] = False) -> Message:
+    def consume(  # type: ignore
+        self, timeout: Union[None, Literal[False], float] = False
+    ) -> AmqpMessage:
         if self._receiver is not None:
-            return self._receiver.receive(timeout=timeout)
+            message = self._receiver.receive(timeout=timeout)
+            return cast(AmqpMessage, message)
 
     def close(self) -> None:
         logger.debug("Closing the receiver")

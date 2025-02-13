@@ -1,12 +1,12 @@
 from typing import Optional
 
 from rabbitmq_amqp_python_client import (
+    AmqpMessage,
     BindingSpecification,
     Connection,
     ExchangeSpecification,
     ExchangeType,
     Management,
-    Message,
     QuorumQueueSpecification,
 )
 
@@ -25,7 +25,7 @@ def publish_messages(
     publisher = connection.publisher("/queues/" + queue_name)
     # publish messages_to_send messages
     for i in range(messages_to_send):
-        publisher.publish(Message(body="test" + str(i), annotations=annotations))
+        publisher.publish(AmqpMessage(body="test" + str(i), annotations=annotations))
     publisher.close()
 
 
