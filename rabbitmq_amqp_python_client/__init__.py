@@ -69,5 +69,4 @@ __all__ = [
     "OffsetSpecification",
     "OutcomeState",
     "Environment",
-    "message_to_address_helper",
 ]

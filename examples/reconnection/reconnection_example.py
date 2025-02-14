@@ -7,7 +7,6 @@ from typing import Optional
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
-    AmqpMessage,
     AMQPMessagingHandler,
     BindingSpecification,
     Connection,
@@ -17,6 +16,7 @@ from rabbitmq_amqp_python_client import (
     Event,
     ExchangeSpecification,
     Management,
+    Message,
     Publisher,
     QuorumQueueSpecification,
 )
@@ -191,7 +191,7 @@ def main() -> None:
                 print("published 1000 messages...")
             try:
                 if connection_configuration.publisher is not None:
-                    connection_configuration.publisher.publish(AmqpMessage(body="test"))
+                    connection_configuration.publisher.publish(Message(body="test"))
             except ConnectionClosed:
                 print("publisher closing exception, resubmitting")
                 continue
