@@ -2,7 +2,10 @@ import logging
 from typing import Optional
 
 from .address_helper import validate_address
-from .exceptions import ArgumentOutOfRangeException
+from .exceptions import (
+    ArgumentOutOfRangeException,
+    ValidationCodeException,
+)
 from .options import SenderOptionUnseattle
 from .qpid.proton._delivery import Delivery
 from .qpid.proton._message import Message
@@ -27,6 +30,11 @@ class Publisher:
             self._sender = self._create_sender(self._addr)
 
     def publish(self, message: Message) -> Delivery:
+        if (self._addr != "") and (message.address is not None):
+            raise ValidationCodeException(
+                "address specified in both message and publisher"
+            )
+
         if self._addr != "":
             if self._sender is not None:
                 return self._sender.send(message)

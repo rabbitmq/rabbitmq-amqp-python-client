@@ -10,6 +10,7 @@ from rabbitmq_amqp_python_client import (
     OutcomeState,
     QuorumQueueSpecification,
     StreamSpecification,
+    ValidationCodeException,
 )
 
 from .http_requests import delete_all_connections
@@ -156,6 +157,32 @@ def test_publish_per_message_to_invalid_destination(connection: Connection) -> N
 
     if publisher is not None:
         publisher.close()
+
+    assert raised is True
+
+
+def test_publish_per_message_both_address(connection: Connection) -> None:
+
+    queue_name = "test-queue-1"
+    raised = False
+
+    management = connection.management()
+    management.declare_queue(QuorumQueueSpecification(name=queue_name))
+
+    message = Message(body="test")
+    message = AddressHelper.message_to_address_helper(message, "/queues/" + queue_name)
+    publisher = connection.publisher("/queues/" + queue_name)
+
+    try:
+        publisher.publish(message)
+    except ValidationCodeException:
+        raised = True
+
+    if publisher is not None:
+        publisher.close()
+
+    management.delete_queue(queue_name)
+    management.close()
 
     assert raised is True
 
