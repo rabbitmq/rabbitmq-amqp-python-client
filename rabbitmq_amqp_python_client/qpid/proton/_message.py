@@ -140,7 +140,6 @@ class Message(object):
     def _check_property_keys(self) -> None:
         """
         AMQP allows only string keys for properties. This function checks that this requirement is met
-        and raises a MessageException if not. However, in certain cases, conversions to string are
         automatically performed:
 
         1. When a key is a user-defined (non-AMQP) subclass of str.

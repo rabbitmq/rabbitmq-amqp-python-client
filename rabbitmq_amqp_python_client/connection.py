@@ -82,11 +82,12 @@ class Connection:
         self._conn.close()
         self._connections.remove(self)
 
-    def publisher(self, destination: str) -> Publisher:
-        if validate_address(destination) is False:
-            raise ArgumentOutOfRangeException(
-                "destination address must start with /queues or /exchanges"
-            )
+    def publisher(self, destination: str = "") -> Publisher:
+        if destination != "":
+            if validate_address(destination) is False:
+                raise ArgumentOutOfRangeException(
+                    "destination address must start with /queues or /exchanges"
+                )
         publisher = Publisher(self._conn, destination)
         return publisher
 

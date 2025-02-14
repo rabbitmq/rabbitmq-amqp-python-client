@@ -1,5 +1,5 @@
 import logging
-from typing import Literal, Optional, Union
+from typing import Literal, Optional, Union, cast
 
 from .entities import StreamOptions
 from .options import (
@@ -40,7 +40,8 @@ class Consumer:
 
     def consume(self, timeout: Union[None, Literal[False], float] = False) -> Message:
         if self._receiver is not None:
-            return self._receiver.receive(timeout=timeout)
+            message = self._receiver.receive(timeout=timeout)
+            return cast(Message, message)
 
     def close(self) -> None:
         logger.debug("Closing the receiver")

@@ -123,7 +123,7 @@ def create_connection() -> Connection:
     # connection = Connection(uris=uris, on_disconnection_handler=on_disconnected)
 
     connection = environment.connection(
-        url="amqp://guest:guest@localhost:5672/",
+        uri="amqp://guest:guest@localhost:5672/",
         on_disconnection_handler=on_disconnection,
     )
     connection.dial()

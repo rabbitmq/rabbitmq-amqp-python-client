@@ -12,7 +12,10 @@ from .entities import (
     StreamOptions,
 )
 from .environment import Environment
-from .exceptions import ArgumentOutOfRangeException
+from .exceptions import (
+    ArgumentOutOfRangeException,
+    ValidationCodeException,
+)
 from .management import Management
 from .publisher import Publisher
 from .qpid.proton._data import symbol  # noqa: E402
@@ -62,6 +65,7 @@ __all__ = [
     "AddressHelper",
     "AMQPMessagingHandler",
     "ArgumentOutOfRangeException",
+    "ValidationCodeException",
     "SslConfigurationContext",
     "ClientCert",
     "ConnectionClosed",
