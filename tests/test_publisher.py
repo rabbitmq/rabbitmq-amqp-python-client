@@ -30,7 +30,9 @@ def test_publish_queue(connection: Connection) -> None:
     accepted = False
 
     try:
-        publisher = connection.publisher("/queues/" + queue_name)
+        publisher = connection.publisher(
+            destination=AddressHelper.queue_address(queue_name)
+        )
         status = publisher.publish(Message(body="test"))
         if status.remote_state == OutcomeState.ACCEPTED:
             accepted = True
@@ -103,7 +105,9 @@ def test_publish_ssl(connection_ssl: Connection) -> None:
     raised = False
 
     try:
-        publisher = connection_ssl.publisher("/queues/" + queue_name)
+        publisher = connection_ssl.publisher(
+            destination=AddressHelper.queue_address(queue_name)
+        )
         publisher.publish(Message(body="test"))
     except Exception:
         raised = True
@@ -169,11 +173,15 @@ def test_publish_per_message_both_address(connection: Connection) -> None:
     management = connection.management()
     management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
-    message = Message(body="test")
-    message = AddressHelper.message_to_address_helper(message, "/queues/" + queue_name)
-    publisher = connection.publisher("/queues/" + queue_name)
+    publisher = connection.publisher(
+        destination=AddressHelper.queue_address(queue_name)
+    )
 
     try:
+        message = Message(body="test")
+        message = AddressHelper.message_to_address_helper(
+            message, AddressHelper.queue_address(queue_name)
+        )
         publisher.publish(message)
     except ValidationCodeException:
         raised = True
@@ -231,7 +239,9 @@ def test_publish_purge(connection: Connection) -> None:
     raised = False
 
     try:
-        publisher = connection.publisher("/queues/" + queue_name)
+        publisher = connection.publisher(
+            destination=AddressHelper.queue_address(queue_name)
+        )
         for i in range(messages_to_publish):
             publisher.publish(Message(body="test"))
     except Exception:
@@ -271,7 +281,9 @@ def test_disconnection_reconnection() -> None:
             connection_test.dial()
 
         if publisher is not None:
-            publisher = connection_test.publisher("/queues/" + queue_name)
+            publisher = connection_test.publisher(
+                destination=AddressHelper.queue_address(queue_name)
+            )
 
         nonlocal reconnected
         reconnected = True
@@ -290,7 +302,9 @@ def test_disconnection_reconnection() -> None:
 
     management.close()
 
-    publisher = connection_test.publisher("/queues/" + queue_name)
+    publisher = connection_test.publisher(
+        destination=AddressHelper.queue_address(queue_name)
+    )
     while True:
 
         for i in range(messages_to_publish):
@@ -346,7 +360,9 @@ def test_queue_info_for_stream_with_validations(connection: Connection) -> None:
 
     print("before creating publisher")
 
-    publisher = connection.publisher("/queues/" + stream_name)
+    publisher = connection.publisher(
+        destination=AddressHelper.queue_address(stream_name)
+    )
 
     print("after creating publisher")
 
