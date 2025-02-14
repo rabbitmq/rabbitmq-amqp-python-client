@@ -2,11 +2,11 @@ import time
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
-    AmqpMessage,
     ArgumentOutOfRangeException,
     Connection,
     ConnectionClosed,
     Environment,
+    Message,
     OutcomeState,
     QuorumQueueSpecification,
     StreamSpecification,
@@ -30,7 +30,7 @@ def test_publish_queue(connection: Connection) -> None:
 
     try:
         publisher = connection.publisher("/queues/" + queue_name)
-        status = publisher.publish(AmqpMessage(body="test"))
+        status = publisher.publish(Message(body="test"))
         if status.remote_state == OutcomeState.ACCEPTED:
             accepted = True
     except Exception:
@@ -103,7 +103,7 @@ def test_publish_ssl(connection_ssl: Connection) -> None:
 
     try:
         publisher = connection_ssl.publisher("/queues/" + queue_name)
-        publisher.publish(AmqpMessage(body="test"))
+        publisher.publish(Message(body="test"))
     except Exception:
         raised = True
 
@@ -124,7 +124,7 @@ def test_publish_to_invalid_destination(connection: Connection) -> None:
     publisher = None
     try:
         publisher = connection.publisher("/invalid-destination/" + queue_name)
-        publisher.publish(AmqpMessage(body="test"))
+        publisher.publish(Message(body="test"))
     except ArgumentOutOfRangeException:
         raised = True
     except Exception:
@@ -141,8 +141,10 @@ def test_publish_per_message_to_invalid_destination(connection: Connection) -> N
     queue_name = "test-queue-1"
     raised = False
 
-    message = AmqpMessage(body="test")
-    message.to_address("/invalid_destination/" + queue_name)
+    message = Message(body="test")
+    message = AddressHelper.message_to_address_helper(
+        message, "/invalid_destination/" + queue_name
+    )
     publisher = connection.publisher()
 
     try:
@@ -174,7 +176,7 @@ def test_publish_exchange(connection: Connection) -> None:
 
     try:
         publisher = connection.publisher(addr)
-        status = publisher.publish(AmqpMessage(body="test"))
+        status = publisher.publish(Message(body="test"))
         if status.ACCEPTED:
             accepted = True
     except Exception:
@@ -204,7 +206,7 @@ def test_publish_purge(connection: Connection) -> None:
     try:
         publisher = connection.publisher("/queues/" + queue_name)
         for i in range(messages_to_publish):
-            publisher.publish(AmqpMessage(body="test"))
+            publisher.publish(Message(body="test"))
     except Exception:
         raised = True
 
@@ -269,7 +271,7 @@ def test_disconnection_reconnection() -> None:
                 # simulate a disconnection
                 delete_all_connections()
             try:
-                publisher.publish(AmqpMessage(body="test"))
+                publisher.publish(Message(body="test"))
 
             except ConnectionClosed:
                 disconnected = True
@@ -323,9 +325,9 @@ def test_queue_info_for_stream_with_validations(connection: Connection) -> None:
 
     for i in range(messages_to_send):
 
-        publisher.publish(AmqpMessage(body="test"))
+        publisher.publish(Message(body="test"))
 
-'''
+
 def test_publish_per_message_exchange(connection: Connection) -> None:
 
     exchange_name = "test-exchange-per-message"
@@ -338,16 +340,16 @@ def test_publish_per_message_exchange(connection: Connection) -> None:
     raised = False
 
     publisher = None
-    # accepted = False
+    accepted = False
     accepted_2 = False
 
     try:
         publisher = connection.publisher()
-        # status = publish_per_message(
-        #    publisher, addr=AddressHelper.exchange_address(exchange_name, routing_key)
-        # )
-        # if status.remote_state == OutcomeState.ACCEPTED:
-        #    accepted = True
+        status = publish_per_message(
+            publisher, addr=AddressHelper.exchange_address(exchange_name, routing_key)
+        )
+        if status.remote_state == OutcomeState.ACCEPTED:
+            accepted = True
         status = publish_per_message(
             publisher, addr=AddressHelper.queue_address(queue_name)
         )
@@ -366,8 +368,7 @@ def test_publish_per_message_exchange(connection: Connection) -> None:
 
     management.close()
 
-    # assert accepted is True
+    assert accepted is True
     assert accepted_2 is True
-    assert purged_messages_queue == 1
+    assert purged_messages_queue == 2
     assert raised is False
-'''

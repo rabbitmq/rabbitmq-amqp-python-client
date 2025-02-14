@@ -1,13 +1,14 @@
 from typing import Optional
 
 from rabbitmq_amqp_python_client import (
-    AmqpMessage,
+    AddressHelper,
     BindingSpecification,
     Connection,
     Delivery,
     ExchangeSpecification,
     ExchangeType,
     Management,
+    Message,
     Publisher,
     QuorumQueueSpecification,
 )
@@ -27,13 +28,13 @@ def publish_messages(
     publisher = connection.publisher("/queues/" + queue_name)
     # publish messages_to_send messages
     for i in range(messages_to_send):
-        publisher.publish(AmqpMessage(body="test" + str(i), annotations=annotations))
+        publisher.publish(Message(body="test" + str(i), annotations=annotations))
     publisher.close()
 
 
 def publish_per_message(publisher: Publisher, addr: str) -> Delivery:
-    message = AmqpMessage(body="test")
-    message.to_address(addr)
+    message = Message(body="test")
+    message = AddressHelper.message_to_address_helper(message, addr)
     status = publisher.publish(message)
     return status
 

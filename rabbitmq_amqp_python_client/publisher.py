@@ -2,10 +2,10 @@ import logging
 from typing import Optional
 
 from .address_helper import validate_address
-from .amqp_message import AmqpMessage
 from .exceptions import ArgumentOutOfRangeException
 from .options import SenderOptionUnseattle
 from .qpid.proton._delivery import Delivery
+from .qpid.proton._message import Message
 from .qpid.proton.utils import (
     BlockingConnection,
     BlockingSender,
@@ -26,18 +26,18 @@ class Publisher:
             logger.debug("Creating Sender")
             self._sender = self._create_sender(self._addr)
 
-    def publish(self, message: AmqpMessage) -> Delivery:
+    def publish(self, message: Message) -> Delivery:
         if self._addr != "":
             if self._sender is not None:
-                return self._sender.send(message.native_message())
+                return self._sender.send(message)
         else:
-            if message.get_address() != "":
-                if validate_address(message.get_address()) is False:
+            if message.address != "":
+                if validate_address(message.address) is False:
                     raise ArgumentOutOfRangeException(
                         "destination address must start with /queues or /exchanges"
                     )
                 if self._sender is not None:
-                    delivery = self._sender.send(message.native_message())
+                    delivery = self._sender.send(message)
                     return delivery
 
     def close(self) -> None:

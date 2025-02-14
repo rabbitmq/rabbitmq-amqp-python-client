@@ -2,7 +2,6 @@ from importlib import metadata
 
 from .address_helper import AddressHelper
 from .amqp_consumer_handler import AMQPMessagingHandler
-from .amqp_message import AmqpMessage
 from .common import ExchangeType, QueueType
 from .connection import Connection
 from .consumer import Consumer
@@ -19,6 +18,7 @@ from .publisher import Publisher
 from .qpid.proton._data import symbol  # noqa: E402
 from .qpid.proton._delivery import Delivery, Disposition
 from .qpid.proton._events import Event
+from .qpid.proton._message import Message
 from .qpid.proton._utils import ConnectionClosed
 from .qpid.proton.handlers import MessagingHandler
 from .queues import (
@@ -52,7 +52,7 @@ __all__ = [
     "BindingSpecification",
     "QueueType",
     "Publisher",
-    "AmqpMessage",
+    "Message",
     "Consumer",
     "MessagingHandler",
     "Event",
@@ -69,4 +69,5 @@ __all__ = [
     "OffsetSpecification",
     "OutcomeState",
     "Environment",
+    "message_to_address_helper",
 ]

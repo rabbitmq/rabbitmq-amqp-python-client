@@ -1,4 +1,5 @@
 from .entities import BindingSpecification
+from .qpid.proton._message import Message
 
 
 def _is_unreserved(char: str) -> bool:
@@ -72,6 +73,11 @@ class AddressHelper:
             + ";args="
         )
         return binding_path_wth_exchange_queue_key
+
+    @staticmethod
+    def message_to_address_helper(message: Message, address: str) -> Message:
+        message.address = address
+        return message
 
 
 def validate_address(address: str) -> bool:
