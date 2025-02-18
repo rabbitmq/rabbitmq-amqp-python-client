@@ -5,14 +5,12 @@ from typing import Any, Optional, Union
 from .address_helper import AddressHelper
 from .common import CommonValues, QueueType
 from .entities import (
-    BindingSpecification,
     ExchangeSpecification,
+    ExchangeToExchangeBindingSpecification,
+    ExchangeToQueueBindingSpecification,
     QueueInfo,
 )
-from .exceptions import (
-    AmqpValidationException,
-    ValidationCodeException,
-)
+from .exceptions import ValidationCodeException
 from .options import ReceiverOption, SenderOption
 from .qpid.proton._message import Message
 from .qpid.proton.utils import (
@@ -304,9 +302,13 @@ class Management:
             "wrong response code received: " + str(response_code)
         )
 
-    def bind(self, bind_specification: BindingSpecification) -> str:
+    def bind(
+        self,
+        bind_specification: Union[
+            ExchangeToQueueBindingSpecification, ExchangeToExchangeBindingSpecification
+        ],
+    ) -> str:
         logger.debug("Bind Operation called")
-        self._validate_binding(bind_specification)
 
         body = {}
         if bind_specification.binding_key is not None:
@@ -314,9 +316,9 @@ class Management:
         else:
             body["binding_key"] = ""
         body["source"] = bind_specification.source_exchange
-        if bind_specification.destination_queue is not None:
+        if isinstance(bind_specification, ExchangeToQueueBindingSpecification):
             body["destination_queue"] = bind_specification.destination_queue
-        elif bind_specification.destination_exchange is not None:
+        elif isinstance(bind_specification, ExchangeToExchangeBindingSpecification):
             body["destination_exchange"] = bind_specification.destination_exchange
 
         body["arguments"] = {}  # type: ignore
@@ -332,47 +334,34 @@ class Management:
             ],
         )
 
-        if bind_specification.destination_queue is not None:
+        if isinstance(bind_specification, ExchangeToQueueBindingSpecification):
             binding_path = AddressHelper.binding_path_with_exchange_queue(
                 bind_specification
             )
-        elif bind_specification.destination_exchange is not None:
+        elif isinstance(bind_specification, ExchangeToExchangeBindingSpecification):
             binding_path = AddressHelper.binding_path_with_exchange_exchange(
                 bind_specification
             )
 
         return binding_path
 
-    def _validate_binding(self, bind_specification: BindingSpecification) -> None:
-        if (
-            bind_specification.destination_queue is not None
-            and bind_specification.destination_exchange is not None
-        ):
-            raise AmqpValidationException(
-                "just one of destination_queue and destination_exchange of BindingSpecification must be set "
-                "for a binding operation"
-            )
-
-        if (
-            bind_specification.destination_queue is None
-            and bind_specification.destination_exchange is None
-        ):
-            raise AmqpValidationException(
-                "at least one of destination_queue and destination_exchange of BindingSpecification must be set "
-                "for a binding operation"
-            )
-
-    def unbind(self, bind_specification: Union[BindingSpecification, str]) -> None:
+    def unbind(
+        self,
+        bind_specification: Union[
+            str,
+            ExchangeToQueueBindingSpecification,
+            ExchangeToExchangeBindingSpecification,
+        ],
+    ) -> None:
         logger.debug("UnBind Operation called")
         if isinstance(bind_specification, str):
             binding_name = bind_specification
         else:
-            self._validate_binding(bind_specification)
-            if bind_specification.destination_queue is not None:
+            if isinstance(bind_specification, ExchangeToQueueBindingSpecification):
                 binding_name = AddressHelper.binding_path_with_exchange_queue(
                     bind_specification
                 )
-            elif bind_specification.destination_exchange is not None:
+            elif isinstance(bind_specification, ExchangeToExchangeBindingSpecification):
                 binding_name = AddressHelper.binding_path_with_exchange_exchange(
                     bind_specification
                 )

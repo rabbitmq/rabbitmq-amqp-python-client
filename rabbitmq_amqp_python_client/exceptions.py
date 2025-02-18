@@ -14,12 +14,3 @@ class ArgumentOutOfRangeException(BaseException):
 
     def __str__(self) -> str:
         return repr(self.msg)
-
-
-class AmqpValidationException(BaseException):
-    # Constructor or Initializer
-    def __init__(self, msg: str):
-        self.msg = msg
-
-    def __str__(self) -> str:
-        return repr(self.msg)

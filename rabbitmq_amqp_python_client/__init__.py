@@ -6,14 +6,14 @@ from .common import ExchangeType, QueueType
 from .connection import Connection
 from .consumer import Consumer
 from .entities import (
-    BindingSpecification,
     ExchangeSpecification,
+    ExchangeToExchangeBindingSpecification,
+    ExchangeToQueueBindingSpecification,
     OffsetSpecification,
     StreamOptions,
 )
 from .environment import Environment
 from .exceptions import (
-    AmqpValidationException,
     ArgumentOutOfRangeException,
     ValidationCodeException,
 )
@@ -53,7 +53,8 @@ __all__ = [
     "QuorumQueueSpecification",
     "ClassicQueueSpecification",
     "StreamSpecification",
-    "BindingSpecification",
+    "ExchangeToQueueBindingSpecification",
+    "ExchangeToExchangeBindingSpecification",
     "QueueType",
     "Publisher",
     "Message",
@@ -74,5 +75,4 @@ __all__ = [
     "OffsetSpecification",
     "OutcomeState",
     "Environment",
-    "AmqpValidationException",
 ]

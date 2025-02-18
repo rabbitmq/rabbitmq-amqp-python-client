@@ -41,11 +41,17 @@ class OffsetSpecification(Enum):
 
 
 @dataclass
-class BindingSpecification:
+class ExchangeToQueueBindingSpecification:
     source_exchange: str
+    destination_queue: str
     binding_key: Optional[str] = None
-    destination_exchange: Optional[str] = None
-    destination_queue: Optional[str] = None
+
+
+@dataclass
+class ExchangeToExchangeBindingSpecification:
+    source_exchange: str
+    destination_exchange: str
+    binding_key: Optional[str] = None
 
 
 class StreamOptions:

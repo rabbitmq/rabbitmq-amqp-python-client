@@ -1,6 +1,9 @@
 from typing import Optional
 
-from .entities import BindingSpecification
+from .entities import (
+    ExchangeToExchangeBindingSpecification,
+    ExchangeToQueueBindingSpecification,
+)
 from .qpid.proton._message import Message
 
 
@@ -63,7 +66,7 @@ class AddressHelper:
 
     @staticmethod
     def binding_path_with_exchange_queue(
-        bind_specification: BindingSpecification,
+        bind_specification: ExchangeToQueueBindingSpecification,
     ) -> str:
         if bind_specification.binding_key is not None:
             key = ";key=" + encode_path_segment(bind_specification.binding_key)
@@ -85,7 +88,7 @@ class AddressHelper:
 
     @staticmethod
     def binding_path_with_exchange_exchange(
-        bind_specification: BindingSpecification,
+        bind_specification: ExchangeToExchangeBindingSpecification,
     ) -> str:
         binding_path_wth_exchange_exchange_key = (
             "/bindings"
