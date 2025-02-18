@@ -333,6 +333,7 @@ class Management:
                 CommonValues.response_code_204.value,
             ],
         )
+        binding_path = ""
 
         if isinstance(bind_specification, ExchangeToQueueBindingSpecification):
             binding_path = AddressHelper.binding_path_with_exchange_queue(
@@ -354,6 +355,7 @@ class Management:
         ],
     ) -> None:
         logger.debug("UnBind Operation called")
+        binding_name = ""
         if isinstance(bind_specification, str):
             binding_name = bind_specification
         else:

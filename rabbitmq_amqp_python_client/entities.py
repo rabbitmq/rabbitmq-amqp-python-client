@@ -59,14 +59,14 @@ class StreamOptions:
     def __init__(self):  # type: ignore
         self._filter_set: Dict[symbol, Described] = {}
 
-    def offset(self, offset_spefication: Union[OffsetSpecification, int]) -> None:
-        if isinstance(offset_spefication, int):
+    def offset(self, offset_specification: Union[OffsetSpecification, int]) -> None:
+        if isinstance(offset_specification, int):
             self._filter_set[symbol(STREAM_OFFSET_SPEC)] = Described(
-                symbol(STREAM_OFFSET_SPEC), offset_spefication
+                symbol(STREAM_OFFSET_SPEC), offset_specification
             )
         else:
             self._filter_set[symbol(STREAM_OFFSET_SPEC)] = Described(
-                symbol(STREAM_OFFSET_SPEC), offset_spefication.name
+                symbol(STREAM_OFFSET_SPEC), offset_specification.name
             )
 
     def filter_values(self, filters: list[str]) -> None:
