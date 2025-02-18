@@ -9,7 +9,10 @@ from .entities import (
     ExchangeSpecification,
     QueueInfo,
 )
-from .exceptions import ValidationCodeException
+from .exceptions import (
+    AmqpValidationException,
+    ValidationCodeException,
+)
 from .options import ReceiverOption, SenderOption
 from .qpid.proton._message import Message
 from .qpid.proton.utils import (
@@ -303,10 +306,19 @@ class Management:
 
     def bind(self, bind_specification: BindingSpecification) -> str:
         logger.debug("Bind Operation called")
+        self._validate_binding(bind_specification)
+
         body = {}
-        body["binding_key"] = bind_specification.binding_key
+        if bind_specification.binding_key is not None:
+            body["binding_key"] = bind_specification.binding_key
+        else:
+            body["binding_key"] = ""
         body["source"] = bind_specification.source_exchange
-        body["destination_queue"] = bind_specification.destination_queue
+        if bind_specification.destination_queue is not None:
+            body["destination_queue"] = bind_specification.destination_queue
+        elif bind_specification.destination_exchange is not None:
+            body["destination_exchange"] = bind_specification.destination_exchange
+
         body["arguments"] = {}  # type: ignore
 
         path = AddressHelper.path_address()
@@ -320,16 +332,53 @@ class Management:
             ],
         )
 
-        binding_path_with_queue = AddressHelper.binding_path_with_exchange_queue(
-            bind_specification
-        )
-        return binding_path_with_queue
+        if bind_specification.destination_queue is not None:
+            binding_path = AddressHelper.binding_path_with_exchange_queue(
+                bind_specification
+            )
+        elif bind_specification.destination_exchange is not None:
+            binding_path = AddressHelper.binding_path_with_exchange_exchange(
+                bind_specification
+            )
 
-    def unbind(self, binding_exchange_queue_path: str) -> None:
+        return binding_path
+
+    def _validate_binding(self, bind_specification: BindingSpecification) -> None:
+        if (
+            bind_specification.destination_queue is not None
+            and bind_specification.destination_exchange is not None
+        ):
+            raise AmqpValidationException(
+                "just one of destination_queue and destination_exchange of BindingSpecification must be set "
+                "for a binding operation"
+            )
+
+        if (
+            bind_specification.destination_queue is None
+            and bind_specification.destination_exchange is None
+        ):
+            raise AmqpValidationException(
+                "at least one of destination_queue and destination_exchange of BindingSpecification must be set "
+                "for a binding operation"
+            )
+
+    def unbind(self, bind_specification: Union[BindingSpecification, str]) -> None:
         logger.debug("UnBind Operation called")
+        if isinstance(bind_specification, str):
+            binding_name = bind_specification
+        else:
+            self._validate_binding(bind_specification)
+            if bind_specification.destination_queue is not None:
+                binding_name = AddressHelper.binding_path_with_exchange_queue(
+                    bind_specification
+                )
+            elif bind_specification.destination_exchange is not None:
+                binding_name = AddressHelper.binding_path_with_exchange_exchange(
+                    bind_specification
+                )
         self.request(
             None,
-            binding_exchange_queue_path,
+            binding_name,
             CommonValues.command_delete.value,
             [
                 CommonValues.response_code_204.value,

@@ -13,6 +13,7 @@ from .entities import (
 )
 from .environment import Environment
 from .exceptions import (
+    AmqpValidationException,
     ArgumentOutOfRangeException,
     ValidationCodeException,
 )
@@ -73,4 +74,5 @@ __all__ = [
     "OffsetSpecification",
     "OutcomeState",
     "Environment",
+    "AmqpValidationException",
 ]
