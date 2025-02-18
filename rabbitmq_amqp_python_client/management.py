@@ -163,34 +163,39 @@ class Management:
         body = {}
         args: dict[str, Any] = {}
 
-        body["auto_delete"] = queue_specification.is_auto_delete
-        body["durable"] = queue_specification.is_durable
-
         if queue_specification.dead_letter_exchange is not None:
             args["x-dead-letter-exchange"] = queue_specification.dead_letter_exchange
         if queue_specification.dead_letter_routing_key is not None:
             args["x-dead-letter-routing-key"] = (
                 queue_specification.dead_letter_routing_key
             )
-        if queue_specification.overflow is not None:
-            args["x-overflow"] = queue_specification.overflow
+        if queue_specification.overflow_behaviour is not None:
+            args["x-overflow"] = queue_specification.overflow_behaviour
         if queue_specification.max_len is not None:
             args["x-max-length"] = queue_specification.max_len
         if queue_specification.max_len_bytes is not None:
             args["x-max-length-bytes"] = queue_specification.max_len_bytes
         if queue_specification.message_ttl is not None:
-            args["x-message-ttl"] = queue_specification.message_ttl
-        if queue_specification.expires is not None:
-            args["x-expires"] = queue_specification.expires
+            args["x-message-ttl"] = int(
+                queue_specification.message_ttl.total_seconds() * 1000
+            )
+        if queue_specification.auto_expires is not None:
+            args["x-expires"] = int(
+                queue_specification.auto_expires.total_seconds() * 1000
+            )
         if queue_specification.single_active_consumer is not None:
             args["x-single-active-consumer"] = (
                 queue_specification.single_active_consumer
             )
 
         if isinstance(queue_specification, ClassicQueueSpecification):
+            body["auto_delete"] = queue_specification.is_auto_delete
+            body["durable"] = queue_specification.is_durable
+            body["exclusive"] = queue_specification.is_exclusive
+
             args["x-queue-type"] = QueueType.classic.value
-            if queue_specification.maximum_priority is not None:
-                args["x-maximum-priority"] = queue_specification.maximum_priority
+            if queue_specification.max_priority is not None:
+                args["x-max-priority"] = queue_specification.max_priority
 
         if isinstance(queue_specification, QuorumQueueSpecification):
             args["x-queue-type"] = QueueType.quorum.value
@@ -203,12 +208,17 @@ class Management:
                 )
 
             if queue_specification.quorum_initial_group_size is not None:
-                args["x-initial-quorum-group-size"] = (
+                args["x-quorum-initial-group-size"] = (
                     queue_specification.quorum_initial_group_size
                 )
 
-            if queue_specification.cluster_target_size is not None:
-                args["cluster_target_size"] = queue_specification.cluster_target_size
+            if queue_specification.cluster_target_group_size is not None:
+                args["x-quorum-target-group-size"] = (
+                    queue_specification.cluster_target_group_size
+                )
+
+            if queue_specification.leader_locator is not None:
+                args["x-queue-leader-locator"] = queue_specification.leader_locator
 
         body["arguments"] = args  # type: ignore
 
@@ -226,22 +236,26 @@ class Management:
         if stream_specification.max_len_bytes is not None:
             args["x-max-length-bytes"] = stream_specification.max_len_bytes
 
-        if stream_specification.max_time_retention is not None:
-            args["x-max-time-retention"] = stream_specification.max_time_retention
-
-        if stream_specification.max_segment_size_in_bytes is not None:
-            args["x-max-segment-size-in-bytes"] = (
-                stream_specification.max_segment_size_in_bytes
+        if stream_specification.max_age is not None:
+            args["x-max-age"] = (
+                str(int(stream_specification.max_age.total_seconds())) + "s"
             )
 
-        if stream_specification.filter_size is not None:
-            args["x-filter-size"] = stream_specification.filter_size
+        if stream_specification.stream_max_segment_size_bytes is not None:
+            args["x-stream-max-segment-size-bytes"] = (
+                stream_specification.stream_max_segment_size_bytes
+            )
+
+        if stream_specification.stream_filter_size_bytes is not None:
+            args["x-stream-filter-size-bytes"] = (
+                stream_specification.stream_filter_size_bytes
+            )
 
         if stream_specification.initial_group_size is not None:
             args["x-initial-group-size"] = stream_specification.initial_group_size
 
         if stream_specification.leader_locator is not None:
-            args["x-leader-locator"] = stream_specification.leader_locator
+            args["x-queue-leader-locator"] = stream_specification.leader_locator
 
         body["arguments"] = args
 
@@ -276,7 +290,6 @@ class Management:
     def _validate_reponse_code(
         self, response_code: int, expected_response_codes: list[int]
     ) -> None:
-        logger.debug("response_code received: " + str(response_code))
         if response_code == CommonValues.response_code_409.value:
             raise ValidationCodeException("ErrPreconditionFailed")
 
