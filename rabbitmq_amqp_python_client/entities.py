@@ -14,7 +14,17 @@ STREAM_FILTER_MATCH_UNFILTERED = "rabbitmq:stream-match-unfiltered"
 class ExchangeSpecification:
     name: str
     arguments: dict[str, str] = field(default_factory=dict)
-    exchange_type: Union[ExchangeType, str] = ExchangeType.direct
+    exchange_type: ExchangeType = ExchangeType.direct
+    is_auto_delete: bool = False
+    is_internal: bool = False
+    is_durable: bool = True
+
+
+@dataclass
+class ExchangeCustomSpecification:
+    name: str
+    exchange_type: str
+    arguments: dict[str, str] = field(default_factory=dict)
     is_auto_delete: bool = False
     is_internal: bool = False
     is_durable: bool = True
