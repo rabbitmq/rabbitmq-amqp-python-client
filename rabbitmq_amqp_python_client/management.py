@@ -3,7 +3,7 @@ import uuid
 from typing import Any, Optional, Union
 
 from .address_helper import AddressHelper
-from .common import CommonValues, QueueType
+from .common import CommonValues, ExchangeType, QueueType
 from .entities import (
     ExchangeSpecification,
     ExchangeToExchangeBindingSpecification,
@@ -101,12 +101,15 @@ class Management:
         self, exchange_specification: ExchangeSpecification
     ) -> ExchangeSpecification:
         logger.debug("declare_exchange operation called")
-        body = {}
+        body: dict[str, Any] = {}
         body["auto_delete"] = exchange_specification.is_auto_delete
         body["durable"] = exchange_specification.is_durable
-        body["type"] = exchange_specification.exchange_type.value  # type: ignore
+        if isinstance(exchange_specification.exchange_type, ExchangeType):
+            body["type"] = exchange_specification.exchange_type.value
+        else:
+            body["type"] = str(exchange_specification.exchange_type)
         body["internal"] = exchange_specification.is_internal
-        body["arguments"] = exchange_specification.arguments  # type: ignore
+        body["arguments"] = exchange_specification.arguments
 
         path = AddressHelper.exchange_address(exchange_specification.name)
 
