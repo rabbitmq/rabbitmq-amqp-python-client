@@ -1,9 +1,10 @@
 from datetime import timedelta
 
 from rabbitmq_amqp_python_client import (
-    BindingSpecification,
     ClassicQueueSpecification,
     ExchangeSpecification,
+    ExchangeToExchangeBindingSpecification,
+    ExchangeToQueueBindingSpecification,
     ExchangeType,
     Management,
     QueueType,
@@ -73,7 +74,7 @@ def test_bind_exchange_to_queue(management: Management) -> None:
     management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
     binding_exchange_queue_path = management.bind(
-        BindingSpecification(
+        ExchangeToQueueBindingSpecification(
             source_exchange=exchange_name,
             destination_queue=queue_name,
             binding_key=routing_key,
@@ -96,6 +97,169 @@ def test_bind_exchange_to_queue(management: Management) -> None:
     management.delete_queue(queue_name)
 
     management.unbind(binding_exchange_queue_path)
+
+
+def test_bind_exchange_to_queue_without_key(management: Management) -> None:
+
+    exchange_name = "test-bind-exchange-to-queue-exchange"
+    queue_name = "test-bind-exchange-to-queue-queue"
+
+    management.declare_exchange(ExchangeSpecification(name=exchange_name))
+
+    management.declare_queue(QuorumQueueSpecification(name=queue_name))
+
+    binding_exchange_queue_path = management.bind(
+        ExchangeToQueueBindingSpecification(
+            source_exchange=exchange_name,
+            destination_queue=queue_name,
+        )
+    )
+
+    assert (
+        binding_exchange_queue_path
+        == "/bindings/src=" + exchange_name + ";dstq=" + queue_name + ";key=" + ";args="
+    )
+
+    management.unbind(binding_exchange_queue_path)
+
+    management.delete_exchange(exchange_name)
+
+    management.delete_queue(queue_name)
+
+
+def test_bind_exchange_to_exchange_without_key(management: Management) -> None:
+
+    source_exchange_name = "test-bind-exchange-to-queue-exchange"
+    destination_exchange_name = "test-bind-exchange-to-queue-queue"
+
+    management.declare_exchange(ExchangeSpecification(name=source_exchange_name))
+
+    management.declare_exchange(ExchangeSpecification(name=destination_exchange_name))
+
+    binding_exchange_queue_path = management.bind(
+        ExchangeToExchangeBindingSpecification(
+            source_exchange=source_exchange_name,
+            destination_exchange=destination_exchange_name,
+        )
+    )
+
+    assert (
+        binding_exchange_queue_path
+        == "/bindings/src="
+        + source_exchange_name
+        + ";dstq="
+        + destination_exchange_name
+        + ";key="
+        + ";args="
+    )
+
+    management.unbind(binding_exchange_queue_path)
+
+    management.delete_exchange(source_exchange_name)
+
+    management.delete_exchange(destination_exchange_name)
+
+
+def test_bind_unbind_by_binding_spec(management: Management) -> None:
+
+    exchange_name = "test-bind-exchange-to-queue-exchange"
+    queue_name = "test-bind-exchange-to-queue-queue"
+
+    management.declare_exchange(ExchangeSpecification(name=exchange_name))
+
+    management.declare_queue(QuorumQueueSpecification(name=queue_name))
+
+    management.bind(
+        ExchangeToQueueBindingSpecification(
+            source_exchange=exchange_name,
+            destination_queue=queue_name,
+        )
+    )
+
+    management.unbind(
+        ExchangeToQueueBindingSpecification(
+            source_exchange=exchange_name,
+            destination_queue=queue_name,
+        )
+    )
+
+    management.delete_exchange(exchange_name)
+
+    management.delete_queue(queue_name)
+
+
+def test_bind_unbind_exchange_by_exchange_spec(management: Management) -> None:
+
+    source_exchange_name = "test-bind-exchange-to-queue-exchange"
+    destination_exchange_name = "test-bind-exchange-to-queue-queue"
+
+    management.declare_exchange(ExchangeSpecification(name=source_exchange_name))
+
+    management.declare_exchange(ExchangeSpecification(name=destination_exchange_name))
+
+    binding_exchange_queue_path = management.bind(
+        ExchangeToExchangeBindingSpecification(
+            source_exchange=source_exchange_name,
+            destination_exchange=destination_exchange_name,
+        )
+    )
+
+    assert (
+        binding_exchange_queue_path
+        == "/bindings/src="
+        + source_exchange_name
+        + ";dstq="
+        + destination_exchange_name
+        + ";key="
+        + ";args="
+    )
+
+    management.unbind(
+        ExchangeToExchangeBindingSpecification(
+            source_exchange=source_exchange_name,
+            destination_exchange=destination_exchange_name,
+        )
+    )
+
+    management.delete_exchange(source_exchange_name)
+
+    management.delete_exchange(destination_exchange_name)
+
+
+def test_bind_exchange_to_exchange(management: Management) -> None:
+
+    source_exchange_name = "source_exchange"
+    destination_exchange_name = "destination_exchange"
+    routing_key = "routing-key"
+
+    management.declare_exchange(ExchangeSpecification(name=source_exchange_name))
+
+    management.declare_exchange(ExchangeSpecification(name=destination_exchange_name))
+
+    binding_exchange_exchange_path = management.bind(
+        ExchangeToExchangeBindingSpecification(
+            source_exchange=source_exchange_name,
+            destination_exchange=destination_exchange_name,
+            binding_key=routing_key,
+        )
+    )
+
+    assert (
+        binding_exchange_exchange_path
+        == "/bindings/src="
+        + source_exchange_name
+        + ";dstq="
+        + destination_exchange_name
+        + ";key="
+        + routing_key
+        + ";args="
+    )
+
+    management.unbind(binding_exchange_exchange_path)
+
+    management.delete_exchange(source_exchange_name)
+
+    management.delete_exchange(destination_exchange_name)
 
 
 def test_queue_info_with_validations(management: Management) -> None:

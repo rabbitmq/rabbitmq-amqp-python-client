@@ -6,8 +6,9 @@ from .common import ExchangeType, QueueType
 from .connection import Connection
 from .consumer import Consumer
 from .entities import (
-    BindingSpecification,
     ExchangeSpecification,
+    ExchangeToExchangeBindingSpecification,
+    ExchangeToQueueBindingSpecification,
     OffsetSpecification,
     StreamOptions,
 )
@@ -52,7 +53,8 @@ __all__ = [
     "QuorumQueueSpecification",
     "ClassicQueueSpecification",
     "StreamSpecification",
-    "BindingSpecification",
+    "ExchangeToQueueBindingSpecification",
+    "ExchangeToExchangeBindingSpecification",
     "QueueType",
     "Publisher",
     "Message",

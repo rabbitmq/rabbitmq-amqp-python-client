@@ -5,8 +5,9 @@ from typing import Any, Optional, Union
 from .address_helper import AddressHelper
 from .common import CommonValues, QueueType
 from .entities import (
-    BindingSpecification,
     ExchangeSpecification,
+    ExchangeToExchangeBindingSpecification,
+    ExchangeToQueueBindingSpecification,
     QueueInfo,
 )
 from .exceptions import ValidationCodeException
@@ -301,12 +302,25 @@ class Management:
             "wrong response code received: " + str(response_code)
         )
 
-    def bind(self, bind_specification: BindingSpecification) -> str:
+    def bind(
+        self,
+        bind_specification: Union[
+            ExchangeToQueueBindingSpecification, ExchangeToExchangeBindingSpecification
+        ],
+    ) -> str:
         logger.debug("Bind Operation called")
+
         body = {}
-        body["binding_key"] = bind_specification.binding_key
+        if bind_specification.binding_key is not None:
+            body["binding_key"] = bind_specification.binding_key
+        else:
+            body["binding_key"] = ""
         body["source"] = bind_specification.source_exchange
-        body["destination_queue"] = bind_specification.destination_queue
+        if isinstance(bind_specification, ExchangeToQueueBindingSpecification):
+            body["destination_queue"] = bind_specification.destination_queue
+        elif isinstance(bind_specification, ExchangeToExchangeBindingSpecification):
+            body["destination_exchange"] = bind_specification.destination_exchange
+
         body["arguments"] = {}  # type: ignore
 
         path = AddressHelper.path_address()
@@ -319,17 +333,43 @@ class Management:
                 CommonValues.response_code_204.value,
             ],
         )
+        binding_path = ""
 
-        binding_path_with_queue = AddressHelper.binding_path_with_exchange_queue(
-            bind_specification
-        )
-        return binding_path_with_queue
+        if isinstance(bind_specification, ExchangeToQueueBindingSpecification):
+            binding_path = AddressHelper.binding_path_with_exchange_queue(
+                bind_specification
+            )
+        elif isinstance(bind_specification, ExchangeToExchangeBindingSpecification):
+            binding_path = AddressHelper.binding_path_with_exchange_exchange(
+                bind_specification
+            )
 
-    def unbind(self, binding_exchange_queue_path: str) -> None:
+        return binding_path
+
+    def unbind(
+        self,
+        bind_specification: Union[
+            str,
+            ExchangeToQueueBindingSpecification,
+            ExchangeToExchangeBindingSpecification,
+        ],
+    ) -> None:
         logger.debug("UnBind Operation called")
+        binding_name = ""
+        if isinstance(bind_specification, str):
+            binding_name = bind_specification
+        else:
+            if isinstance(bind_specification, ExchangeToQueueBindingSpecification):
+                binding_name = AddressHelper.binding_path_with_exchange_queue(
+                    bind_specification
+                )
+            elif isinstance(bind_specification, ExchangeToExchangeBindingSpecification):
+                binding_name = AddressHelper.binding_path_with_exchange_exchange(
+                    bind_specification
+                )
         self.request(
             None,
-            binding_exchange_queue_path,
+            binding_name,
             CommonValues.command_delete.value,
             [
                 CommonValues.response_code_204.value,

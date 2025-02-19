@@ -1,4 +1,9 @@
-from .entities import BindingSpecification
+from typing import Optional
+
+from .entities import (
+    ExchangeToExchangeBindingSpecification,
+    ExchangeToQueueBindingSpecification,
+)
 from .qpid.proton._message import Message
 
 
@@ -7,19 +12,22 @@ def _is_unreserved(char: str) -> bool:
     return char.isalnum() or char in "-._~"
 
 
-def encode_path_segment(input_string: str) -> str:
+def encode_path_segment(input_string: Optional[str]) -> str:
     encoded = []
 
     # Iterate over each character in the input string
-    for char in input_string:
-        # Check if the character is an unreserved character
-        if _is_unreserved(char):
-            encoded.append(char)  # Append as is
-        else:
-            # Encode character to %HH format
-            encoded.append(f"%{ord(char):02X}")
+    if input_string is not None:
+        for char in input_string:
+            # Check if the character is an unreserved character
+            if _is_unreserved(char):
+                encoded.append(char)  # Append as is
+            else:
+                # Encode character to %HH format
+                encoded.append(f"%{ord(char):02X}")
 
-    return "".join(encoded)
+        return "".join(encoded)
+
+    return ""
 
 
 class AddressHelper:
@@ -58,8 +66,13 @@ class AddressHelper:
 
     @staticmethod
     def binding_path_with_exchange_queue(
-        bind_specification: BindingSpecification,
+        bind_specification: ExchangeToQueueBindingSpecification,
     ) -> str:
+        if bind_specification.binding_key is not None:
+            key = ";key=" + encode_path_segment(bind_specification.binding_key)
+        else:
+            key = ";key="
+
         binding_path_wth_exchange_queue_key = (
             "/bindings"
             + "/"
@@ -68,11 +81,28 @@ class AddressHelper:
             + ";"
             + "dstq="
             + encode_path_segment(bind_specification.destination_queue)
+            + key
+            + ";args="
+        )
+        return binding_path_wth_exchange_queue_key
+
+    @staticmethod
+    def binding_path_with_exchange_exchange(
+        bind_specification: ExchangeToExchangeBindingSpecification,
+    ) -> str:
+        binding_path_wth_exchange_exchange_key = (
+            "/bindings"
+            + "/"
+            + "src="
+            + encode_path_segment(bind_specification.source_exchange)
+            + ";"
+            + "dstq="
+            + encode_path_segment(bind_specification.destination_exchange)
             + ";key="
             + encode_path_segment(bind_specification.binding_key)
             + ";args="
         )
-        return binding_path_wth_exchange_queue_key
+        return binding_path_wth_exchange_exchange_key
 
     @staticmethod
     def message_to_address_helper(message: Message, address: str) -> Message:

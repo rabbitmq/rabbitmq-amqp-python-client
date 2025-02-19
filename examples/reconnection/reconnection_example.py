@@ -8,13 +8,13 @@ from typing import Optional
 from rabbitmq_amqp_python_client import (
     AddressHelper,
     AMQPMessagingHandler,
-    BindingSpecification,
     Connection,
     ConnectionClosed,
     Consumer,
     Environment,
     Event,
     ExchangeSpecification,
+    ExchangeToQueueBindingSpecification,
     Management,
     Message,
     Publisher,
@@ -160,7 +160,7 @@ def main() -> None:
 
     print("binding queue to exchange")
     bind_name = connection_configuration.management.bind(
-        BindingSpecification(
+        ExchangeToQueueBindingSpecification(
             source_exchange=exchange_name,
             destination_queue=queue_name,
             binding_key=routing_key,

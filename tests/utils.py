@@ -2,10 +2,10 @@ from typing import Optional
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
-    BindingSpecification,
     Connection,
     Delivery,
     ExchangeSpecification,
+    ExchangeToQueueBindingSpecification,
     ExchangeType,
     Management,
     Message,
@@ -55,7 +55,7 @@ def setup_dead_lettering(management: Management) -> str:
     )
     management.declare_queue(QuorumQueueSpecification(name=queue_dead_lettering))
     bind_path = management.bind(
-        BindingSpecification(
+        ExchangeToQueueBindingSpecification(
             source_exchange=exchange_dead_lettering,
             destination_queue=queue_dead_lettering,
             binding_key=binding_key,
@@ -74,7 +74,7 @@ def create_binding(
     management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
     bind_name = management.bind(
-        BindingSpecification(
+        ExchangeToQueueBindingSpecification(
             source_exchange=exchange_name,
             destination_queue=queue_name,
             binding_key=routing_key,

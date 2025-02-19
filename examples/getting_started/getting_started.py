@@ -4,11 +4,11 @@
 from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,; SslConfigurationContext,; ClientCert,
     AddressHelper,
     AMQPMessagingHandler,
-    BindingSpecification,
     Connection,
     Environment,
     Event,
     ExchangeSpecification,
+    ExchangeToQueueBindingSpecification,
     Message,
     OutcomeState,
     QuorumQueueSpecification,
@@ -102,7 +102,7 @@ def main() -> None:
 
     print("binding queue to exchange")
     bind_name = management.bind(
-        BindingSpecification(
+        ExchangeToQueueBindingSpecification(
             source_exchange=exchange_name,
             destination_queue=queue_name,
             binding_key=routing_key,
