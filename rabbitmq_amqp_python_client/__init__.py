@@ -6,6 +6,7 @@ from .common import ExchangeType, QueueType
 from .connection import Connection
 from .consumer import Consumer
 from .entities import (
+    ExchangeCustomSpecification,
     ExchangeSpecification,
     ExchangeToExchangeBindingSpecification,
     ExchangeToQueueBindingSpecification,
@@ -75,4 +76,5 @@ __all__ = [
     "OffsetSpecification",
     "OutcomeState",
     "Environment",
+    "ExchangeCustomSpecification",
 ]

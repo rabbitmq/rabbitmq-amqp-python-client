@@ -5,6 +5,7 @@ from typing import Any, Optional, Union
 from .address_helper import AddressHelper
 from .common import CommonValues, QueueType
 from .entities import (
+    ExchangeCustomSpecification,
     ExchangeSpecification,
     ExchangeToExchangeBindingSpecification,
     ExchangeToQueueBindingSpecification,
@@ -98,15 +99,21 @@ class Management:
         return msg
 
     def declare_exchange(
-        self, exchange_specification: ExchangeSpecification
-    ) -> ExchangeSpecification:
+        self,
+        exchange_specification: Union[
+            ExchangeSpecification, ExchangeCustomSpecification
+        ],
+    ) -> Union[ExchangeSpecification, ExchangeCustomSpecification]:
         logger.debug("declare_exchange operation called")
-        body = {}
+        body: dict[str, Any] = {}
         body["auto_delete"] = exchange_specification.is_auto_delete
         body["durable"] = exchange_specification.is_durable
-        body["type"] = exchange_specification.exchange_type.value  # type: ignore
+        if isinstance(exchange_specification, ExchangeSpecification):
+            body["type"] = exchange_specification.exchange_type.value
+        elif isinstance(exchange_specification, ExchangeCustomSpecification):
+            body["type"] = exchange_specification.exchange_type
         body["internal"] = exchange_specification.is_internal
-        body["arguments"] = exchange_specification.arguments  # type: ignore
+        body["arguments"] = exchange_specification.arguments
 
         path = AddressHelper.exchange_address(exchange_specification.name)
 

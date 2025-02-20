@@ -29,6 +29,19 @@ def test_declare_delete_exchange(management: Management) -> None:
     management.delete_exchange(exchange_name)
 
 
+def test_declare_delete_exchange_headers(management: Management) -> None:
+
+    exchange_name = "test-exchange"
+
+    exchange_info = management.declare_exchange(
+        ExchangeSpecification(name=exchange_name, exchange_type=ExchangeType.headers)
+    )
+
+    assert exchange_info.name == exchange_name
+
+    management.delete_exchange(exchange_name)
+
+
 def test_declare_delete_exchange_with_args(management: Management) -> None:
 
     exchange_name = "test-exchange-with-args"

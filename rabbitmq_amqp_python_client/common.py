@@ -24,6 +24,7 @@ class ExchangeType(enum.Enum):
     direct = "direct"
     topic = "topic"
     fanout = "fanout"
+    headers = "headers"
 
 
 class QueueType(enum.Enum):

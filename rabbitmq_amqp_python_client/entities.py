@@ -21,6 +21,16 @@ class ExchangeSpecification:
 
 
 @dataclass
+class ExchangeCustomSpecification:
+    name: str
+    exchange_type: str
+    arguments: dict[str, str] = field(default_factory=dict)
+    is_auto_delete: bool = False
+    is_internal: bool = False
+    is_durable: bool = True
+
+
+@dataclass
 class QueueInfo:
     name: str
     arguments: dict[str, Any]
