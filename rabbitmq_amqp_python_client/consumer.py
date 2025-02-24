@@ -17,6 +17,22 @@ logger = logging.getLogger(__name__)
 
 
 class Consumer:
+    """
+    A consumer class for receiving messages from RabbitMQ via AMQP 1.0 protocol.
+
+    This class handles the consumption of messages from a specified address in RabbitMQ.
+    It supports both standard message consumption and stream-based consumption with
+    optional filtering capabilities.
+
+    Attributes:
+        _receiver (Optional[BlockingReceiver]): The receiver for consuming messages
+        _conn (BlockingConnection): The underlying connection to RabbitMQ
+        _addr (str): The address to consume from
+        _handler (Optional[MessagingHandler]): Optional message handling callback
+        _stream_options (Optional[StreamOptions]): Configuration for stream consumption
+        _credit (Optional[int]): Flow control credit value
+    """
+
     def __init__(
         self,
         conn: BlockingConnection,
@@ -25,6 +41,16 @@ class Consumer:
         stream_options: Optional[StreamOptions] = None,
         credit: Optional[int] = None,
     ):
+        """
+        Initialize a new Consumer instance.
+
+        Args:
+            conn: The blocking connection to use for consuming
+            addr: The address to consume from
+            handler: Optional message handler for processing received messages
+            stream_options: Optional configuration for stream-based consumption
+            credit: Optional credit value for flow control
+        """
         self._receiver: Optional[BlockingReceiver] = None
         self._conn = conn
         self._addr = addr
@@ -39,21 +65,52 @@ class Consumer:
             self._receiver = self._create_receiver(self._addr)
 
     def consume(self, timeout: Union[None, Literal[False], float] = False) -> Message:
+        """
+        Consume a message from the queue.
+
+        Args:
+            timeout: The time to wait for a message.
+                    None: Defaults to 60s
+                    float: Wait for specified number of seconds
+
+        Returns:
+            Message: The received message
+
+        Note:
+            The return type might be None if no message is available and timeout occurs,
+            but this is handled by the cast to Message.
+        """
         if self._receiver is not None:
             message = self._receiver.receive(timeout=timeout)
             return cast(Message, message)
 
     def close(self) -> None:
+        """
+        Close the consumer connection.
+
+        Closes the receiver if it exists and cleans up resources.
+        """
         logger.debug("Closing the receiver")
         if self._receiver is not None:
             self._receiver.close()
 
     def run(self) -> None:
+        """
+        Run the consumer in continuous mode.
+
+        Starts the consumer's container to process messages continuously.
+        """
         logger.debug("Running the consumer: starting to consume")
         if self._receiver is not None:
             self._receiver.container.run()
 
     def stop(self) -> None:
+        """
+        Stop the consumer's continuous processing.
+
+        Stops the consumer's container, halting message processing.
+        This should be called to cleanly stop a consumer that was started with run().
+        """
         logger.debug("Stopping the consumer: starting to consume")
         if self._receiver is not None:
             self._receiver.container.stop_events()

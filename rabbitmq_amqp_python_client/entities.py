@@ -12,6 +12,21 @@ STREAM_FILTER_MATCH_UNFILTERED = "rabbitmq:stream-match-unfiltered"
 
 @dataclass
 class ExchangeSpecification:
+    """
+    Specification for declaring a standard exchange in RabbitMQ.
+
+    This class defines the properties and configuration for a standard exchange,
+    including its type, durability, and other characteristics.
+
+    Attributes:
+        name: The name of the exchange
+        arguments: Additional arguments for exchange configuration
+        exchange_type: The type of exchange (direct, fanout, topic, etc.)
+        is_auto_delete: Whether the exchange should be auto-deleted
+        is_internal: Whether the exchange is internal only
+        is_durable: Whether the exchange should survive broker restarts
+    """
+
     name: str
     arguments: dict[str, str] = field(default_factory=dict)
     exchange_type: ExchangeType = ExchangeType.direct
@@ -22,6 +37,21 @@ class ExchangeSpecification:
 
 @dataclass
 class ExchangeCustomSpecification:
+    """
+    Specification for declaring a custom exchange type in RabbitMQ.
+
+    Similar to ExchangeSpecification but allows for custom exchange types
+    beyond the standard ones.
+
+    Attributes:
+        name: The name of the exchange
+        exchange_type: The custom exchange type identifier
+        arguments: Additional arguments for exchange configuration
+        is_auto_delete: Whether the exchange should be auto-deleted
+        is_internal: Whether the exchange is internal only
+        is_durable: Whether the exchange should survive broker restarts
+    """
+
     name: str
     exchange_type: str
     arguments: dict[str, str] = field(default_factory=dict)
@@ -32,6 +62,25 @@ class ExchangeCustomSpecification:
 
 @dataclass
 class QueueInfo:
+    """
+    Information about a queue in RabbitMQ.
+
+    This class represents the current state and configuration of a queue,
+    including its properties and statistics.
+
+    Attributes:
+        name: The name of the queue
+        arguments: Additional arguments used in queue configuration
+        queue_type: The type of queue (classic, quorum, or stream)
+        is_exclusive: Whether the queue is exclusive to one connection
+        is_auto_delete: Whether the queue should be auto-deleted
+        is_durable: Whether the queue survives broker restarts
+        leader: The leader node for quorum queues
+        members: The member nodes for quorum queues
+        message_count: Current number of messages in the queue
+        consumer_count: Current number of consumers
+    """
+
     name: str
     arguments: dict[str, Any]
     queue_type: QueueType = QueueType.classic
@@ -45,6 +94,17 @@ class QueueInfo:
 
 
 class OffsetSpecification(Enum):
+    """
+    Specification for stream offset positions.
+
+    Defines the possible starting positions for consuming from a stream.
+
+    Attributes:
+        first: Start from the first message in the stream
+        next: Start from the next message to arrive
+        last: Start from the last message in the stream
+    """
+
     first = ("first",)
     next = ("next",)
     last = ("last",)
@@ -52,6 +112,18 @@ class OffsetSpecification(Enum):
 
 @dataclass
 class ExchangeToQueueBindingSpecification:
+    """
+    Specification for binding an exchange to a queue.
+
+    Defines the relationship between a source exchange and a destination queue,
+    optionally with a routing key.
+
+    Attributes:
+        source_exchange: The name of the source exchange
+        destination_queue: The name of the destination queue
+        binding_key: Optional routing key for the binding
+    """
+
     source_exchange: str
     destination_queue: str
     binding_key: Optional[str] = None
@@ -59,17 +131,43 @@ class ExchangeToQueueBindingSpecification:
 
 @dataclass
 class ExchangeToExchangeBindingSpecification:
+    """
+    Specification for binding an exchange to another exchange.
+
+    Defines the relationship between two exchanges, optionally with a routing key.
+
+    Attributes:
+        source_exchange: The name of the source exchange
+        destination_exchange: The name of the destination exchange
+        binding_key: Optional routing key for the binding
+    """
+
     source_exchange: str
     destination_exchange: str
     binding_key: Optional[str] = None
 
 
 class StreamOptions:
+    """
+    Configuration options for stream queues.
+
+    This class manages stream-specific options including filtering and offset specifications.
+
+    Attributes:
+        _filter_set: Dictionary of stream filter specifications
+    """
 
     def __init__(self):  # type: ignore
         self._filter_set: Dict[symbol, Described] = {}
 
     def offset(self, offset_specification: Union[OffsetSpecification, int]) -> None:
+        """
+        Set the offset specification for the stream.
+
+        Args:
+            offset_specification: Either an OffsetSpecification enum value or
+                                an integer offset
+        """
         if isinstance(offset_specification, int):
             self._filter_set[symbol(STREAM_OFFSET_SPEC)] = Described(
                 symbol(STREAM_OFFSET_SPEC), offset_specification
@@ -80,14 +178,33 @@ class StreamOptions:
             )
 
     def filter_values(self, filters: list[str]) -> None:
+        """
+        Set the filter values for the stream.
+
+        Args:
+            filters: List of filter strings to apply to the stream
+        """
         self._filter_set[symbol(STREAM_FILTER_SPEC)] = Described(
             symbol(STREAM_FILTER_SPEC), filters
         )
 
     def filter_match_unfiltered(self, filter_match_unfiltered: bool) -> None:
+        """
+        Set whether to match unfiltered messages.
+
+        Args:
+            filter_match_unfiltered: Whether to match messages that don't match
+                                   any filter
+        """
         self._filter_set[symbol(STREAM_FILTER_MATCH_UNFILTERED)] = Described(
             symbol(STREAM_FILTER_MATCH_UNFILTERED), filter_match_unfiltered
         )
 
     def filter_set(self) -> Dict[symbol, Described]:
+        """
+        Get the current filter set configuration.
+
+        Returns:
+            Dict[symbol, Described]: The current filter set configuration
+        """
         return self._filter_set

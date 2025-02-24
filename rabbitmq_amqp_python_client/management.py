@@ -29,12 +29,37 @@ logger = logging.getLogger(__name__)
 
 
 class Management:
+    """
+    Handles RabbitMQ management operations via AMQP 1.0 protocol.
+
+    This class provides methods for declaring and managing exchanges, queues,
+    and bindings in RabbitMQ. It uses a blocking connection to communicate
+    with the RabbitMQ management interface.
+
+    Attributes:
+        _sender (Optional[BlockingSender]): The sender for management commands
+        _receiver (Optional[BlockingReceiver]): The receiver for management responses
+        _conn (BlockingConnection): The underlying connection to RabbitMQ
+    """
+
     def __init__(self, conn: BlockingConnection):
+        """
+        Initialize a new Management instance.
+
+        Args:
+            conn: The blocking connection to use for management operations
+        """
         self._sender: Optional[BlockingSender] = None
         self._receiver: Optional[BlockingReceiver] = None
         self._conn = conn
 
     def open(self) -> None:
+        """
+        Open the management connection by creating sender and receiver.
+
+        Creates sender and receiver if they don't exist, using the management
+        node address defined in CommonValues.
+        """
         if self._sender is None:
             logger.debug("Creating Sender")
             self._sender = self._create_sender(
@@ -54,6 +79,11 @@ class Management:
 
     # closes the connection to the AMQP 1.0 server.
     def close(self) -> None:
+        """
+        Close the management connection.
+
+        Closes both sender and receiver if they exist.
+        """
         logger.debug("Closing Sender and Receiver")
         if self._sender is not None:
             self._sender.close()
@@ -67,6 +97,21 @@ class Management:
         method: str,
         expected_response_codes: list[int],
     ) -> Message:
+        """
+        Send a management request with a new UUID.
+
+        Args:
+            body: The request body to send
+            path: The management API path
+            method: The HTTP method to use
+            expected_response_codes: List of acceptable response codes
+
+        Returns:
+            Message: The response message from the server
+
+        Raises:
+            ValidationCodeException: If response code is not in expected_response_codes
+        """
         return self._request(
             str(uuid.uuid4()), body, path, method, expected_response_codes
         )
@@ -104,6 +149,18 @@ class Management:
             ExchangeSpecification, ExchangeCustomSpecification
         ],
     ) -> Union[ExchangeSpecification, ExchangeCustomSpecification]:
+        """
+        Declare a new exchange in RabbitMQ.
+
+        Args:
+            exchange_specification: The specification for the exchange to create
+
+        Returns:
+            The same specification object that was passed in
+
+        Raises:
+            ValidationCodeException: If exchange already exists or other validation fails
+        """
         logger.debug("declare_exchange operation called")
         body: dict[str, Any] = {}
         body["auto_delete"] = exchange_specification.is_auto_delete
@@ -138,6 +195,20 @@ class Management:
     ) -> Union[
         ClassicQueueSpecification, QuorumQueueSpecification, StreamSpecification
     ]:
+        """
+        Declare a new queue in RabbitMQ.
+
+        Supports declaration of classic queues, quorum queues, and streams.
+
+        Args:
+            queue_specification: The specification for the queue to create
+
+        Returns:
+            The same specification object that was passed in
+
+        Raises:
+            ValidationCodeException: If queue already exists or other validation fails
+        """
         logger.debug("declare_queue operation called")
 
         if isinstance(queue_specification, ClassicQueueSpecification) or isinstance(
@@ -270,6 +341,15 @@ class Management:
         return body
 
     def delete_exchange(self, name: str) -> None:
+        """
+        Delete an exchange.
+
+        Args:
+            name: The name of the exchange to delete
+
+        Raises:
+            ValidationCodeException: If exchange doesn't exist or deletion fails
+        """
         logger.debug("delete_exchange operation called")
         path = AddressHelper.exchange_address(name)
 
@@ -283,6 +363,15 @@ class Management:
         )
 
     def delete_queue(self, name: str) -> None:
+        """
+        Delete a queue.
+
+        Args:
+            name: The name of the queue to delete
+
+        Raises:
+            ValidationCodeException: If queue doesn't exist or deletion fails
+        """
         logger.debug("delete_queue operation called")
         path = AddressHelper.queue_address(name)
 
@@ -315,6 +404,18 @@ class Management:
             ExchangeToQueueBindingSpecification, ExchangeToExchangeBindingSpecification
         ],
     ) -> str:
+        """
+        Create a binding between exchanges or between an exchange and a queue.
+
+        Args:
+            bind_specification: The specification for the binding to create
+
+        Returns:
+            str: The binding path created
+
+        Raises:
+            ValidationCodeException: If binding creation fails
+        """
         logger.debug("Bind Operation called")
 
         body = {}
@@ -361,6 +462,15 @@ class Management:
             ExchangeToExchangeBindingSpecification,
         ],
     ) -> None:
+        """
+        Remove a binding between exchanges or between an exchange and a queue.
+
+        Args:
+            bind_specification: Either a binding path string or a binding specification
+
+        Raises:
+            ValidationCodeException: If unbinding fails
+        """
         logger.debug("UnBind Operation called")
         binding_name = ""
         if isinstance(bind_specification, str):
@@ -384,6 +494,18 @@ class Management:
         )
 
     def purge_queue(self, name: str) -> int:
+        """
+        Purge all messages from a queue.
+
+        Args:
+            name: The name of the queue to purge
+
+        Returns:
+            int: The number of messages that were purged
+
+        Raises:
+            ValidationCodeException: If queue doesn't exist or purge fails
+        """
         logger.debug("purge_queue operation called")
         path = AddressHelper.purge_queue_address(name)
 
@@ -399,6 +521,18 @@ class Management:
         return int(response.body["message_count"])
 
     def queue_info(self, name: str) -> QueueInfo:
+        """
+        Get information about a queue.
+
+        Args:
+            name: The name of the queue to get information about
+
+        Returns:
+            QueueInfo: Object containing queue information
+
+        Raises:
+            ValidationCodeException: If queue doesn't exist or other errors occur
+        """
         logger.debug("queue_info operation called")
         path = AddressHelper.queue_address(name)
 

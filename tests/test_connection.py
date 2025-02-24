@@ -26,6 +26,12 @@ def test_connection() -> None:
     environment.close()
 
 
+def test_environment_context_manager() -> None:
+    with Environment() as environment:
+        connection = environment.connection("amqp://guest:guest@localhost:5672/")
+        connection.dial()
+
+
 def test_connection_ssl() -> None:
     environment = Environment()
     ca_cert_file = ".ci/certs/ca_certificate.pem"
@@ -53,20 +59,20 @@ def test_environment_connections_management() -> None:
     connection3 = environment.connection("amqp://guest:guest@localhost:5672/")
     connection3.dial()
 
-    assert len(environment.connections()) == 3
+    assert environment.active_connections == 3
 
     # this shouldn't happen but we test it anyway
     connection.close()
 
-    assert len(environment.connections()) == 2
+    assert environment.active_connections == 2
 
     connection2.close()
 
-    assert len(environment.connections()) == 1
+    assert environment.active_connections == 1
 
     connection3.close()
 
-    assert len(environment.connections()) == 0
+    assert environment.active_connections == 0
 
     environment.close()
 

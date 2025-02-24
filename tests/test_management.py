@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from rabbitmq_amqp_python_client import (
     ClassicQueueSpecification,
+    ExchangeCustomSpecification,
     ExchangeSpecification,
     ExchangeToExchangeBindingSpecification,
     ExchangeToQueueBindingSpecification,
@@ -35,6 +36,26 @@ def test_declare_delete_exchange_headers(management: Management) -> None:
 
     exchange_info = management.declare_exchange(
         ExchangeSpecification(name=exchange_name, exchange_type=ExchangeType.headers)
+    )
+
+    assert exchange_info.name == exchange_name
+
+    management.delete_exchange(exchange_name)
+
+
+def test_declare_delete_exchange_custom(management: Management) -> None:
+
+    exchange_name = "test-exchange"
+
+    exchange_arguments = {}
+    exchange_arguments["x-delayed-type"] = "direct"
+
+    exchange_info = management.declare_exchange(
+        ExchangeCustomSpecification(
+            name=exchange_name,
+            exchange_type="x-local-random",
+            arguments=exchange_arguments,
+        )
     )
 
     assert exchange_info.name == exchange_name
