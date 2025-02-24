@@ -18,7 +18,28 @@ logger = logging.getLogger(__name__)
 
 
 class Publisher:
+    """
+    A publisher class for sending messages to RabbitMQ via AMQP 1.0 protocol.
+
+    This class handles the publishing of messages to either a predefined address
+    or to addresses specified in individual messages. It manages a blocking
+    connection to RabbitMQ and ensures proper message delivery.
+
+    Attributes:
+        _sender (Optional[BlockingSender]): The sender for publishing messages
+        _conn (BlockingConnection): The underlying connection to RabbitMQ
+        _addr (str): The default address to publish to, if specified
+    """
+
     def __init__(self, conn: BlockingConnection, addr: str = ""):
+        """
+        Initialize a new Publisher instance.
+
+        Args:
+            conn: The blocking connection to use for publishing
+            addr: Optional default address to publish to. If provided, all messages
+                 will be sent to this address unless overridden.
+        """
         self._sender: Optional[BlockingSender] = None
         self._conn = conn
         self._addr = addr
@@ -30,6 +51,22 @@ class Publisher:
             self._sender = self._create_sender(self._addr)
 
     def publish(self, message: Message) -> Delivery:
+        """
+        Publish a message to RabbitMQ.
+
+        The message can be sent to either the publisher's default address or
+        to an address specified in the message itself, but not both.
+
+        Args:
+            message: The message to publish
+
+        Returns:
+            Delivery: The delivery confirmation from RabbitMQ
+
+        Raises:
+            ValidationCodeException: If address is specified in both message and publisher
+            ArgumentOutOfRangeException: If message address format is invalid
+        """
         if (self._addr != "") and (message.address is not None):
             raise ValidationCodeException(
                 "address specified in both message and publisher"
@@ -44,14 +81,29 @@ class Publisher:
                     raise ArgumentOutOfRangeException(
                         "destination address must start with /queues or /exchanges"
                     )
-                if self._sender is not None:
-                    delivery = self._sender.send(message)
+                if self.is_open:
+                    delivery = self._sender.send(message)  # type: ignore
                     return delivery
 
     def close(self) -> None:
+        """
+        Close the publisher connection.
+
+        Closes the sender if it exists and cleans up resources.
+        """
         logger.debug("Closing Sender")
-        if self._sender is not None:
-            self._sender.close()
+        if self.is_open:
+            self._sender.close()  # type: ignore
 
     def _create_sender(self, addr: str) -> BlockingSender:
         return self._conn.create_sender(addr, options=SenderOptionUnseattle(addr))
+
+    @property
+    def is_open(self) -> bool:
+        """Check if publisher is open and ready to send messages."""
+        return self._sender is not None
+
+    @property
+    def address(self) -> str:
+        """Get the current publisher address."""
+        return self._addr

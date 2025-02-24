@@ -26,6 +26,12 @@ def test_connection() -> None:
     environment.close()
 
 
+def test_environment_context_manager() -> None:
+    with Environment() as environment:
+        connection = environment.connection("amqp://guest:guest@localhost:5672/")
+        connection.dial()
+
+
 def test_connection_ssl() -> None:
     environment = Environment()
     ca_cert_file = ".ci/certs/ca_certificate.pem"

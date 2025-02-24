@@ -31,9 +31,25 @@ def encode_path_segment(input_string: Optional[str]) -> str:
 
 
 class AddressHelper:
+    """
+    Helper class for constructing and managing AMQP addresses.
+
+    This class provides static methods for creating properly formatted addresses
+    for various AMQP operations including exchanges, queues, and bindings.
+    """
 
     @staticmethod
     def exchange_address(exchange_name: str, routing_key: str = "") -> str:
+        """
+        Create an address for an exchange, optionally with a routing key.
+
+        Args:
+            exchange_name: The name of the exchange
+            routing_key: Optional routing key
+
+        Returns:
+            str: The formatted exchange address
+        """
         if routing_key == "":
             path = "/exchanges/" + encode_path_segment(exchange_name)
         else:
@@ -48,12 +64,30 @@ class AddressHelper:
 
     @staticmethod
     def queue_address(name: str) -> str:
+        """
+        Create an address for a queue.
+
+        Args:
+            name: The name of the queue
+
+        Returns:
+            str: The formatted queue address
+        """
         path = "/queues/" + encode_path_segment(name)
 
         return path
 
     @staticmethod
     def purge_queue_address(name: str) -> str:
+        """
+        Create an address for purging a queue.
+
+        Args:
+            name: The name of the queue to purge
+
+        Returns:
+            str: The formatted purge queue address
+        """
         path = "/queues/" + encode_path_segment(name) + "/messages"
 
         return path
@@ -68,6 +102,15 @@ class AddressHelper:
     def binding_path_with_exchange_queue(
         bind_specification: ExchangeToQueueBindingSpecification,
     ) -> str:
+        """
+        Create a binding path for an exchange-to-queue binding.
+
+        Args:
+            bind_specification: The specification for the binding
+
+        Returns:
+            str: The formatted binding path
+        """
         if bind_specification.binding_key is not None:
             key = ";key=" + encode_path_segment(bind_specification.binding_key)
         else:
@@ -90,6 +133,15 @@ class AddressHelper:
     def binding_path_with_exchange_exchange(
         bind_specification: ExchangeToExchangeBindingSpecification,
     ) -> str:
+        """
+        Create a binding path for an exchange-to-exchange binding.
+
+        Args:
+            bind_specification: The specification for the binding
+
+        Returns:
+            str: The formatted binding path
+        """
         binding_path_wth_exchange_exchange_key = (
             "/bindings"
             + "/"
@@ -106,6 +158,16 @@ class AddressHelper:
 
     @staticmethod
     def message_to_address_helper(message: Message, address: str) -> Message:
+        """
+        Set the address on a message.
+
+        Args:
+            message: The message to modify
+            address: The address to set
+
+        Returns:
+            Message: The modified message with the new address
+        """
         message.address = address
         return message
 

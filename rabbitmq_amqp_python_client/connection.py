@@ -19,6 +19,15 @@ CB = Annotated[Callable[[MT], None], "Message callback type"]
 
 
 class Connection:
+    """
+    Main connection class for interacting with RabbitMQ via AMQP 1.0 protocol.
+
+    This class manages the connection to RabbitMQ and provides factory methods for
+    creating publishers, consumers, and management interfaces. It supports both
+    single-node and multi-node configurations, as well as SSL/TLS connections.
+
+    """
+
     def __init__(
         self,
         # single-node mode
@@ -28,6 +37,18 @@ class Connection:
         ssl_context: Optional[SslConfigurationContext] = None,
         on_disconnection_handler: Optional[CB] = None,  # type: ignore
     ):
+        """
+         Initialize a new Connection instance.
+
+         Args:
+             uri: Single node connection URI
+             uris: List of URIs for multi-node setup
+             ssl_context: SSL configuration for secure connections
+             on_disconnection_handler: Callback for handling disconnection events
+
+        Raises:
+             ValueError: If neither uri nor uris is provided
+        """
         if uri is None and uris is None:
             raise ValueError("You need to specify at least an addr or a list of addr")
         self._addr: Optional[str] = uri
@@ -44,6 +65,12 @@ class Connection:
         self._connections = connections
 
     def dial(self) -> None:
+        """
+        Establish a connection to the AMQP server.
+
+        Configures SSL if specified and establishes the connection using the
+        provided URI(s). Also initializes the management interface.
+        """
         logger.debug("Establishing a connection to the amqp server")
         if self._conf_ssl_context is not None:
             logger.debug("Enabling SSL")
@@ -74,15 +101,38 @@ class Connection:
         self._management.open()
 
     def management(self) -> Management:
+        """
+        Get the management interface for this connection.
+
+        Returns:
+            Management: The management interface for performing administrative tasks
+        """
         return self._management
 
     # closes the connection to the AMQP 1.0 server.
     def close(self) -> None:
+        """
+        Close the connection to the AMQP 1.0 server.
+
+        Closes the underlying connection and removes it from the connection list.
+        """
         logger.debug("Closing connection")
         self._conn.close()
         self._connections.remove(self)
 
     def publisher(self, destination: str = "") -> Publisher:
+        """
+        Create a new publisher instance.
+
+        Args:
+            destination: Optional default destination for published messages
+
+        Returns:
+            Publisher: A new publisher instance
+
+        Raises:
+            ArgumentOutOfRangeException: If destination address format is invalid
+        """
         if destination != "":
             if validate_address(destination) is False:
                 raise ArgumentOutOfRangeException(
@@ -98,6 +148,21 @@ class Connection:
         stream_filter_options: Optional[StreamOptions] = None,
         credit: Optional[int] = None,
     ) -> Consumer:
+        """
+        Create a new consumer instance.
+
+        Args:
+            destination: The address to consume from
+            message_handler: Optional handler for processing messages
+            stream_filter_options: Optional configuration for stream consumption
+            credit: Optional credit value for flow control
+
+        Returns:
+            Consumer: A new consumer instance
+
+        Raises:
+            ArgumentOutOfRangeException: If destination address format is invalid
+        """
         if validate_address(destination) is False:
             raise ArgumentOutOfRangeException(
                 "destination address must start with /queues or /exchanges"
