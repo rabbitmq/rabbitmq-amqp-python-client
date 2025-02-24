@@ -265,19 +265,18 @@ def test_disconnection_reconnection() -> None:
     publisher = None
     queue_name = "test-queue"
     connection_test = None
-    environment = Environment()
+    environment = None
 
     def on_disconnected():
 
         nonlocal publisher
         nonlocal queue_name
         nonlocal connection_test
+        nonlocal environment
 
         # reconnect
         if connection_test is not None:
-            connection_test = environment.connection(
-                "amqp://guest:guest@localhost:5672/"
-            )
+            connection_test = environment.connection()
             connection_test.dial()
 
         if publisher is not None:
@@ -288,9 +287,12 @@ def test_disconnection_reconnection() -> None:
         nonlocal reconnected
         reconnected = True
 
-    connection_test = environment.connection(
+    environment = Environment(
         "amqp://guest:guest@localhost:5672/", on_disconnection_handler=on_disconnected
     )
+
+    connection_test = environment.connection()
+
     connection_test.dial()
     # delay
     time.sleep(5)
@@ -328,7 +330,7 @@ def test_disconnection_reconnection() -> None:
     # cleanup, we need to create a new connection as the previous one
     # was closed by the test
 
-    connection_test = Connection("amqp://guest:guest@localhost:5672/")
+    connection_test = environment.connection()
     connection_test.dial()
 
     management = connection_test.management()

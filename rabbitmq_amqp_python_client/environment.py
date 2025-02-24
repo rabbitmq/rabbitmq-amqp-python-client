@@ -23,34 +23,46 @@ class Environment:
         _connections (list[Connection]): List of active connections managed by this environment
     """
 
-    def __init__(self):  # type: ignore
-        """
-        Initialize a new Environment instance.
-
-        Creates an empty list to track active connections.
-        """
-        self._connections: list[Connection] = []
-
-    def connection(
-        self,
-        # single-node mode
+    def __init__(
+        self,  # single-node mode
         uri: Optional[str] = None,
         # multi-node mode
         uris: Optional[list[str]] = None,
         ssl_context: Optional[SslConfigurationContext] = None,
         on_disconnection_handler: Optional[CB] = None,  # type: ignore
-    ) -> Connection:
+    ):
         """
-        Create and return a new connection.
+        Initialize a new Environment instance.
 
-        This method supports both single-node and multi-node configurations, with optional
-        SSL/TLS security and disconnection handling.
+        Creates an empty list to track active connections.
 
         Args:
             uri: Single node connection URI
             uris: List of URIs for multi-node setup
             ssl_context: SSL configuration for secure connections
             on_disconnection_handler: Callback for handling disconnection events
+
+        """
+        if uri is not None and uris is not None:
+            raise ValueError(
+                "Cannot specify both 'uri' and 'uris'. Choose one connection mode."
+            )
+        if uri is None and uris is None:
+            raise ValueError("Must specify either 'uri' or 'uris' for connection.")
+        self._uri = uri
+        self._uris = uris
+        self._ssl_context = ssl_context
+        self._on_disconnection_handler = on_disconnection_handler
+        self._connections: list[Connection] = []
+
+    def connection(
+        self,
+    ) -> Connection:
+        """
+        Create and return a new connection.
+
+        This method supports both single-node and multi-node configurations, with optional
+        SSL/TLS security and disconnection handling.
 
         Returns:
             Connection: A new connection instance
@@ -59,10 +71,10 @@ class Environment:
             ValueError: If neither uri nor uris is provided
         """
         connection = Connection(
-            uri=uri,
-            uris=uris,
-            ssl_context=ssl_context,
-            on_disconnection_handler=on_disconnection_handler,
+            uri=self._uri,
+            uris=self._uris,
+            ssl_context=self._ssl_context,
+            on_disconnection_handler=self._on_disconnection_handler,
         )
         logger.debug("Environment: Creating and returning a new connection")
         self._connections.append(connection)

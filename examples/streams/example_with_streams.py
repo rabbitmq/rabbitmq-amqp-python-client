@@ -54,8 +54,6 @@ class MyMessageHandler(AMQPMessagingHandler):
         if self._count == MESSAGES_TO_PUBLISH:
             print("closing receiver")
             # if you want you can add cleanup operations here
-            # event.receiver.close()
-            # event.connection.close()
 
     def on_connection_closed(self, event: Event):
         # if you want you can add cleanup operations here
@@ -67,7 +65,7 @@ class MyMessageHandler(AMQPMessagingHandler):
 
 
 def create_connection(environment: Environment) -> Connection:
-    connection = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection = environment.connection()
     # in case of SSL enablement
     # ca_cert_file = ".ci/certs/ca_certificate.pem"
     # client_cert = ".ci/certs/client_certificate.pem"
@@ -88,7 +86,7 @@ def main() -> None:
     queue_name = "example-queue"
 
     print("connection to amqp server")
-    environment = Environment()
+    environment = Environment("amqp://guest:guest@localhost:5672/")
     connection = create_connection(environment)
 
     management = connection.management()

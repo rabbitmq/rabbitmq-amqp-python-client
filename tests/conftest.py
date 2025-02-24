@@ -15,7 +15,7 @@ from rabbitmq_amqp_python_client import (
 
 @pytest.fixture()
 def environment(pytestconfig):
-    environment = Environment()
+    environment = Environment(uri="amqp://guest:guest@localhost:5672/")
     try:
         yield environment
 
@@ -25,8 +25,8 @@ def environment(pytestconfig):
 
 @pytest.fixture()
 def connection(pytestconfig):
-    environment = Environment()
-    connection = environment.connection("amqp://guest:guest@localhost:5672/")
+    environment = Environment(uri="amqp://guest:guest@localhost:5672/")
+    connection = environment.connection()
     connection.dial()
     try:
         yield connection
@@ -37,17 +37,18 @@ def connection(pytestconfig):
 
 @pytest.fixture()
 def connection_ssl(pytestconfig):
-    environment = Environment()
     ca_cert_file = ".ci/certs/ca_certificate.pem"
     client_cert = ".ci/certs/client_certificate.pem"
     client_key = ".ci/certs/client_key.pem"
-    connection = environment.connection(
+
+    environment = Environment(
         "amqps://guest:guest@localhost:5671/",
         ssl_context=SslConfigurationContext(
             ca_cert=ca_cert_file,
             client_cert=ClientCert(client_cert=client_cert, client_key=client_key),
         ),
     )
+    connection = environment.connection()
     connection.dial()
     try:
         yield connection
@@ -58,8 +59,8 @@ def connection_ssl(pytestconfig):
 
 @pytest.fixture()
 def management(pytestconfig):
-    environment = Environment()
-    connection = environment.connection("amqp://guest:guest@localhost:5672/")
+    environment = Environment(uri="amqp://guest:guest@localhost:5672/")
+    connection = environment.connection()
     connection.dial()
     try:
         management = connection.management()
@@ -71,8 +72,8 @@ def management(pytestconfig):
 
 @pytest.fixture()
 def consumer(pytestconfig):
-    environment = Environment()
-    connection = environment.connection("amqp://guest:guest@localhost:5672/")
+    environment = Environment(uri="amqp://guest:guest@localhost:5672/")
+    connection = environment.connection()
     connection.dial()
     try:
         queue_name = "test-queue"
@@ -105,7 +106,6 @@ class MyMessageHandlerAccept(AMQPMessagingHandler):
         self.delivery_context.accept(event)
         self._received = self._received + 1
         if self._received == 1000:
-            event.connection.close()
             raise ConsumerTestException("consumed")
 
 
@@ -123,7 +123,6 @@ class MyMessageHandlerAcceptStreamOffset(AMQPMessagingHandler):
         self.delivery_context.accept(event)
         self._received = self._received + 1
         if self._received == 10:
-            event.connection.close()
             raise ConsumerTestException("consumed")
 
 
@@ -136,8 +135,6 @@ class MyMessageHandlerNoack(AMQPMessagingHandler):
     def on_message(self, event: Event):
         self._received = self._received + 1
         if self._received == 1000:
-            event.receiver.close()
-            event.connection.close()
             # Workaround to terminate the Consumer and notify the test when all messages are consumed
             raise ConsumerTestException("consumed")
 
@@ -152,7 +149,6 @@ class MyMessageHandlerDiscard(AMQPMessagingHandler):
         self.delivery_context.discard(event)
         self._received = self._received + 1
         if self._received == 1000:
-            event.connection.close()
             raise ConsumerTestException("consumed")
 
 
@@ -168,7 +164,6 @@ class MyMessageHandlerDiscardWithAnnotations(AMQPMessagingHandler):
         self.delivery_context.discard_with_annotations(event, annotations)
         self._received = self._received + 1
         if self._received == 1000:
-            event.connection.close()
             raise ConsumerTestException("consumed")
 
 
@@ -182,7 +177,7 @@ class MyMessageHandlerRequeue(AMQPMessagingHandler):
         self.delivery_context.requeue(event)
         self._received = self._received + 1
         if self._received == 1000:
-            event.connection.close()
+            # event.connection.close()
             raise ConsumerTestException("consumed")
 
 
@@ -198,7 +193,6 @@ class MyMessageHandlerRequeueWithAnnotations(AMQPMessagingHandler):
         self.delivery_context.requeue_with_annotations(event, annotations)
         self._received = self._received + 1
         if self._received == 1000:
-            event.connection.close()
             raise ConsumerTestException("consumed")
 
 
@@ -214,5 +208,4 @@ class MyMessageHandlerRequeueWithInvalidAnnotations(AMQPMessagingHandler):
         self.delivery_context.requeue_with_annotations(event, annotations)
         self._received = self._received + 1
         if self._received == 1000:
-            event.connection.close()
             raise ConsumerTestException("consumed")

@@ -88,7 +88,7 @@ def test_consumer_async_queue_accept(
     publish_messages(connection, messages_to_send, queue_name)
 
     # we closed the connection so we need to open a new one
-    connection_consumer = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection_consumer = environment.connection()
     connection_consumer.dial()
     consumer = connection_consumer.consumer(
         addr_queue, message_handler=MyMessageHandlerAccept()
@@ -128,7 +128,7 @@ def test_consumer_async_queue_no_ack(
     publish_messages(connection, messages_to_send, queue_name)
 
     # we closed the connection so we need to open a new one
-    connection_consumer = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection_consumer = environment.connection()
     connection_consumer.dial()
 
     consumer = connection_consumer.consumer(
@@ -179,7 +179,7 @@ def test_consumer_async_queue_with_discard(
     publish_messages(connection, messages_to_send, queue_name)
 
     # we closed the connection so we need to open a new one
-    connection_consumer = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection_consumer = environment.connection()
     connection_consumer.dial()
 
     consumer = connection_consumer.consumer(
@@ -236,7 +236,7 @@ def test_consumer_async_queue_with_discard_with_annotations(
     addr_queue_dl = AddressHelper.queue_address(queue_dead_lettering)
 
     # we closed the connection so we need to open a new one
-    connection_consumer = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection_consumer = environment.connection()
     connection_consumer.dial()
 
     consumer = connection_consumer.consumer(
@@ -278,7 +278,6 @@ def test_consumer_async_queue_with_requeue(
 ) -> None:
     messages_to_send = 1000
 
-    environment = Environment()
     queue_name = "test-queue-async-requeue"
 
     management = connection.management()
@@ -290,7 +289,7 @@ def test_consumer_async_queue_with_requeue(
     publish_messages(connection, messages_to_send, queue_name)
 
     # we closed the connection so we need to open a new one
-    connection_consumer = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection_consumer = environment.connection()
     connection_consumer.dial()
 
     consumer = connection_consumer.consumer(
@@ -329,7 +328,7 @@ def test_consumer_async_queue_with_requeue_with_annotations(
     publish_messages(connection, messages_to_send, queue_name)
 
     # we closed the connection so we need to open a new one
-    connection_consumer = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection_consumer = environment.connection()
     connection_consumer.dial()
 
     consumer = connection_consumer.consumer(
@@ -377,7 +376,7 @@ def test_consumer_async_queue_with_requeue_with_invalid_annotations(
     publish_messages(connection, messages_to_send, queue_name)
 
     # we closed the connection so we need to open a new one
-    connection_consumer = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection_consumer = environment.connection()
     connection_consumer.dial()
 
     try:

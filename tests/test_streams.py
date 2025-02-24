@@ -32,9 +32,7 @@ def test_stream_read_from_last_default(
 
     # consume and then publish
     try:
-        connection_consumer = environment.connection(
-            "amqp://guest:guest@localhost:5672/"
-        )
+        connection_consumer = environment.connection()
         connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue, message_handler=MyMessageHandlerAcceptStreamOffset()
@@ -71,9 +69,7 @@ def test_stream_read_from_last(
 
     # consume and then publish
     try:
-        connection_consumer = environment.connection(
-            "amqp://guest:guest@localhost:5672/"
-        )
+        connection_consumer = environment.connection()
         connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
@@ -114,9 +110,7 @@ def test_stream_read_from_offset_zero(
     stream_filter_options.offset(0)
 
     try:
-        connection_consumer = environment.connection(
-            "amqp://guest:guest@localhost:5672/"
-        )
+        connection_consumer = environment.connection()
         connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
@@ -157,9 +151,7 @@ def test_stream_read_from_offset_first(
     stream_filter_options.offset(OffsetSpecification.first)
 
     try:
-        connection_consumer = environment.connection(
-            "amqp://guest:guest@localhost:5672/"
-        )
+        connection_consumer = environment.connection()
         connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
@@ -200,9 +192,7 @@ def test_stream_read_from_offset_ten(
     stream_filter_options.offset(10)
 
     try:
-        connection_consumer = environment.connection(
-            "amqp://guest:guest@localhost:5672/"
-        )
+        connection_consumer = environment.connection()
         connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
@@ -239,9 +229,7 @@ def test_stream_filtering(connection: Connection, environment: Environment) -> N
     try:
         stream_filter_options = StreamOptions()
         stream_filter_options.filter_values(["banana"])
-        connection_consumer = environment.connection(
-            "amqp://guest:guest@localhost:5672/"
-        )
+        connection_consumer = environment.connection()
         connection_consumer.dial()
 
         consumer = connection_consumer.consumer(
@@ -281,9 +269,7 @@ def test_stream_filtering_mixed(
     try:
         stream_filter_options = StreamOptions()
         stream_filter_options.filter_values(["banana"])
-        connection_consumer = environment.connection(
-            "amqp://guest:guest@localhost:5672/"
-        )
+        connection_consumer = environment.connection()
         connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
@@ -324,7 +310,7 @@ def test_stream_filtering_not_present(
     # consume and then publish
     stream_filter_options = StreamOptions()
     stream_filter_options.filter_values(["apple"])
-    connection_consumer = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection_consumer = environment.connection()
     connection_consumer.dial()
 
     consumer = connection_consumer.consumer(
@@ -367,9 +353,7 @@ def test_stream_match_unfiltered(
         stream_filter_options = StreamOptions()
         stream_filter_options.filter_values(["banana"])
         stream_filter_options.filter_match_unfiltered(True)
-        connection_consumer = environment.connection(
-            "amqp://guest:guest@localhost:5672/"
-        )
+        connection_consumer = environment.connection()
         connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,

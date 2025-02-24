@@ -21,8 +21,6 @@ from rabbitmq_amqp_python_client import (
     QuorumQueueSpecification,
 )
 
-environment = Environment()
-
 
 # here we keep track of the objects we need to reconnect
 @dataclass
@@ -42,6 +40,7 @@ MESSAGES_TO_PUBLSH = 50000
 def on_disconnection():
 
     print("disconnected")
+    global environment
     exchange_name = "test-exchange"
     queue_name = "example-queue"
     routing_key = "routing-key"
@@ -67,6 +66,11 @@ def on_disconnection():
                 addr_queue, message_handler=MyMessageHandler()
             )
         )
+
+
+environment = Environment(
+    uri="amqp://guest:guest@localhost:5672/", on_disconnection_handler=on_disconnection
+)
 
 
 class MyMessageHandler(AMQPMessagingHandler):
@@ -101,8 +105,6 @@ class MyMessageHandler(AMQPMessagingHandler):
         if self._count == MESSAGES_TO_PUBLSH:
             print("closing receiver")
             # if you want you can add cleanup operations here
-            # event.receiver.close()
-            # event.connection.close()
 
     def on_connection_closed(self, event: Event):
         # if you want you can add cleanup operations here
@@ -122,10 +124,7 @@ def create_connection() -> Connection:
     # ]
     # connection = Connection(uris=uris, on_disconnection_handler=on_disconnected)
 
-    connection = environment.connection(
-        uri="amqp://guest:guest@localhost:5672/",
-        on_disconnection_handler=on_disconnection,
-    )
+    connection = environment.connection()
     connection.dial()
 
     return connection

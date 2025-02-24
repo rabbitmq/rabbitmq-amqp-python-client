@@ -2,7 +2,6 @@ import time
 
 from rabbitmq_amqp_python_client import (
     ClientCert,
-    Connection,
     ConnectionClosed,
     Environment,
     SslConfigurationContext,
@@ -20,30 +19,32 @@ def on_disconnected():
 
 
 def test_connection() -> None:
-    environment = Environment()
-    connection = environment.connection("amqp://guest:guest@localhost:5672/")
+    environment = Environment(uri="amqp://guest:guest@localhost:5672/")
+    connection = environment.connection()
     connection.dial()
     environment.close()
 
 
 def test_environment_context_manager() -> None:
-    with Environment() as environment:
-        connection = environment.connection("amqp://guest:guest@localhost:5672/")
+    with Environment(uri="amqp://guest:guest@localhost:5672/") as environment:
+        connection = environment.connection()
         connection.dial()
 
 
 def test_connection_ssl() -> None:
-    environment = Environment()
     ca_cert_file = ".ci/certs/ca_certificate.pem"
     client_cert = ".ci/certs/client_certificate.pem"
     client_key = ".ci/certs/client_key.pem"
-    connection = environment.connection(
+
+    environment = Environment(
         "amqps://guest:guest@localhost:5671/",
         ssl_context=SslConfigurationContext(
             ca_cert=ca_cert_file,
             client_cert=ClientCert(client_cert=client_cert, client_key=client_key),
         ),
     )
+
+    connection = environment.connection()
     connection.dial()
 
     environment.close()
@@ -51,12 +52,12 @@ def test_connection_ssl() -> None:
 
 def test_environment_connections_management() -> None:
 
-    environment = Environment()
-    connection = environment.connection("amqp://guest:guest@localhost:5672/")
+    environment = Environment(uri="amqp://guest:guest@localhost:5672/")
+    connection = environment.connection()
     connection.dial()
-    connection2 = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection2 = environment.connection()
     connection2.dial()
-    connection3 = environment.connection("amqp://guest:guest@localhost:5672/")
+    connection3 = environment.connection()
     connection3.dial()
 
     assert environment.active_connections == 3
@@ -89,17 +90,17 @@ def test_connection_reconnection() -> None:
 
         # reconnect
         if connection is not None:
-            connection = Connection("amqp://guest:guest@localhost:5672/")
+            connection = environment.connection()
             connection.dial()
 
         nonlocal reconnected
         reconnected = True
 
-    environment = Environment()
-
-    connection = environment.connection(
+    environment = Environment(
         "amqp://guest:guest@localhost:5672/", on_disconnection_handler=on_disconnected
     )
+
+    connection = environment.connection()
     connection.dial()
 
     # delay

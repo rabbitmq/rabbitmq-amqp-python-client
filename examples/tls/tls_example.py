@@ -51,8 +51,6 @@ class MyMessageHandler(AMQPMessagingHandler):
         if self._count == messages_to_publish:
             print("closing receiver")
             # if you want you can add cleanup operations here
-            # event.receiver.close()
-            # event.connection.close()
 
     def on_connection_closed(self, event: Event):
         # if you want you can add cleanup operations here
@@ -65,16 +63,7 @@ class MyMessageHandler(AMQPMessagingHandler):
 
 def create_connection(environment: Environment) -> Connection:
     # in case of SSL enablement
-    ca_cert_file = ".ci/certs/ca_certificate.pem"
-    client_cert = ".ci/certs/client_certificate.pem"
-    client_key = ".ci/certs/client_key.pem"
-    connection = environment.connection(
-        "amqps://guest:guest@localhost:5671/",
-        ssl_context=SslConfigurationContext(
-            ca_cert=ca_cert_file,
-            client_cert=ClientCert(client_cert=client_cert, client_key=client_key),
-        ),
-    )
+    connection = environment.connection()
     connection.dial()
 
     return connection
@@ -85,7 +74,17 @@ def main() -> None:
     exchange_name = "test-exchange"
     queue_name = "example-queue"
     routing_key = "routing-key"
-    environment = Environment()
+    ca_cert_file = ".ci/certs/ca_certificate.pem"
+    client_cert = ".ci/certs/client_certificate.pem"
+    client_key = ".ci/certs/client_key.pem"
+
+    environment = Environment(
+        "amqps://guest:guest@localhost:5671/",
+        ssl_context=SslConfigurationContext(
+            ca_cert=ca_cert_file,
+            client_cert=ClientCert(client_cert=client_cert, client_key=client_key),
+        ),
+    )
 
     print("connection to amqp server")
     connection = create_connection(environment)
