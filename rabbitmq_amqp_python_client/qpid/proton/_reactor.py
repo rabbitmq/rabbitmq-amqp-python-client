@@ -36,6 +36,8 @@ from typing import (
     Union,
 )
 
+import asyncio
+
 try:
     from typing import Literal
 except ImportError:
@@ -895,7 +897,7 @@ class Copy(ReceiverOption):
         receiver.source.distribution_mode = Terminus.DIST_MODE_COPY
 
 
-def _apply_link_options(
+async def _apply_link_options(
     options: Optional[Union[LinkOption, List[LinkOption]]],
     link: Union["Sender", "Receiver"],
 ) -> None:
@@ -1492,7 +1494,7 @@ class Container(Reactor):
         conn.open()
         return conn
 
-    def _get_id(
+    async def _get_id(
         self, container: str, remote: Optional[str], local: Optional[str]
     ) -> str:
         if local and remote:
@@ -1504,9 +1506,9 @@ class Container(Reactor):
         else:
             return "%s-%s" % (container, str(_generate_uuid()))
 
-    def _get_session(self, context: Connection) -> Session:
+    async def _get_session(self, context: Connection) -> Session:
         if isinstance(context, Url):
-            return self._get_session(self.connect(url=context))
+            return await self._get_session(self.connect(url=context))
         elif isinstance(context, Session):
             return context
         elif isinstance(context, Connection):
@@ -1517,7 +1519,7 @@ class Container(Reactor):
         else:
             return context.session()
 
-    def create_sender(
+    async def create_sender(
         self,
         context: Union[str, Url, Connection],
         target: Optional[str] = None,
@@ -1569,9 +1571,9 @@ class Container(Reactor):
             context = Url(context)
         if isinstance(context, Url) and not target:
             target = context.path
-        session = self._get_session(context)
-        snd = session.sender(
-            name or self._get_id(session.connection.container, target, source)
+        session = await self._get_session(context)
+        snd = await session.sender(
+            name or await self._get_id(session.connection.container, target, source)
         )
         if source:
             snd.source.address = source
@@ -1581,11 +1583,11 @@ class Container(Reactor):
             snd.handler = handler
         if tags:
             snd.tag_generator = tags
-        _apply_link_options(options, snd)
-        snd.open()
+        await _apply_link_options(options, snd)
+        await snd.open()
         return snd
 
-    def create_receiver(
+    async def create_receiver(
         self,
         context: Union[Connection, Url, str],
         source: Optional[str] = None,
@@ -1634,9 +1636,9 @@ class Container(Reactor):
             context = Url(context)
         if isinstance(context, Url) and not source:
             source = context.path
-        session = self._get_session(context)
-        rcv = session.receiver(
-            name or self._get_id(session.connection.container, source, target)
+        session = await self._get_session(context)
+        rcv = await session.receiver(
+            name or await self._get_id(session.connection.container, source, target)
         )
         if source:
             rcv.source.address = source
@@ -1646,8 +1648,8 @@ class Container(Reactor):
             rcv.target.address = target
         if handler is not None:
             rcv.handler = handler
-        _apply_link_options(options, rcv)
-        rcv.open()
+        await _apply_link_options(options, rcv)
+        await rcv.open()
         return rcv
 
     def declare_transaction(

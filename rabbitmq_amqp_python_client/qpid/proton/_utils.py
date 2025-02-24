@@ -44,6 +44,7 @@ from ._handlers import (
 )
 from ._reactor import Container
 from ._url import Url
+import asyncio
 
 try:
     from typing import Literal
@@ -472,7 +473,7 @@ class BlockingConnection(Handler):
                     raise
                 continue
 
-    def create_sender(
+    async def create_sender(
         self,
         address: Optional[str],
         handler: Optional[Handler] = None,
@@ -494,12 +495,12 @@ class BlockingConnection(Handler):
         """
         return BlockingSender(
             self,
-            self.container.create_sender(
+            await self.container.create_sender(
                 self.conn, address, name=name, handler=handler, options=options
             ),
         )
 
-    def create_receiver(
+    async def create_receiver(
         self,
         address: Optional[str] = None,
         credit: Optional[int] = None,
@@ -535,7 +536,7 @@ class BlockingConnection(Handler):
             fetcher = Fetcher(self, credit)
         return BlockingReceiver(
             self,
-            self.container.create_receiver(
+            await self.container.create_receiver(
                 self.conn,
                 address,
                 name=name,

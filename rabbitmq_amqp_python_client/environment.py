@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 MT = TypeVar("MT")
 CB = Annotated[Callable[[MT], None], "Message callback type"]
 
+import asyncio
 
 class Environment:
     """
@@ -31,7 +32,7 @@ class Environment:
         """
         self._connections: list[Connection] = []
 
-    def connection(
+    async def connection(
         self,
         # single-node mode
         uri: Optional[str] = None,
@@ -66,11 +67,11 @@ class Environment:
         )
         logger.debug("Environment: Creating and returning a new connection")
         self._connections.append(connection)
-        connection._set_environment_connection_list(self._connections)
+        await connection._set_environment_connection_list(self._connections)
         return connection
 
     # closes all active connections
-    def close(self) -> None:
+    async def close(self) -> None:
         """
         Close all active connections.
 
@@ -81,7 +82,7 @@ class Environment:
         errors = []
         for connection in self._connections:
             try:
-                connection.close()
+                await connection.close()
             except Exception as e:
                 errors.append(f"Exception closing connection: {str(e)}")
                 logger.error(f"Exception closing connection: {e}")
@@ -89,7 +90,7 @@ class Environment:
         if errors:
             raise RuntimeError(f"Errors closing connections: {'; '.join(errors)}")
 
-    def connections(self) -> list[Connection]:
+    async def connections(self) -> list[Connection]:
         """
         Get the list of active connections.
 
@@ -107,6 +108,6 @@ class Environment:
         self.close()
 
     @property
-    def active_connections(self) -> int:
+    async def active_connections(self) -> int:
         """Returns the number of active connections"""
         return len(self._connections)

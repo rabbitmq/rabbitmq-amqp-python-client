@@ -9,6 +9,8 @@ from rabbitmq_amqp_python_client import (
     StreamSpecification,
 )
 
+import asyncio
+
 from .http_requests import delete_all_connections
 
 
@@ -19,17 +21,17 @@ def on_disconnected():
     disconnected = True
 
 
-def test_connection() -> None:
+async def test_connection() -> None:
     environment = Environment()
-    connection = environment.connection("amqp://guest:guest@localhost:5672/")
-    connection.dial()
-    environment.close()
+    connection = await environment.connection("amqp://guest:guest@localhost:5672/")
+    await connection.dial()
+    await environment.close()
 
 
-def test_environment_context_manager() -> None:
+async def test_environment_context_manager() -> None:
     with Environment() as environment:
-        connection = environment.connection("amqp://guest:guest@localhost:5672/")
-        connection.dial()
+        connection = await environment.connection("amqp://guest:guest@localhost:5672/")
+        await connection.dial()
 
 
 def test_connection_ssl() -> None:

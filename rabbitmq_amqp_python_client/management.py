@@ -53,7 +53,7 @@ class Management:
         self._receiver: Optional[BlockingReceiver] = None
         self._conn = conn
 
-    def open(self) -> None:
+    async def open(self) -> None:
         """
         Open the management connection by creating sender and receiver.
 
@@ -62,23 +62,23 @@ class Management:
         """
         if self._sender is None:
             logger.debug("Creating Sender")
-            self._sender = self._create_sender(
+            self._sender = await self._create_sender(
                 CommonValues.management_node_address.value
             )
         if self._receiver is None:
             logger.debug("Creating Receiver")
-            self._receiver = self._create_receiver(
+            self._receiver = await self._create_receiver(
                 CommonValues.management_node_address.value,
             )
 
-    def _create_sender(self, addr: str) -> BlockingSender:
-        return self._conn.create_sender(addr, options=SenderOption(addr))
+    async def _create_sender(self, addr: str) -> BlockingSender:
+        return await self._conn.create_sender(addr, options=SenderOption(addr))
 
-    def _create_receiver(self, addr: str) -> BlockingReceiver:
-        return self._conn.create_receiver(addr, options=ReceiverOption(addr))
+    async def _create_receiver(self, addr: str) -> BlockingReceiver:
+        return await self._conn.create_receiver(addr, options=ReceiverOption(addr))
 
     # closes the connection to the AMQP 1.0 server.
-    def close(self) -> None:
+    async def close(self) -> None:
         """
         Close the management connection.
 
@@ -90,7 +90,7 @@ class Management:
         if self._receiver is not None:
             self._receiver.close()
 
-    def request(
+    async def request(
         self,
         body: Any,
         path: str,
@@ -112,11 +112,11 @@ class Management:
         Raises:
             ValidationCodeException: If response code is not in expected_response_codes
         """
-        return self._request(
+        return await self._request(
             str(uuid.uuid4()), body, path, method, expected_response_codes
         )
 
-    def _request(
+    async def _request(
         self,
         id: str,
         body: Any,
@@ -140,10 +140,10 @@ class Management:
             msg = self._receiver.receive()
             logger.debug("Received message: " + str(msg))
 
-        self._validate_reponse_code(int(msg.subject), expected_response_codes)
+        await self._validate_reponse_code(int(msg.subject), expected_response_codes)
         return msg
 
-    def declare_exchange(
+    async def declare_exchange(
         self,
         exchange_specification: Union[
             ExchangeSpecification, ExchangeCustomSpecification
@@ -174,7 +174,7 @@ class Management:
 
         path = AddressHelper.exchange_address(exchange_specification.name)
 
-        self.request(
+        await self.request(
             body,
             path,
             CommonValues.command_put.value,
@@ -187,7 +187,7 @@ class Management:
 
         return exchange_specification
 
-    def declare_queue(
+    async def declare_queue(
         self,
         queue_specification: Union[
             ClassicQueueSpecification, QuorumQueueSpecification, StreamSpecification
@@ -214,14 +214,14 @@ class Management:
         if isinstance(queue_specification, ClassicQueueSpecification) or isinstance(
             queue_specification, QuorumQueueSpecification
         ):
-            body = self._declare_queue(queue_specification)
+            body = await self._declare_queue(queue_specification)
 
         elif isinstance(queue_specification, StreamSpecification):
-            body = self._declare_stream(queue_specification)
+            body = await self._declare_stream(queue_specification)
 
         path = AddressHelper.queue_address(queue_specification.name)
 
-        self.request(
+        await self.request(
             body,
             path,
             CommonValues.command_put.value,
@@ -234,7 +234,7 @@ class Management:
 
         return queue_specification
 
-    def _declare_queue(
+    async def _declare_queue(
         self,
         queue_specification: Union[ClassicQueueSpecification, QuorumQueueSpecification],
     ) -> dict[str, Any]:
@@ -303,7 +303,7 @@ class Management:
 
         return body
 
-    def _declare_stream(
+    async def _declare_stream(
         self, stream_specification: StreamSpecification
     ) -> dict[str, Any]:
 
@@ -340,7 +340,7 @@ class Management:
 
         return body
 
-    def delete_exchange(self, name: str) -> None:
+    async def delete_exchange(self, name: str) -> None:
         """
         Delete an exchange.
 
@@ -353,7 +353,7 @@ class Management:
         logger.debug("delete_exchange operation called")
         path = AddressHelper.exchange_address(name)
 
-        self.request(
+        await self.request(
             None,
             path,
             CommonValues.command_delete.value,
@@ -362,7 +362,7 @@ class Management:
             ],
         )
 
-    def delete_queue(self, name: str) -> None:
+    async def delete_queue(self, name: str) -> None:
         """
         Delete a queue.
 
@@ -375,7 +375,7 @@ class Management:
         logger.debug("delete_queue operation called")
         path = AddressHelper.queue_address(name)
 
-        self.request(
+        await self.request(
             None,
             path,
             CommonValues.command_delete.value,
@@ -384,7 +384,7 @@ class Management:
             ],
         )
 
-    def _validate_reponse_code(
+    async def _validate_reponse_code(
         self, response_code: int, expected_response_codes: list[int]
     ) -> None:
         if response_code == CommonValues.response_code_409.value:
@@ -398,7 +398,7 @@ class Management:
             "wrong response code received: " + str(response_code)
         )
 
-    def bind(
+    async def bind(
         self,
         bind_specification: Union[
             ExchangeToQueueBindingSpecification, ExchangeToExchangeBindingSpecification
@@ -433,7 +433,7 @@ class Management:
 
         path = AddressHelper.path_address()
 
-        self.request(
+        await self.request(
             body,
             path,
             CommonValues.command_post.value,
@@ -454,7 +454,7 @@ class Management:
 
         return binding_path
 
-    def unbind(
+    async def unbind(
         self,
         bind_specification: Union[
             str,
@@ -484,7 +484,7 @@ class Management:
                 binding_name = AddressHelper.binding_path_with_exchange_exchange(
                     bind_specification
                 )
-        self.request(
+        await self.request(
             None,
             binding_name,
             CommonValues.command_delete.value,
@@ -493,7 +493,7 @@ class Management:
             ],
         )
 
-    def purge_queue(self, name: str) -> int:
+    async def purge_queue(self, name: str) -> int:
         """
         Purge all messages from a queue.
 
@@ -520,7 +520,7 @@ class Management:
 
         return int(response.body["message_count"])
 
-    def queue_info(self, name: str) -> QueueInfo:
+    async def queue_info(self, name: str) -> QueueInfo:
         """
         Get information about a queue.
 

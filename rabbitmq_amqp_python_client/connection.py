@@ -12,6 +12,8 @@ from .qpid.proton._transport import SSLDomain
 from .qpid.proton.utils import BlockingConnection
 from .ssl_configuration import SslConfigurationContext
 
+import asyncio
+
 logger = logging.getLogger(__name__)
 
 MT = TypeVar("MT")
@@ -61,10 +63,10 @@ class Connection:
         self._connections = []  # type: ignore
         self._index: int = -1
 
-    def _set_environment_connection_list(self, connections: []):  # type: ignore
+    async def _set_environment_connection_list(self, connections: []):  # type: ignore
         self._connections = connections
 
-    def dial(self) -> None:
+    async def dial(self) -> None:
         """
         Establish a connection to the AMQP server.
 
@@ -93,14 +95,14 @@ class Connection:
             ssl_domain=self._ssl_domain,
             on_disconnection_handler=self._on_disconnection_handler,
         )
-        self._open()
+        await self._open()
         logger.debug("Connection to the server established")
 
-    def _open(self) -> None:
+    async def _open(self) -> None:
         self._management = Management(self._conn)
-        self._management.open()
+        await self._management.open()
 
-    def management(self) -> Management:
+    async def management(self) -> Management:
         """
         Get the management interface for this connection.
 
@@ -110,7 +112,7 @@ class Connection:
         return self._management
 
     # closes the connection to the AMQP 1.0 server.
-    def close(self) -> None:
+    async def close(self) -> None:
         """
         Close the connection to the AMQP 1.0 server.
 
@@ -120,7 +122,7 @@ class Connection:
         self._conn.close()
         self._connections.remove(self)
 
-    def publisher(self, destination: str = "") -> Publisher:
+    async def publisher(self, destination: str = "") -> Publisher:
         """
         Create a new publisher instance.
 
@@ -139,9 +141,10 @@ class Connection:
                     "destination address must start with /queues or /exchanges"
                 )
         publisher = Publisher(self._conn, destination)
+        await publisher.open()
         return publisher
 
-    def consumer(
+    async def consumer(
         self,
         destination: str,
         message_handler: Optional[MessagingHandler] = None,

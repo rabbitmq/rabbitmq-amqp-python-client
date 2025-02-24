@@ -16,41 +16,43 @@ from rabbitmq_amqp_python_client.exceptions import (
     ValidationCodeException,
 )
 
+import asyncio
 
-def test_declare_delete_exchange(management: Management) -> None:
+
+async def test_declare_delete_exchange(management: Management) -> None:
 
     exchange_name = "test-exchange"
 
-    exchange_info = management.declare_exchange(
+    exchange_info = await management.declare_exchange(
         ExchangeSpecification(name=exchange_name)
     )
 
     assert exchange_info.name == exchange_name
 
-    management.delete_exchange(exchange_name)
+    await management.delete_exchange(exchange_name)
 
 
-def test_declare_delete_exchange_headers(management: Management) -> None:
+async def test_declare_delete_exchange_headers(management: Management) -> None:
 
     exchange_name = "test-exchange"
 
-    exchange_info = management.declare_exchange(
+    exchange_info = await management.declare_exchange(
         ExchangeSpecification(name=exchange_name, exchange_type=ExchangeType.headers)
     )
 
     assert exchange_info.name == exchange_name
 
-    management.delete_exchange(exchange_name)
+    await management.delete_exchange(exchange_name)
 
 
-def test_declare_delete_exchange_custom(management: Management) -> None:
+async def test_declare_delete_exchange_custom(management: Management) -> None:
 
     exchange_name = "test-exchange"
 
     exchange_arguments = {}
     exchange_arguments["x-delayed-type"] = "direct"
 
-    exchange_info = management.declare_exchange(
+    exchange_info = await management.declare_exchange(
         ExchangeCustomSpecification(
             name=exchange_name,
             exchange_type="x-local-random",
@@ -60,17 +62,17 @@ def test_declare_delete_exchange_custom(management: Management) -> None:
 
     assert exchange_info.name == exchange_name
 
-    management.delete_exchange(exchange_name)
+    await management.delete_exchange(exchange_name)
 
 
-def test_declare_delete_exchange_with_args(management: Management) -> None:
+async def test_declare_delete_exchange_with_args(management: Management) -> None:
 
     exchange_name = "test-exchange-with-args"
 
     exchange_arguments = {}
     exchange_arguments["test"] = "test"
 
-    exchange_info = management.declare_exchange(
+    exchange_info = await management.declare_exchange(
         ExchangeSpecification(
             name=exchange_name,
             exchange_type=ExchangeType.topic,
@@ -82,32 +84,32 @@ def test_declare_delete_exchange_with_args(management: Management) -> None:
     assert exchange_info.exchange_type == ExchangeType.topic
     assert exchange_info.arguments == exchange_arguments
 
-    management.delete_exchange(exchange_name)
+    await management.delete_exchange(exchange_name)
 
 
-def test_declare_purge_delete_queue(management: Management) -> None:
+async def test_declare_purge_delete_queue(management: Management) -> None:
     queue_name = "my_queue"
 
-    queue_info = management.declare_queue(QuorumQueueSpecification(name=queue_name))
+    queue_info = await management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
     assert queue_info.name == queue_name
 
-    management.purge_queue(queue_name)
+    await management.purge_queue(queue_name)
 
-    management.delete_queue(queue_name)
+    await management.delete_queue(queue_name)
 
 
-def test_bind_exchange_to_queue(management: Management) -> None:
+async def test_bind_exchange_to_queue(management: Management) -> None:
 
     exchange_name = "test-bind-exchange-to-queue-exchange"
     queue_name = "test-bind-exchange-to-queue-queue"
     routing_key = "routing-key"
 
-    management.declare_exchange(ExchangeSpecification(name=exchange_name))
+    await management.declare_exchange(ExchangeSpecification(name=exchange_name))
 
-    management.declare_queue(QuorumQueueSpecification(name=queue_name))
+    await management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
-    binding_exchange_queue_path = management.bind(
+    binding_exchange_queue_path = await management.bind(
         ExchangeToQueueBindingSpecification(
             source_exchange=exchange_name,
             destination_queue=queue_name,
@@ -126,23 +128,23 @@ def test_bind_exchange_to_queue(management: Management) -> None:
         + ";args="
     )
 
-    management.delete_exchange(exchange_name)
+    await management.delete_exchange(exchange_name)
 
-    management.delete_queue(queue_name)
+    await management.delete_queue(queue_name)
 
-    management.unbind(binding_exchange_queue_path)
+    await management.unbind(binding_exchange_queue_path)
 
 
-def test_bind_exchange_to_queue_without_key(management: Management) -> None:
+async def test_bind_exchange_to_queue_without_key(management: Management) -> None:
 
     exchange_name = "test-bind-exchange-to-queue-exchange"
     queue_name = "test-bind-exchange-to-queue-queue"
 
-    management.declare_exchange(ExchangeSpecification(name=exchange_name))
+    await management.declare_exchange(ExchangeSpecification(name=exchange_name))
 
-    management.declare_queue(QuorumQueueSpecification(name=queue_name))
+    await management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
-    binding_exchange_queue_path = management.bind(
+    binding_exchange_queue_path = await management.bind(
         ExchangeToQueueBindingSpecification(
             source_exchange=exchange_name,
             destination_queue=queue_name,
@@ -154,23 +156,23 @@ def test_bind_exchange_to_queue_without_key(management: Management) -> None:
         == "/bindings/src=" + exchange_name + ";dstq=" + queue_name + ";key=" + ";args="
     )
 
-    management.unbind(binding_exchange_queue_path)
+    await management.unbind(binding_exchange_queue_path)
 
-    management.delete_exchange(exchange_name)
+    await management.delete_exchange(exchange_name)
 
-    management.delete_queue(queue_name)
+    await management.delete_queue(queue_name)
 
 
-def test_bind_exchange_to_exchange_without_key(management: Management) -> None:
+async def test_bind_exchange_to_exchange_without_key(management: Management) -> None:
 
     source_exchange_name = "test-bind-exchange-to-queue-exchange"
     destination_exchange_name = "test-bind-exchange-to-queue-queue"
 
-    management.declare_exchange(ExchangeSpecification(name=source_exchange_name))
+    await management.declare_exchange(ExchangeSpecification(name=source_exchange_name))
 
-    management.declare_exchange(ExchangeSpecification(name=destination_exchange_name))
+    await management.declare_exchange(ExchangeSpecification(name=destination_exchange_name))
 
-    binding_exchange_queue_path = management.bind(
+    binding_exchange_queue_path = await management.bind(
         ExchangeToExchangeBindingSpecification(
             source_exchange=source_exchange_name,
             destination_exchange=destination_exchange_name,
@@ -187,51 +189,51 @@ def test_bind_exchange_to_exchange_without_key(management: Management) -> None:
         + ";args="
     )
 
-    management.unbind(binding_exchange_queue_path)
+    await management.unbind(binding_exchange_queue_path)
 
-    management.delete_exchange(source_exchange_name)
+    await management.delete_exchange(source_exchange_name)
 
-    management.delete_exchange(destination_exchange_name)
+    await management.delete_exchange(destination_exchange_name)
 
 
-def test_bind_unbind_by_binding_spec(management: Management) -> None:
+async def test_bind_unbind_by_binding_spec(management: Management) -> None:
 
     exchange_name = "test-bind-exchange-to-queue-exchange"
     queue_name = "test-bind-exchange-to-queue-queue"
 
-    management.declare_exchange(ExchangeSpecification(name=exchange_name))
+    await management.declare_exchange(ExchangeSpecification(name=exchange_name))
 
-    management.declare_queue(QuorumQueueSpecification(name=queue_name))
+    await management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
-    management.bind(
+    await management.bind(
         ExchangeToQueueBindingSpecification(
             source_exchange=exchange_name,
             destination_queue=queue_name,
         )
     )
 
-    management.unbind(
+    await management.unbind(
         ExchangeToQueueBindingSpecification(
             source_exchange=exchange_name,
             destination_queue=queue_name,
         )
     )
 
-    management.delete_exchange(exchange_name)
+    await management.delete_exchange(exchange_name)
 
-    management.delete_queue(queue_name)
+    await management.delete_queue(queue_name)
 
 
-def test_bind_unbind_exchange_by_exchange_spec(management: Management) -> None:
+async def test_bind_unbind_exchange_by_exchange_spec(management: Management) -> None:
 
     source_exchange_name = "test-bind-exchange-to-queue-exchange"
     destination_exchange_name = "test-bind-exchange-to-queue-queue"
 
-    management.declare_exchange(ExchangeSpecification(name=source_exchange_name))
+    await management.declare_exchange(ExchangeSpecification(name=source_exchange_name))
 
-    management.declare_exchange(ExchangeSpecification(name=destination_exchange_name))
+    await management.declare_exchange(ExchangeSpecification(name=destination_exchange_name))
 
-    binding_exchange_queue_path = management.bind(
+    binding_exchange_queue_path = await management.bind(
         ExchangeToExchangeBindingSpecification(
             source_exchange=source_exchange_name,
             destination_exchange=destination_exchange_name,
@@ -248,29 +250,29 @@ def test_bind_unbind_exchange_by_exchange_spec(management: Management) -> None:
         + ";args="
     )
 
-    management.unbind(
+    await management.unbind(
         ExchangeToExchangeBindingSpecification(
             source_exchange=source_exchange_name,
             destination_exchange=destination_exchange_name,
         )
     )
 
-    management.delete_exchange(source_exchange_name)
+    await management.delete_exchange(source_exchange_name)
 
-    management.delete_exchange(destination_exchange_name)
+    await management.delete_exchange(destination_exchange_name)
 
 
-def test_bind_exchange_to_exchange(management: Management) -> None:
+async def test_bind_exchange_to_exchange(management: Management) -> None:
 
     source_exchange_name = "source_exchange"
     destination_exchange_name = "destination_exchange"
     routing_key = "routing-key"
 
-    management.declare_exchange(ExchangeSpecification(name=source_exchange_name))
+    await management.declare_exchange(ExchangeSpecification(name=source_exchange_name))
 
-    management.declare_exchange(ExchangeSpecification(name=destination_exchange_name))
+    await management.declare_exchange(ExchangeSpecification(name=destination_exchange_name))
 
-    binding_exchange_exchange_path = management.bind(
+    binding_exchange_exchange_path = await management.bind(
         ExchangeToExchangeBindingSpecification(
             source_exchange=source_exchange_name,
             destination_exchange=destination_exchange_name,
@@ -289,25 +291,25 @@ def test_bind_exchange_to_exchange(management: Management) -> None:
         + ";args="
     )
 
-    management.unbind(binding_exchange_exchange_path)
+    await management.unbind(binding_exchange_exchange_path)
 
-    management.delete_exchange(source_exchange_name)
+    await management.delete_exchange(source_exchange_name)
 
-    management.delete_exchange(destination_exchange_name)
+    await management.delete_exchange(destination_exchange_name)
 
 
-def test_queue_info_with_validations(management: Management) -> None:
+async def test_queue_info_with_validations(management: Management) -> None:
 
     queue_name = "test_queue_info_with_validation"
 
     queue_specification = QuorumQueueSpecification(
         name=queue_name,
     )
-    management.declare_queue(queue_specification)
+    await management.declare_queue(queue_specification)
 
-    queue_info = management.queue_info(name=queue_name)
+    queue_info = await management.queue_info(name=queue_name)
 
-    management.delete_queue(queue_name)
+    await management.delete_queue(queue_name)
 
     assert queue_info.name == queue_name
     assert queue_info.queue_type == QueueType.quorum
@@ -315,33 +317,33 @@ def test_queue_info_with_validations(management: Management) -> None:
     assert queue_info.message_count == 0
 
 
-def test_queue_info_for_stream_with_validations(management: Management) -> None:
+async def test_queue_info_for_stream_with_validations(management: Management) -> None:
 
     stream_name = "test_stream_info_with_validation"
 
     queue_specification = StreamSpecification(
         name=stream_name,
     )
-    management.declare_queue(queue_specification)
+    await management.declare_queue(queue_specification)
 
-    stream_info = management.queue_info(name=stream_name)
+    stream_info = await management.queue_info(name=stream_name)
 
-    management.delete_queue(stream_name)
+    await management.delete_queue(stream_name)
 
     assert stream_info.name == stream_name
     assert stream_info.queue_type == QueueType.stream
     assert stream_info.message_count == 0
 
 
-def test_queue_precondition_fail(management: Management) -> None:
+async def test_queue_precondition_fail(management: Management) -> None:
     test_failure = True
 
     queue_name = "test-queue_precondition_fail"
 
     queue_specification = QuorumQueueSpecification(name=queue_name, max_len_bytes=100)
-    management.declare_queue(queue_specification)
+    await management.declare_queue(queue_specification)
 
-    management.declare_queue(queue_specification)
+    await management.declare_queue(queue_specification)
 
     queue_specification = QuorumQueueSpecification(
         name=queue_name,
@@ -349,16 +351,16 @@ def test_queue_precondition_fail(management: Management) -> None:
     )
 
     try:
-        management.declare_queue(queue_specification)
+        await management.declare_queue(queue_specification)
     except ValidationCodeException:
         test_failure = False
 
-    management.delete_queue(queue_name)
+    await management.delete_queue(queue_name)
 
     assert test_failure is False
 
 
-def test_declare_classic_queue(management: Management) -> None:
+async def test_declare_classic_queue(management: Management) -> None:
 
     queue_name = "test-declare_classic_queue"
 
@@ -366,14 +368,14 @@ def test_declare_classic_queue(management: Management) -> None:
         name=queue_name,
         is_auto_delete=False,
     )
-    queue_info = management.declare_queue(queue_specification)
+    queue_info = await management.declare_queue(queue_specification)
 
     assert queue_info.name == queue_specification.name
 
-    management.delete_queue(queue_name)
+    await management.delete_queue(queue_name)
 
 
-def test_declare_classic_queue_with_args(management: Management) -> None:
+async def test_declare_classic_queue_with_args(management: Management) -> None:
 
     queue_name = "test-queue_with_args-2"
 
@@ -393,9 +395,9 @@ def test_declare_classic_queue_with_args(management: Management) -> None:
         max_priority=100,
     )
 
-    management.declare_queue(queue_specification)
+    await management.declare_queue(queue_specification)
 
-    queue_info = management.queue_info(queue_name)
+    queue_info = await management.queue_info(queue_name)
 
     assert queue_specification.name == queue_info.name
     assert queue_specification.is_auto_delete == queue_info.is_auto_delete
@@ -428,10 +430,10 @@ def test_declare_classic_queue_with_args(management: Management) -> None:
         == queue_info.arguments["x-single-active-consumer"]
     )
 
-    management.delete_queue(queue_name)
+    await management.delete_queue(queue_name)
 
 
-def test_declare_quorum_queue_with_args(management: Management) -> None:
+async def test_declare_quorum_queue_with_args(management: Management) -> None:
 
     queue_name = "test-queue_with_args"
 
@@ -451,9 +453,9 @@ def test_declare_quorum_queue_with_args(management: Management) -> None:
         cluster_target_group_size=5,
     )
 
-    management.declare_queue(queue_specification)
+    await management.declare_queue(queue_specification)
 
-    queue_info = management.queue_info(queue_name)
+    queue_info = await management.queue_info(queue_name)
 
     assert queue_specification.name == queue_info.name
     assert queue_info.is_auto_delete is False
@@ -499,10 +501,10 @@ def test_declare_quorum_queue_with_args(management: Management) -> None:
         == queue_info.arguments["x-quorum-target-group-size"]
     )
 
-    management.delete_queue(queue_name)
+    await management.delete_queue(queue_name)
 
 
-def test_declare_stream_with_args(management: Management) -> None:
+async def test_declare_stream_with_args(management: Management) -> None:
 
     stream_name = "test-stream_with_args"
 
@@ -515,9 +517,9 @@ def test_declare_stream_with_args(management: Management) -> None:
         initial_group_size=5,
     )
 
-    management.declare_queue(stream_specification)
+    await management.declare_queue(stream_specification)
 
-    stream_info = management.queue_info(stream_name)
+    stream_info = await management.queue_info(stream_name)
 
     assert stream_specification.name == stream_info.name
     assert stream_info.is_auto_delete is False
@@ -544,10 +546,10 @@ def test_declare_stream_with_args(management: Management) -> None:
         == stream_info.arguments["x-initial-group-size"]
     )
 
-    management.delete_queue(stream_name)
+    await management.delete_queue(stream_name)
 
 
-def test_declare_classic_queue_with_invalid_args(management: Management) -> None:
+async def test_declare_classic_queue_with_invalid_args(management: Management) -> None:
     queue_name = "test-queue_with_args"
     test_failure = True
 
@@ -557,10 +559,10 @@ def test_declare_classic_queue_with_invalid_args(management: Management) -> None
     )
 
     try:
-        management.declare_queue(queue_specification)
+        await management.declare_queue(queue_specification)
     except ValidationCodeException:
         test_failure = False
 
-    management.delete_queue(queue_name)
+    await management.delete_queue(queue_name)
 
     assert test_failure is False

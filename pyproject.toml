@@ -9,6 +9,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.9"
 python-qpid-proton = "^0.39.0"
+pytest-asyncio = "^0.15.1"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^7.1.1"
@@ -18,6 +19,11 @@ pytest = "^8.3.4"
 black = "^24.3.0"
 python-qpid-proton = "^0.39.0"
 requests = "^2.31.0"
+pytest-asyncio = "^0.15.1"
+
+[tool.poetry.dev-dependencies]
+pytest-asyncio = "^0.15.1"
+
 
 [build-system]
 requires = ["poetry-core"]

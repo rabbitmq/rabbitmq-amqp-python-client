@@ -59,12 +59,12 @@ class Consumer:
         self._credit = credit
         self._open()
 
-    def _open(self) -> None:
+    async def _open(self) -> None:
         if self._receiver is None:
             logger.debug("Creating Sender")
-            self._receiver = self._create_receiver(self._addr)
+            self._receiver = await self._create_receiver(self._addr)
 
-    def consume(self, timeout: Union[None, Literal[False], float] = False) -> Message:
+    async def consume(self, timeout: Union[None, Literal[False], float] = False) -> Message:
         """
         Consume a message from the queue.
 
@@ -84,7 +84,7 @@ class Consumer:
             message = self._receiver.receive(timeout=timeout)
             return cast(Message, message)
 
-    def close(self) -> None:
+    async def close(self) -> None:
         """
         Close the consumer connection.
 
@@ -94,7 +94,7 @@ class Consumer:
         if self._receiver is not None:
             self._receiver.close()
 
-    def run(self) -> None:
+    async def run(self) -> None:
         """
         Run the consumer in continuous mode.
 
@@ -104,7 +104,7 @@ class Consumer:
         if self._receiver is not None:
             self._receiver.container.run()
 
-    def stop(self) -> None:
+    async def stop(self) -> None:
         """
         Stop the consumer's continuous processing.
 
@@ -116,7 +116,7 @@ class Consumer:
             self._receiver.container.stop_events()
             self._receiver.container.stop()
 
-    def _create_receiver(self, addr: str) -> BlockingReceiver:
+    async def _create_receiver(self, addr: str) -> BlockingReceiver:
         logger.debug("Creating the receiver")
         if self._stream_options is None:
             receiver = self._conn.create_receiver(
@@ -124,7 +124,7 @@ class Consumer:
             )
 
         else:
-            receiver = self._conn.create_receiver(
+            receiver = await self._conn.create_receiver(
                 addr,
                 options=ReceiverOptionUnsettledWithFilters(addr, self._stream_options),
                 handler=self._handler,

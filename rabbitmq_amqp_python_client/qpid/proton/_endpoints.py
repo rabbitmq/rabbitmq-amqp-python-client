@@ -175,6 +175,7 @@ from cproton import (
     pn_terminus_set_type,
 )
 
+import asyncio
 from ._condition import cond2obj, obj2cond
 from ._data import (
     Data,
@@ -808,7 +809,7 @@ class Session(Wrapper, Endpoint):
         """
         return self.connection.transport
 
-    def sender(self, name: str) -> "Sender":
+    async def sender(self, name: str) -> "Sender":
         """
         Create a new :class:`Sender` on this session.
 
@@ -816,7 +817,7 @@ class Session(Wrapper, Endpoint):
         """
         return Sender(pn_sender(self._impl, name))
 
-    def receiver(self, name: str) -> "Receiver":
+    async def receiver(self, name: str) -> "Receiver":
         """
         Create a new :class:`Receiver` on this session.
 
@@ -886,7 +887,7 @@ class Link(Wrapper, Endpoint):
     def _get_remote_cond_impl(self):
         return pn_link_remote_condition(self._impl)
 
-    def open(self) -> None:
+    async def open(self) -> None:
         """
         Opens the link.
 

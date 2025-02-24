@@ -24,15 +24,15 @@ def environment(pytestconfig):
 
 
 @pytest.fixture()
-def connection(pytestconfig):
+async def connection(pytestconfig):
     environment = Environment()
-    connection = environment.connection("amqp://guest:guest@localhost:5672/")
-    connection.dial()
+    connection = await environment.connection("amqp://guest:guest@localhost:5672/")
+    await connection.dial()
     try:
         yield connection
 
     finally:
-        environment.close()
+        await environment.close()
 
 
 @pytest.fixture()

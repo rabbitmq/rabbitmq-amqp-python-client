@@ -14,6 +14,8 @@ from .qpid.proton.utils import (
     BlockingSender,
 )
 
+import asyncio
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,14 +45,14 @@ class Publisher:
         self._sender: Optional[BlockingSender] = None
         self._conn = conn
         self._addr = addr
-        self._open()
+        #self._open()
 
-    def _open(self) -> None:
+    async def open(self) -> None:
         if self._sender is None:
-            logger.debug("Creating Sender")
-            self._sender = self._create_sender(self._addr)
+            print("Creating Sender")
+            self._sender = await self._create_sender(self._addr)
 
-    def publish(self, message: Message) -> Delivery:
+    async def publish(self, message: Message) -> Delivery:
         """
         Publish a message to RabbitMQ.
 
@@ -85,18 +87,20 @@ class Publisher:
                     delivery = self._sender.send(message)  # type: ignore
                     return delivery
 
-    def close(self) -> None:
+    async def close(self) -> None:
         """
         Close the publisher connection.
 
         Closes the sender if it exists and cleans up resources.
         """
         logger.debug("Closing Sender")
+        if self._sender is None:
+            print("sender is none")
         if self.is_open:
             self._sender.close()  # type: ignore
 
-    def _create_sender(self, addr: str) -> BlockingSender:
-        return self._conn.create_sender(addr, options=SenderOptionUnseattle(addr))
+    async def _create_sender(self, addr: str) -> BlockingSender:
+        return await self._conn.create_sender(addr, options=SenderOptionUnseattle(addr))
 
     @property
     def is_open(self) -> bool:
@@ -104,6 +108,6 @@ class Publisher:
         return self._sender is not None
 
     @property
-    def address(self) -> str:
+    async def address(self) -> str:
         """Get the current publisher address."""
         return self._addr
