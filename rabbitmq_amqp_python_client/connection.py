@@ -49,8 +49,12 @@ class Connection:
         Raises:
              ValueError: If neither uri nor uris is provided
         """
+        if uri is not None and uris is not None:
+            raise ValueError(
+                "Cannot specify both 'uri' and 'uris'. Choose one connection mode."
+            )
         if uri is None and uris is None:
-            raise ValueError("You need to specify at least an addr or a list of addr")
+            raise ValueError("Must specify either 'uri' or 'uris' for connection.")
         self._addr: Optional[str] = uri
         self._addrs: Optional[list[str]] = uris
         self._conn: BlockingConnection
@@ -117,8 +121,15 @@ class Connection:
         Closes the underlying connection and removes it from the connection list.
         """
         logger.debug("Closing connection")
-        self._conn.close()
-        self._connections.remove(self)
+        try:
+            self._conn.close()
+        except Exception as e:
+            logger.error(f"Error closing connection: {e}")
+            raise e
+
+        finally:
+            if self in self._connections:
+                self._connections.remove(self)
 
     def publisher(self, destination: str = "") -> Publisher:
         """

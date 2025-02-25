@@ -43,8 +43,8 @@ A connection to the RabbitMQ AMQP 1.0 server can be established using the Enviro
 For example:
 
 ```python
-    environment = Environment()
-    connection = environment.connection("amqp://guest:guest@localhost:5672/")
+    environment = Environment("amqp://guest:guest@localhost:5672/")
+    connection = environment.connection()
     connection.dial()
 ```
 
