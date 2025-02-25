@@ -36,6 +36,10 @@ An example is provided [`here`](./examples/getting_started/getting_started.py) y
 
 poetry run python ./examples/getting_started/getting_started.py
 
+Also consider to have a look to the examples documented in the RabbitMQ website: 
+
+https://www.rabbitmq.com/client-libraries/amqp-client-libraries
+
 ### Creating a connection
 
 A connection to the RabbitMQ AMQP 1.0 server can be established using the Environment object.
