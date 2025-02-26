@@ -1,9 +1,18 @@
 # For the moment this is just a Connection pooler to keep compatibility with other clients
 import logging
-from typing import Annotated, Callable, Optional, TypeVar
+from typing import (
+    Annotated,
+    Callable,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 from .connection import Connection
-from .ssl_configuration import SslConfigurationContext
+from .ssl_configuration import (
+    PosixSslConfigurationContext,
+    WinSslConfigurationContext,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +37,9 @@ class Environment:
         uri: Optional[str] = None,
         # multi-node mode
         uris: Optional[list[str]] = None,
-        ssl_context: Optional[SslConfigurationContext] = None,
+        ssl_context: Union[
+            PosixSslConfigurationContext, WinSslConfigurationContext, None
+        ] = None,
         on_disconnection_handler: Optional[CB] = None,  # type: ignore
     ):
         """

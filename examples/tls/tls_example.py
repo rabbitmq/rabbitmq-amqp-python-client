@@ -1,18 +1,18 @@
 # type: ignore
 
 
-from rabbitmq_amqp_python_client import (  # SSlConfigurationContext,; SslConfigurationContext,; ClientCert,
+from rabbitmq_amqp_python_client import (
     AddressHelper,
     AMQPMessagingHandler,
-    ClientCert,
     Connection,
     Environment,
     Event,
     ExchangeSpecification,
     ExchangeToQueueBindingSpecification,
     Message,
+    PosixClientCert,
+    PosixSslConfigurationContext,
     QuorumQueueSpecification,
-    SslConfigurationContext,
 )
 
 messages_to_publish = 100
@@ -80,9 +80,9 @@ def main() -> None:
 
     environment = Environment(
         "amqps://guest:guest@localhost:5671/",
-        ssl_context=SslConfigurationContext(
+        ssl_context=PosixSslConfigurationContext(
             ca_cert=ca_cert_file,
-            client_cert=ClientCert(client_cert=client_cert, client_key=client_key),
+            client_cert=PosixClientCert(client_cert=client_cert, client_key=client_key),
         ),
     )
 

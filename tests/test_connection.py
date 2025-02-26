@@ -1,10 +1,8 @@
 import time
 
 from rabbitmq_amqp_python_client import (
-    ClientCert,
     ConnectionClosed,
     Environment,
-    SslConfigurationContext,
     StreamSpecification,
 )
 
@@ -31,17 +29,10 @@ def test_environment_context_manager() -> None:
         connection.dial()
 
 
-def test_connection_ssl() -> None:
-    ca_cert_file = ".ci/certs/ca_certificate.pem"
-    client_cert = ".ci/certs/client_certificate.pem"
-    client_key = ".ci/certs/client_key.pem"
-
+def test_connection_ssl(ssl_context) -> None:
     environment = Environment(
         "amqps://guest:guest@localhost:5671/",
-        ssl_context=SslConfigurationContext(
-            ca_cert=ca_cert_file,
-            client_cert=ClientCert(client_cert=client_cert, client_key=client_key),
-        ),
+        ssl_context=ssl_context,
     )
 
     connection = environment.connection()

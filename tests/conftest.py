@@ -1,3 +1,5 @@
+import os
+import sys
 from typing import Optional
 
 import pytest
@@ -5,12 +7,20 @@ import pytest
 from rabbitmq_amqp_python_client import (
     AddressHelper,
     AMQPMessagingHandler,
-    ClientCert,
     Environment,
     Event,
-    SslConfigurationContext,
+    PKCS12Store,
+    PosixClientCert,
+    PosixSslConfigurationContext,
+    WinClientCert,
+    WinSslConfigurationContext,
     symbol,
 )
+from rabbitmq_amqp_python_client.ssl_configuration import (
+    FriendlyName,
+)
+
+os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 @pytest.fixture()
@@ -36,17 +46,31 @@ def connection(pytestconfig):
 
 
 @pytest.fixture()
-def connection_ssl(pytestconfig):
-    ca_cert_file = ".ci/certs/ca_certificate.pem"
-    client_cert = ".ci/certs/client_certificate.pem"
-    client_key = ".ci/certs/client_key.pem"
+def ssl_context(pytestconfig):
+    if sys.platform == "win32":
+        return WinSslConfigurationContext(
+            ca_store=PKCS12Store(path=".ci/certs/ca.p12"),
+            client_cert=WinClientCert(
+                store=PKCS12Store(path=".ci/certs/client.p12"),
+                disambiguation_method=FriendlyName(name="gsantomagg6LVDM.vmware.com"),
+            ),
+        )
+    else:
+        return PosixSslConfigurationContext(
+            ca_cert=".ci/certs/ca_certificate.pem",
+            client_cert=PosixClientCert(
+                client_cert=".ci/certs/client_certificate.pem",
+                client_key=".ci/certs/client_key.pem",
+            ),
+        )
+
+
+@pytest.fixture()
+def connection_ssl(pytestconfig, ssl_context):
 
     environment = Environment(
         "amqps://guest:guest@localhost:5671/",
-        ssl_context=SslConfigurationContext(
-            ca_cert=ca_cert_file,
-            client_cert=ClientCert(client_cert=client_cert, client_key=client_key),
-        ),
+        ssl_context=ssl_context,
     )
     connection = environment.connection()
     connection.dial()
