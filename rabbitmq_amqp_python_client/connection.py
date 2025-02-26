@@ -35,7 +35,7 @@ class Connection:
         # multi-node mode
         uris: Optional[list[str]] = None,
         ssl_context: Optional[SslConfigurationContext] = None,
-        on_disconnection_handler: Optional[CB] = None,  # type: ignore
+        reconnect: bool = False,
     ):
         """
          Initialize a new Connection instance.
@@ -59,11 +59,13 @@ class Connection:
         self._addrs: Optional[list[str]] = uris
         self._conn: BlockingConnection
         self._management: Management
-        self._on_disconnection_handler = on_disconnection_handler
+        self._reconnect = reconnect
         self._conf_ssl_context: Optional[SslConfigurationContext] = ssl_context
         self._ssl_domain = None
         self._connections = []  # type: ignore
         self._index: int = -1
+        self._publishers: list[Publisher] = []
+        self._consumers: list[Consumer] = []
 
     def _set_environment_connection_list(self, connections: []):  # type: ignore
         self._connections = connections
@@ -91,12 +93,21 @@ class Connection:
                         self._conf_ssl_context.client_cert.client_key,
                         self._conf_ssl_context.client_cert.password,
                     )
-        self._conn = BlockingConnection(
-            url=self._addr,
-            urls=self._addrs,
-            ssl_domain=self._ssl_domain,
-            on_disconnection_handler=self._on_disconnection_handler,
-        )
+
+        if self._reconnect is False:
+            self._conn = BlockingConnection(
+                url=self._addr,
+                urls=self._addrs,
+                ssl_domain=self._ssl_domain,
+            )
+        else:
+            self._conn = BlockingConnection(
+                url=self._addr,
+                urls=self._addrs,
+                ssl_domain=self._ssl_domain,
+                on_disconnection_handler=self._on_disconnection,
+            )
+
         self._open()
         logger.debug("Connection to the server established")
 
@@ -122,6 +133,10 @@ class Connection:
         """
         logger.debug("Closing connection")
         try:
+            for publisher in self._publishers:
+                publisher.close()
+            for consumer in self._consumers:
+                consumer.close()
             self._conn.close()
         except Exception as e:
             logger.error(f"Error closing connection: {e}")
@@ -150,7 +165,8 @@ class Connection:
                     "destination address must start with /queues or /exchanges"
                 )
         publisher = Publisher(self._conn, destination)
-        return publisher
+        self._publishers.append(publisher)
+        return self._publishers[self._publishers.index(publisher)]
 
     def consumer(
         self,
@@ -181,4 +197,31 @@ class Connection:
         consumer = Consumer(
             self._conn, destination, message_handler, stream_filter_options, credit
         )
+        self._consumers.append(consumer)
         return consumer
+
+    def _on_disconnection(self) -> None:
+
+        print("disconnected")
+
+        if self in self._connections:
+            self._connections.remove(self)
+
+        print("reconnecting")
+        self._conn = BlockingConnection(
+            url=self._addr,
+            urls=self._addrs,
+            ssl_domain=self._ssl_domain,
+            on_disconnection_handler=self._on_disconnection,
+        )
+        self._open()
+        self._connections.append(self)
+
+        for index, publisher in enumerate(self._publishers):
+            # publisher = self._publishers.pop(index)
+            # address = publisher.address
+            self._publishers.remove(publisher)
+            # self._publishers.insert(index, Publisher(self._conn, address))
+
+        for i, consumer in enumerate(self._consumers):
+            self._consumers.remove(consumer)

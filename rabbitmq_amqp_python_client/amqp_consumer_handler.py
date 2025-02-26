@@ -1,4 +1,5 @@
 from .delivery_context import DeliveryContext
+from .qpid.proton._events import Event
 from .qpid.proton.handlers import MessagingHandler
 
 """
@@ -20,3 +21,10 @@ class AMQPMessagingHandler(MessagingHandler):  # type: ignore
         """
         super().__init__(auto_accept=auto_accept, auto_settle=auto_settle)
         self.delivery_context: DeliveryContext = DeliveryContext()
+
+    def on_amqp_message(self, event: Event) -> None:
+        pass
+
+    def on_message(self, event: Event) -> None:
+        print("first level callback")
+        self.on_amqp_message(event)
