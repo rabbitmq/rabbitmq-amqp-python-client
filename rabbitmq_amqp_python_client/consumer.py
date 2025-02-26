@@ -57,12 +57,16 @@ class Consumer:
         self._handler = handler
         self._stream_options = stream_options
         self._credit = credit
+        self._consumers: list[Consumer] = []
         self._open()
 
     def _open(self) -> None:
         if self._receiver is None:
             logger.debug("Creating Sender")
             self._receiver = self._create_receiver(self._addr)
+
+    def _set_consumers_list(self, consumers: []) -> None:  # type: ignore
+        self._consumers = consumers
 
     def consume(self, timeout: Union[None, Literal[False], float] = False) -> Message:
         """
@@ -93,6 +97,8 @@ class Consumer:
         logger.debug("Closing the receiver")
         if self._receiver is not None:
             self._receiver.close()
+            if self in self._consumers:
+                self._consumers.remove(self)
 
     def run(self) -> None:
         """
@@ -134,3 +140,8 @@ class Consumer:
             receiver.credit = self._credit
 
         return receiver
+
+    @property
+    def address(self) -> str:
+        """Get the current publisher address."""
+        return self._addr
