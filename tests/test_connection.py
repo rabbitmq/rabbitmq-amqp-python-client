@@ -71,25 +71,9 @@ def test_environment_connections_management() -> None:
 
 def test_connection_reconnection() -> None:
 
-    reconnected = False
-    connection = None
     disconnected = False
 
-    def on_disconnected():
-
-        nonlocal connection
-
-        # reconnect
-        if connection is not None:
-            connection = environment.connection()
-            connection.dial()
-
-        nonlocal reconnected
-        reconnected = True
-
-    environment = Environment(
-        "amqp://guest:guest@localhost:5672/", on_disconnection_handler=on_disconnected
-    )
+    environment = Environment("amqp://guest:guest@localhost:5672/", reconnect=True)
 
     connection = environment.connection()
     connection.dial()
@@ -114,8 +98,7 @@ def test_connection_reconnection() -> None:
     management = connection.management()
     management.declare_queue(queue_specification)
     management.delete_queue(stream_name)
-    environment.close()
     management.close()
+    environment.close()
 
     assert disconnected is True
-    assert reconnected is True

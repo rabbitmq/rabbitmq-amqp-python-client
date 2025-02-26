@@ -23,7 +23,7 @@ class MyMessageHandler(AMQPMessagingHandler):
         super().__init__()
         self._count = 0
 
-    def on_message(self, event: Event):
+    def on_amqp_message(self, event: Event):
         print("received message: " + str(event.message.body))
 
         # accepting
@@ -147,7 +147,7 @@ def main() -> None:
     consumer.close()
     # once we finish consuming if we close the connection we need to create a new one
     # connection = create_connection()
-    # management = connection.management()
+    management = connection.management()
 
     print("unbind")
     management.unbind(bind_name)

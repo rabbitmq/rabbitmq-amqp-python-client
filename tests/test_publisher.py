@@ -260,36 +260,9 @@ def test_publish_purge(connection: Connection) -> None:
 
 def test_disconnection_reconnection() -> None:
     disconnected = False
-    reconnected = False
     generic_exception_raised = False
-    publisher = None
-    queue_name = "test-queue"
-    connection_test = None
-    environment = None
 
-    def on_disconnected():
-
-        nonlocal publisher
-        nonlocal queue_name
-        nonlocal connection_test
-        nonlocal environment
-
-        # reconnect
-        if connection_test is not None:
-            connection_test = environment.connection()
-            connection_test.dial()
-
-        if publisher is not None:
-            publisher = connection_test.publisher(
-                destination=AddressHelper.queue_address(queue_name)
-            )
-
-        nonlocal reconnected
-        reconnected = True
-
-    environment = Environment(
-        "amqp://guest:guest@localhost:5672/", on_disconnection_handler=on_disconnected
-    )
+    environment = Environment("amqp://guest:guest@localhost:5672/", reconnect=True)
 
     connection_test = environment.connection()
 
@@ -318,6 +291,9 @@ def test_disconnection_reconnection() -> None:
 
             except ConnectionClosed:
                 disconnected = True
+                publisher = connection_test.publisher(
+                    destination=AddressHelper.queue_address(queue_name)
+                )
                 continue
 
             except Exception:
@@ -345,7 +321,6 @@ def test_disconnection_reconnection() -> None:
 
     assert generic_exception_raised is False
     assert disconnected is True
-    assert reconnected is True
     assert message_purged == messages_to_publish - 1
 
 

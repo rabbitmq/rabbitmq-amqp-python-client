@@ -40,7 +40,7 @@ class Environment:
         ssl_context: Union[
             PosixSslConfigurationContext, WinSslConfigurationContext, None
         ] = None,
-        on_disconnection_handler: Optional[CB] = None,  # type: ignore
+        reconnect: bool = False,
     ):
         """
         Initialize a new Environment instance.
@@ -63,7 +63,7 @@ class Environment:
         self._uri = uri
         self._uris = uris
         self._ssl_context = ssl_context
-        self._on_disconnection_handler = on_disconnection_handler
+        self._reconnect = reconnect
         self._connections: list[Connection] = []
 
     def connection(
@@ -85,7 +85,7 @@ class Environment:
             uri=self._uri,
             uris=self._uris,
             ssl_context=self._ssl_context,
-            on_disconnection_handler=self._on_disconnection_handler,
+            reconnect=self._reconnect,
         )
         logger.debug("Environment: Creating and returning a new connection")
         self._connections.append(connection)
