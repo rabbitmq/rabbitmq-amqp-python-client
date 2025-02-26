@@ -52,7 +52,7 @@ def ssl_context(pytestconfig):
             ca_store=PKCS12Store(path=".ci/certs/ca.p12"),
             client_cert=WinClientCert(
                 store=PKCS12Store(path=".ci/certs/client.p12"),
-                disambiguation_method=FriendlyName(name="gsantomagg6LVDM.vmware.com"),
+                disambiguation_method=FriendlyName(name="1"),
             ),
         )
     else:
