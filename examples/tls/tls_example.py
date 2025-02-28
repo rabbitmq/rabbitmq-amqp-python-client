@@ -1,18 +1,27 @@
 # type: ignore
-
+import sys
+from traceback import print_exception
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
     AMQPMessagingHandler,
     Connection,
+    CurrentUserStore,
     Environment,
     Event,
     ExchangeSpecification,
     ExchangeToQueueBindingSpecification,
+    LocalMachineStore,
     Message,
+    PKCS12Store,
     PosixClientCert,
     PosixSslConfigurationContext,
     QuorumQueueSpecification,
+    WinClientCert,
+    WinSslConfigurationContext,
+)
+from rabbitmq_amqp_python_client.ssl_configuration import (
+    FriendlyName,
 )
 
 messages_to_publish = 100
@@ -74,20 +83,75 @@ def main() -> None:
     exchange_name = "test-exchange"
     queue_name = "example-queue"
     routing_key = "routing-key"
+    ca_p12_store = ".ci/certs/ca.p12"
     ca_cert_file = ".ci/certs/ca_certificate.pem"
     client_cert = ".ci/certs/client_certificate.pem"
     client_key = ".ci/certs/client_key.pem"
+    client_p12_store = ".ci/certs/client.p12"
+    uri = "amqps://guest:guest@localhost:5671/"
 
-    environment = Environment(
-        "amqps://guest:guest@localhost:5671/",
-        ssl_context=PosixSslConfigurationContext(
-            ca_cert=ca_cert_file,
-            client_cert=PosixClientCert(client_cert=client_cert, client_key=client_key),
-        ),
-    )
+    if sys.platform == "win32":
+        ca_stores = [
+            # names for the current user and local machine are not
+            # case-sensitive
+            CurrentUserStore(name="Root"),
+            LocalMachineStore(name="Root"),
+            PKCS12Store(path=ca_p12_store),
+        ]
+        client_stores = [
+            # `personal` is treated as an alias for `my` by qpid proton
+            # Recommended read:
+            # https://github.com/apache/qpid-proton/blob/2847000fbb3732e80537e3c3ff5e097bb95bfae0/c/src/ssl/PLATFORM_NOTES.md
+            CurrentUserStore(name="Personal"),
+            LocalMachineStore(name="my"),
+            PKCS12Store(path=client_p12_store),
+        ]
 
-    print("connection to amqp server")
-    connection = create_connection(environment)
+        for ca_store, client_store in zip(ca_stores, client_stores):
+            ssl_context = WinSslConfigurationContext(
+                ca_store=ca_store,
+                client_cert=WinClientCert(
+                    store=client_store,
+                    # qpid proton uses Windows constant CERT_NAME_FRIENDLY_DISPLAY_TYPE
+                    # to retrieve the value which is compare to the one we provide
+                    # If certificates have no friendly name Windows falls back to
+                    # CERT_NAME_SIMPLE_DISPLAY_TYPE which has further fallbacks
+                    # https://learn.microsoft.com/en-us/windows/win32/api/wincrypt/nf-wincrypt-certgetnamestringa
+                    disambiguation_method=FriendlyName("1"),
+                    password=None,
+                ),
+            )
+            environment = Environment(
+                uri,
+                ssl_context=ssl_context,
+            )
+
+            try:
+                print("connection to amqp server")
+                connection = create_connection(environment)
+                break
+            except Exception as e:
+                print_exception(e)
+                continue
+        else:
+            raise RuntimeError(
+                "connection failed. working directory should be project root"
+            )
+    else:
+        environment = Environment(
+            uri,
+            ssl_context=PosixSslConfigurationContext(
+                ca_cert=ca_cert_file,
+                client_cert=PosixClientCert(
+                    client_cert=client_cert,
+                    client_key=client_key,
+                    password=None,
+                ),
+            ),
+        )
+
+        print("connection to amqp server")
+        connection = create_connection(environment)
 
     management = connection.management()
 
