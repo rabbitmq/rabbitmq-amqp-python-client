@@ -826,7 +826,7 @@ class SSLDomain(object):
     def _check(self, err: int) -> int:
         if err < 0:
             exc = EXCEPTIONS.get(err, SSLException)
-            raise exc("SSL failure.")
+            raise exc("SSL failure.", err)
         else:
             return err
 

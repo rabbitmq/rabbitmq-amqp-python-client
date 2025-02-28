@@ -1,5 +1,13 @@
 import logging
-from typing import Annotated, Callable, Optional, TypeVar
+from typing import (
+    Annotated,
+    Callable,
+    Optional,
+    TypeVar,
+    Union,
+)
+
+import typing_extensions
 
 from .address_helper import validate_address
 from .consumer import Consumer
@@ -10,7 +18,15 @@ from .publisher import Publisher
 from .qpid.proton._handlers import MessagingHandler
 from .qpid.proton._transport import SSLDomain
 from .qpid.proton.utils import BlockingConnection
-from .ssl_configuration import SslConfigurationContext
+from .ssl_configuration import (
+    CurrentUserStore,
+    FriendlyName,
+    LocalMachineStore,
+    PKCS12Store,
+    PosixSslConfigurationContext,
+    Unambiguous,
+    WinSslConfigurationContext,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +50,9 @@ class Connection:
         uri: Optional[str] = None,
         # multi-node mode
         uris: Optional[list[str]] = None,
-        ssl_context: Optional[SslConfigurationContext] = None,
+        ssl_context: Union[
+            PosixSslConfigurationContext, WinSslConfigurationContext, None
+        ] = None,
         on_disconnection_handler: Optional[CB] = None,  # type: ignore
     ):
         """
@@ -60,7 +78,9 @@ class Connection:
         self._conn: BlockingConnection
         self._management: Management
         self._on_disconnection_handler = on_disconnection_handler
-        self._conf_ssl_context: Optional[SslConfigurationContext] = ssl_context
+        self._conf_ssl_context: Union[
+            PosixSslConfigurationContext, WinSslConfigurationContext, None
+        ] = ssl_context
         self._ssl_domain = None
         self._connections = []  # type: ignore
         self._index: int = -1
@@ -80,17 +100,47 @@ class Connection:
             logger.debug("Enabling SSL")
 
             self._ssl_domain = SSLDomain(SSLDomain.MODE_CLIENT)
-            if self._ssl_domain is not None:
-                self._ssl_domain.set_trusted_ca_db(self._conf_ssl_context.ca_cert)
+            assert self._ssl_domain
+
+            if isinstance(self._conf_ssl_context, PosixSslConfigurationContext):
+                ca_cert = self._conf_ssl_context.ca_cert
+            elif isinstance(self._conf_ssl_context, WinSslConfigurationContext):
+                ca_cert = self._win_store_to_cert(self._conf_ssl_context.ca_store)
+            else:
+                typing_extensions.assert_never(self._conf_ssl_context)
+            self._ssl_domain.set_trusted_ca_db(ca_cert)
+
             # for mutual authentication
             if self._conf_ssl_context.client_cert is not None:
                 logger.debug("Enabling mutual authentication as well")
-                if self._ssl_domain is not None:
-                    self._ssl_domain.set_credentials(
-                        self._conf_ssl_context.client_cert.client_cert,
-                        self._conf_ssl_context.client_cert.client_key,
-                        self._conf_ssl_context.client_cert.password,
+
+                if isinstance(self._conf_ssl_context, PosixSslConfigurationContext):
+                    client_cert = self._conf_ssl_context.client_cert.client_cert
+                    client_key = self._conf_ssl_context.client_cert.client_key
+                    password = self._conf_ssl_context.client_cert.password
+                elif isinstance(self._conf_ssl_context, WinSslConfigurationContext):
+                    client_cert = self._win_store_to_cert(
+                        self._conf_ssl_context.client_cert.store
                     )
+                    disambiguation_method = (
+                        self._conf_ssl_context.client_cert.disambiguation_method
+                    )
+                    if isinstance(disambiguation_method, Unambiguous):
+                        client_key = None
+                    elif isinstance(disambiguation_method, FriendlyName):
+                        client_key = disambiguation_method.name
+                    else:
+                        typing_extensions.assert_never(disambiguation_method)
+
+                    password = self._conf_ssl_context.client_cert.password
+                else:
+                    typing_extensions.assert_never(self._conf_ssl_context)
+
+                self._ssl_domain.set_credentials(
+                    client_cert,
+                    client_key,
+                    password,
+                )
         self._conn = BlockingConnection(
             url=self._addr,
             urls=self._addrs,
@@ -99,6 +149,19 @@ class Connection:
         )
         self._open()
         logger.debug("Connection to the server established")
+
+    def _win_store_to_cert(
+        self, store: Union[LocalMachineStore, CurrentUserStore, PKCS12Store]
+    ) -> str:
+        if isinstance(store, LocalMachineStore):
+            ca_cert = f"lmss:{store.name}"
+        elif isinstance(store, CurrentUserStore):
+            ca_cert = f"ss:{store.name}"
+        elif isinstance(store, PKCS12Store):
+            ca_cert = store.path
+        else:
+            typing_extensions.assert_never(store)
+        return ca_cert
 
     def _open(self) -> None:
         self._management = Management(self._conn)

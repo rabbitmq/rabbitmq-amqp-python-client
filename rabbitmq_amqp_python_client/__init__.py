@@ -32,8 +32,13 @@ from .queues import (
     StreamSpecification,
 )
 from .ssl_configuration import (
-    ClientCert,
-    SslConfigurationContext,
+    CurrentUserStore,
+    LocalMachineStore,
+    PKCS12Store,
+    PosixClientCert,
+    PosixSslConfigurationContext,
+    WinClientCert,
+    WinSslConfigurationContext,
 )
 
 try:
@@ -69,8 +74,13 @@ __all__ = [
     "AMQPMessagingHandler",
     "ArgumentOutOfRangeException",
     "ValidationCodeException",
-    "SslConfigurationContext",
-    "ClientCert",
+    "PosixSslConfigurationContext",
+    "WinSslConfigurationContext",
+    "PosixClientCert",
+    "WinClientCert",
+    "LocalMachineStore",
+    "CurrentUserStore",
+    "PKCS12Store",
     "ConnectionClosed",
     "StreamOptions",
     "OffsetSpecification",
