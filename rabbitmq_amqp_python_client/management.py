@@ -53,6 +53,13 @@ class Management:
         self._receiver: Optional[BlockingReceiver] = None
         self._conn = conn
 
+    def _update_connection(self, conn: BlockingConnection) -> None:
+        self._conn = conn
+        self._sender = self._create_sender(CommonValues.management_node_address.value)
+        self._receiver = self._create_receiver(
+            CommonValues.management_node_address.value,
+        )
+
     def open(self) -> None:
         """
         Open the management connection by creating sender and receiver.

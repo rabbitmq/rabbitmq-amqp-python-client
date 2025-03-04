@@ -62,7 +62,7 @@ class Connection:
              uri: Single node connection URI
              uris: List of URIs for multi-node setup
              ssl_context: SSL configuration for secure connections
-             on_disconnection_handler: Callback for handling disconnection events
+             reconnect: Ability to automatically reconnect in case of disconnections from the server
 
         Raises:
              ValueError: If neither uri nor uris is provided
@@ -76,10 +76,10 @@ class Connection:
         self._addr: Optional[str] = uri
         self._addrs: Optional[list[str]] = uris
         self._conn: BlockingConnection
-        self._management: Management
         self._conf_ssl_context: Union[
             PosixSslConfigurationContext, WinSslConfigurationContext, None
         ] = ssl_context
+        self._managements: list[Management] = []
         self._reconnect = reconnect
         self._ssl_domain = None
         self._connections = []  # type: ignore
@@ -158,7 +158,7 @@ class Connection:
                 on_disconnection_handler=self._on_disconnection,
             )
 
-        self._open()
+        # self._open()
         logger.debug("Connection to the server established")
 
     def _win_store_to_cert(
@@ -185,7 +185,12 @@ class Connection:
         Returns:
             Management: The management interface for performing administrative tasks
         """
-        return self._management
+        if len(self._managements) == 0:
+            management = Management(self._conn)
+            management.open()
+            self._managements.append(management)
+
+        return self._managements[0]
 
     # closes the connection to the AMQP 1.0 server.
     def close(self) -> None:
@@ -196,9 +201,9 @@ class Connection:
         """
         logger.debug("Closing connection")
         try:
-            for publisher in self._publishers:
+            for publisher in self._publishers[:]:
                 publisher.close()
-            for consumer in self._consumers:
+            for consumer in self._consumers[:]:
                 consumer.close()
             self._conn.close()
         except Exception as e:
@@ -228,8 +233,9 @@ class Connection:
                     "destination address must start with /queues or /exchanges"
                 )
         publisher = Publisher(self._conn, destination)
+        publisher._set_publishers_list(self._publishers)
         self._publishers.append(publisher)
-        return self._publishers[self._publishers.index(publisher)]
+        return publisher
 
     def consumer(
         self,
@@ -265,26 +271,36 @@ class Connection:
 
     def _on_disconnection(self) -> None:
 
-        print("disconnected")
-
         if self in self._connections:
             self._connections.remove(self)
 
-        print("reconnecting")
         self._conn = BlockingConnection(
             url=self._addr,
             urls=self._addrs,
             ssl_domain=self._ssl_domain,
             on_disconnection_handler=self._on_disconnection,
         )
-        self._open()
+
         self._connections.append(self)
 
-        for index, publisher in enumerate(self._publishers):
-            # publisher = self._publishers.pop(index)
-            # address = publisher.address
-            self._publishers.remove(publisher)
-            # self._publishers.insert(index, Publisher(self._conn, address))
+        for i, management in enumerate(self._managements):
+            # Update the broken connection and sender in the management
+            self._managements[i]._update_connection(self._conn)
+
+        for i, publisher in enumerate(self._publishers):
+            # Update the broken connection and sender in the publisher
+            self._publishers[i]._update_connection(self._conn)
 
         for i, consumer in enumerate(self._consumers):
-            self._consumers.remove(consumer)
+            # Update the broken connection and sender in the consumer
+            self._consumers[i]._update_connection(self._conn)
+
+    @property
+    def active_producers(self) -> int:
+        """Returns the number of active publishers"""
+        return len(self._publishers)
+
+    @property
+    def active_consumers(self) -> int:
+        """Returns the number of active consumers"""
+        return len(self._consumers)

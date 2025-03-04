@@ -81,9 +81,11 @@ def test_connection_reconnection() -> None:
     # delay
     time.sleep(5)
     # simulate a disconnection
-    delete_all_connections()
     # raise a reconnection
     management = connection.management()
+
+    delete_all_connections()
+
     stream_name = "test_stream_info_with_validation"
     queue_specification = StreamSpecification(
         name=stream_name,
@@ -95,7 +97,6 @@ def test_connection_reconnection() -> None:
         disconnected = True
 
     # check that we reconnected
-    management = connection.management()
     management.declare_queue(queue_specification)
     management.delete_queue(stream_name)
     management.close()

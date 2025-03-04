@@ -270,12 +270,10 @@ def test_disconnection_reconnection() -> None:
     # delay
     time.sleep(5)
     messages_to_publish = 10000
-    queue_name = "test-queue"
+    queue_name = "test-queue-reconnection"
     management = connection_test.management()
 
     management.declare_queue(QuorumQueueSpecification(name=queue_name))
-
-    management.close()
 
     publisher = connection_test.publisher(
         destination=AddressHelper.queue_address(queue_name)
@@ -291,9 +289,6 @@ def test_disconnection_reconnection() -> None:
 
             except ConnectionClosed:
                 disconnected = True
-                publisher = connection_test.publisher(
-                    destination=AddressHelper.queue_address(queue_name)
-                )
                 continue
 
             except Exception:
@@ -302,14 +297,6 @@ def test_disconnection_reconnection() -> None:
         break
 
     publisher.close()
-
-    # cleanup, we need to create a new connection as the previous one
-    # was closed by the test
-
-    connection_test = environment.connection()
-    connection_test.dial()
-
-    management = connection_test.management()
 
     # purge the queue and check number of published messages
     message_purged = management.purge_queue(queue_name)
@@ -335,13 +322,9 @@ def test_queue_info_for_stream_with_validations(connection: Connection) -> None:
     management = connection.management()
     management.declare_queue(queue_specification)
 
-    print("before creating publisher")
-
     publisher = connection.publisher(
         destination=AddressHelper.queue_address(stream_name)
     )
-
-    print("after creating publisher")
 
     for i in range(messages_to_send):
 
@@ -392,3 +375,55 @@ def test_publish_per_message_exchange(connection: Connection) -> None:
     assert accepted_2 is True
     assert purged_messages_queue == 2
     assert raised is False
+
+
+def test_multiple_publishers(environment: Environment) -> None:
+
+    stream_name = "test_multiple_publisher_1"
+    stream_name_2 = "test_multiple_publisher_2"
+    connection = environment.connection()
+    connection.dial()
+
+    stream_specification = StreamSpecification(
+        name=stream_name,
+    )
+    management = connection.management()
+    management.declare_queue(stream_specification)
+
+    stream_specification = StreamSpecification(
+        name=stream_name_2,
+    )
+    management.declare_queue(stream_specification)
+
+    destination = AddressHelper.queue_address(stream_name)
+    destination_2 = AddressHelper.queue_address(stream_name_2)
+    connection.publisher(destination)
+
+    assert connection.active_producers == 1
+
+    publisher_2 = connection.publisher(destination_2)
+
+    assert connection.active_producers == 2
+
+    publisher_2.close()
+
+    assert connection.active_producers == 1
+
+    connection.publisher(destination_2)
+
+    assert connection.active_producers == 2
+
+    connection.close()
+
+    assert connection.active_producers == 0
+
+    # cleanup
+    connection = environment.connection()
+    connection.dial()
+    management = connection.management()
+
+    management.delete_queue(stream_name)
+
+    management.delete_queue(stream_name_2)
+
+    management.close()

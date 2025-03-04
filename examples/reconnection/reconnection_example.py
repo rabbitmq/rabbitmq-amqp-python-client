@@ -129,7 +129,7 @@ def main() -> None:
                     publisher.publish(Message(body="test"))
             except ConnectionClosed:
                 print("publisher closing exception, resubmitting")
-                publisher = connection.publisher(addr)
+                # publisher = connection.publisher(addr)
                 continue
 
         print("closing publisher")
@@ -153,9 +153,6 @@ def main() -> None:
         except KeyboardInterrupt:
             pass
         except ConnectionClosed:
-            consumer = connection.consumer(
-                addr_queue, message_handler=MyMessageHandler()
-            )
             continue
         except Exception as e:
             print("consumer exited for exception " + str(e))
@@ -165,7 +162,6 @@ def main() -> None:
     print("cleanup")
     consumer.close()
 
-    management = connection.management()
     print("unbind")
     management.unbind(bind_name)
 

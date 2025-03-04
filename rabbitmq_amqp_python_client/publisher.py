@@ -46,6 +46,10 @@ class Publisher:
         self._publishers: list[Publisher] = []
         self._open()
 
+    def _update_connection(self, conn: BlockingConnection) -> None:
+        self._conn = conn
+        self._sender = self._create_sender(self._addr)
+
     def _open(self) -> None:
         if self._sender is None:
             logger.debug("Creating Sender")

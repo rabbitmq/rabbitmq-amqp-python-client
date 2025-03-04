@@ -65,6 +65,10 @@ class Consumer:
             logger.debug("Creating Sender")
             self._receiver = self._create_receiver(self._addr)
 
+    def _update_connection(self, conn: BlockingConnection) -> None:
+        self._conn = conn
+        self._receiver = self._create_receiver(self._addr)
+
     def _set_consumers_list(self, consumers: []) -> None:  # type: ignore
         self._consumers = consumers
 
