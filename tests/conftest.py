@@ -20,6 +20,8 @@ from rabbitmq_amqp_python_client.ssl_configuration import (
     FriendlyName,
 )
 
+from .http_requests import delete_all_connections
+
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -144,6 +146,22 @@ class MyMessageHandlerAcceptStreamOffset(AMQPMessagingHandler):
         if self._starting_offset is not None:
             assert event.message.annotations["x-stream-offset"] == self._starting_offset
             self._starting_offset = self._starting_offset + 1
+        self.delivery_context.accept(event)
+        self._received = self._received + 1
+        if self._received == 10:
+            raise ConsumerTestException("consumed")
+
+
+class MyMessageHandlerAcceptStreamOffsetReconnect(AMQPMessagingHandler):
+
+    def __init__(self, starting_offset: Optional[int] = None):
+        super().__init__()
+        self._received = 0
+        self._starting_offset = starting_offset
+
+    def on_message(self, event: Event):
+        if self._received == 5:
+            delete_all_connections()
         self.delivery_context.accept(event)
         self._received = self._received + 1
         if self._received == 10:

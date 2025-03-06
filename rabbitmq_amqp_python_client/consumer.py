@@ -1,12 +1,12 @@
 import logging
 from typing import Literal, Optional, Union, cast
 
+from .amqp_consumer_handler import AMQPMessagingHandler
 from .entities import StreamOptions
 from .options import (
     ReceiverOptionUnsettled,
     ReceiverOptionUnsettledWithFilters,
 )
-from .qpid.proton._handlers import MessagingHandler
 from .qpid.proton._message import Message
 from .qpid.proton.utils import (
     BlockingConnection,
@@ -37,7 +37,7 @@ class Consumer:
         self,
         conn: BlockingConnection,
         addr: str,
-        handler: Optional[MessagingHandler] = None,
+        handler: Optional[AMQPMessagingHandler] = None,
         stream_options: Optional[StreamOptions] = None,
         credit: Optional[int] = None,
     ):
@@ -67,7 +67,23 @@ class Consumer:
 
     def _update_connection(self, conn: BlockingConnection) -> None:
         self._conn = conn
-        self._receiver = self._create_receiver(self._addr)
+        if self._stream_options is None:
+            print("creating new receiver without stream")
+            self._receiver = self._conn.create_receiver(
+                self._addr,
+                options=ReceiverOptionUnsettled(self._addr),
+                handler=self._handler,
+            )
+        else:
+            print("creating new stream receiver")
+            self._stream_options.offset(self._handler.offset - 1)  # type: ignore
+            self._receiver = self._conn.create_receiver(
+                self._addr,
+                options=ReceiverOptionUnsettledWithFilters(
+                    self._addr, self._stream_options
+                ),
+                handler=self._handler,
+            )
 
     def _set_consumers_list(self, consumers: []) -> None:  # type: ignore
         self._consumers = consumers
@@ -149,3 +165,7 @@ class Consumer:
     def address(self) -> str:
         """Get the current publisher address."""
         return self._addr
+
+    @property
+    def handler(self) -> Optional[AMQPMessagingHandler]:
+        return self._handler
