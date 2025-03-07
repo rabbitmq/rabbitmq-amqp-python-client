@@ -147,8 +147,7 @@ You can check the [`ssl example`](./examples/tls/tls_example.py) to see how to e
 
 ### Managing disconnections
 
-At this stage the client doesn't support auto-reconnect but a callback is invoked everytime a remote disconnection is detected.
-You can use this callback to implement your own logic and eventually attempt a reconnection.
+The client supports automatic reconnection with the ability to reconnect Managements, Producers and Consumers
 
 You can check the [`reconnection example`](./examples/reconnection/reconnection_example.py) to see how to manage disconnections and
 eventually attempt a reconnection
