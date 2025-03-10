@@ -292,7 +292,6 @@ class Connection:
             self._publishers[i]._update_connection(self._conn)
 
         for i, consumer in enumerate(self._consumers):
-            print("reconnecting consumer")
             # Update the broken connection and sender in the consumer
             self._consumers[i]._update_connection(self._conn)
 

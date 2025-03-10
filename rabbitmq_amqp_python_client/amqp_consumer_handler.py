@@ -27,9 +27,7 @@ class AMQPMessagingHandler(MessagingHandler):  # type: ignore
         pass
 
     def on_message(self, event: Event) -> None:
-        print("first level callback")
         if "x-stream-offset" in event.message.annotations:
-            print("setting offset")
             self._offset = int(event.message.annotations["x-stream-offset"])
         self.on_amqp_message(event)
 
