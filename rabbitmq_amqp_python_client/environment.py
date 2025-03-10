@@ -9,6 +9,7 @@ from typing import (
 )
 
 from .connection import Connection
+from .entities import RecoveryConfiguration
 from .ssl_configuration import (
     PosixSslConfigurationContext,
     WinSslConfigurationContext,
@@ -40,7 +41,7 @@ class Environment:
         ssl_context: Union[
             PosixSslConfigurationContext, WinSslConfigurationContext, None
         ] = None,
-        reconnect: bool = False,
+        recovery_configuration: Optional[RecoveryConfiguration] = None,
     ):
         """
         Initialize a new Environment instance.
@@ -63,7 +64,7 @@ class Environment:
         self._uri = uri
         self._uris = uris
         self._ssl_context = ssl_context
-        self._reconnect = reconnect
+        self._recovery_configuration = recovery_configuration
         self._connections: list[Connection] = []
 
     def connection(
@@ -85,7 +86,7 @@ class Environment:
             uri=self._uri,
             uris=self._uris,
             ssl_context=self._ssl_context,
-            reconnect=self._reconnect,
+            recovery_configuration=self._recovery_configuration,
         )
         logger.debug("Environment: Creating and returning a new connection")
         self._connections.append(connection)

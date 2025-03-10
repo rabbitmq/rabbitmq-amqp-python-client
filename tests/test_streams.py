@@ -373,7 +373,9 @@ def test_stream_match_unfiltered(
     management.delete_queue(stream_name)
 
 
-def test_stream_reconnection(connection: Connection, environment: Environment) -> None:
+def test_stream_reconnection(
+    connection_with_reconnect: Connection, environment: Environment
+) -> None:
 
     consumer = None
     stream_name = "test_stream_info_with_filtering"
@@ -382,7 +384,7 @@ def test_stream_reconnection(connection: Connection, environment: Environment) -
     queue_specification = StreamSpecification(
         name=stream_name,
     )
-    management = connection.management()
+    management = connection_with_reconnect.management()
     management.declare_queue(queue_specification)
 
     addr_queue = AddressHelper.queue_address(stream_name)
@@ -401,7 +403,7 @@ def test_stream_reconnection(connection: Connection, environment: Environment) -
             stream_filter_options=stream_filter_options,
         )
         # send with annotations filter banana
-        publish_messages(connection, messages_to_send, stream_name)
+        publish_messages(connection_with_reconnect, messages_to_send, stream_name)
         consumer.run()
     # ack to terminate the consumer
     except ConsumerTestException:

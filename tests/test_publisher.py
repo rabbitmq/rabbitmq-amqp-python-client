@@ -9,6 +9,7 @@ from rabbitmq_amqp_python_client import (
     Message,
     OutcomeState,
     QuorumQueueSpecification,
+    RecoveryConfiguration,
     StreamSpecification,
     ValidationCodeException,
 )
@@ -262,7 +263,10 @@ def test_disconnection_reconnection() -> None:
     disconnected = False
     generic_exception_raised = False
 
-    environment = Environment("amqp://guest:guest@localhost:5672/", reconnect=True)
+    environment = Environment(
+        "amqp://guest:guest@localhost:5672/",
+        recovery_configuration=RecoveryConfiguration(active_recovery=True),
+    )
 
     connection_test = environment.connection()
 

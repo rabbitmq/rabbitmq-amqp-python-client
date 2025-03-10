@@ -12,6 +12,7 @@ from rabbitmq_amqp_python_client import (
     PKCS12Store,
     PosixClientCert,
     PosixSslConfigurationContext,
+    RecoveryConfiguration,
     WinClientCert,
     WinSslConfigurationContext,
     symbol,
@@ -38,6 +39,21 @@ def environment(pytestconfig):
 @pytest.fixture()
 def connection(pytestconfig):
     environment = Environment(uri="amqp://guest:guest@localhost:5672/")
+    connection = environment.connection()
+    connection.dial()
+    try:
+        yield connection
+
+    finally:
+        environment.close()
+
+
+@pytest.fixture()
+def connection_with_reconnect(pytestconfig):
+    environment = Environment(
+        uri="amqp://guest:guest@localhost:5672/",
+        recovery_configuration=RecoveryConfiguration(active_recovery=True),
+    )
     connection = environment.connection()
     connection.dial()
     try:

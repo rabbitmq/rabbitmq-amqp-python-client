@@ -10,13 +10,17 @@ from rabbitmq_amqp_python_client import (
     ExchangeToQueueBindingSpecification,
     Message,
     QuorumQueueSpecification,
+    RecoveryConfiguration,
 )
 
 # here we keep track of the objects we need to reconnect
 MESSAGES_TO_PUBLISH = 50000
 
 
-environment = Environment(uri="amqp://guest:guest@localhost:5672/", reconnect=True)
+environment = Environment(
+    uri="amqp://guest:guest@localhost:5672/",
+    recovery_configuration=RecoveryConfiguration(active_recovery=True),
+)
 
 
 class MyMessageHandler(AMQPMessagingHandler):

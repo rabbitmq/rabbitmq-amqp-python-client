@@ -1,4 +1,7 @@
 import logging
+import random
+import time
+from datetime import timedelta
 from typing import (
     Annotated,
     Callable,
@@ -11,10 +14,11 @@ import typing_extensions
 
 from .address_helper import validate_address
 from .consumer import Consumer
-from .entities import StreamOptions
+from .entities import RecoveryConfiguration, StreamOptions
 from .exceptions import ArgumentOutOfRangeException
 from .management import Management
 from .publisher import Publisher
+from .qpid.proton._exceptions import ConnectionException
 from .qpid.proton._handlers import MessagingHandler
 from .qpid.proton._transport import SSLDomain
 from .qpid.proton.utils import BlockingConnection
@@ -53,7 +57,7 @@ class Connection:
         ssl_context: Union[
             PosixSslConfigurationContext, WinSslConfigurationContext, None
         ] = None,
-        reconnect: bool = False,
+        recovery_configuration: Optional[RecoveryConfiguration] = None,
     ):
         """
          Initialize a new Connection instance.
@@ -80,7 +84,7 @@ class Connection:
             PosixSslConfigurationContext, WinSslConfigurationContext, None
         ] = ssl_context
         self._managements: list[Management] = []
-        self._reconnect = reconnect
+        self._recovery_configuration = recovery_configuration
         self._ssl_domain = None
         self._connections = []  # type: ignore
         self._index: int = -1
@@ -144,7 +148,10 @@ class Connection:
                     password,
                 )
 
-        if self._reconnect is False:
+        if (
+            self._recovery_configuration is None
+            or self._recovery_configuration.active_recovery is False
+        ):
             self._conn = BlockingConnection(
                 url=self._addr,
                 urls=self._addrs,
@@ -274,26 +281,53 @@ class Connection:
         if self in self._connections:
             self._connections.remove(self)
 
-        self._conn = BlockingConnection(
-            url=self._addr,
-            urls=self._addrs,
-            ssl_domain=self._ssl_domain,
-            on_disconnection_handler=self._on_disconnection,
-        )
+        base_delay = self._recovery_configuration.back_off_reconnect_interval  # type: ignore
+        max_delay = timedelta(minutes=1)
 
-        self._connections.append(self)
+        for attempt in range(self._recovery_configuration.MaxReconnectAttempts):  # type: ignore
 
-        for i, management in enumerate(self._managements):
-            # Update the broken connection and sender in the management
-            self._managements[i]._update_connection(self._conn)
+            jitter = timedelta(milliseconds=random.randint(0, 500))
+            delay = base_delay + jitter
 
-        for i, publisher in enumerate(self._publishers):
-            # Update the broken connection and sender in the publisher
-            self._publishers[i]._update_connection(self._conn)
+            if delay > max_delay:
+                delay = max_delay
 
-        for i, consumer in enumerate(self._consumers):
-            # Update the broken connection and sender in the consumer
-            self._consumers[i]._update_connection(self._conn)
+            time.sleep(delay.total_seconds())
+
+            try:
+                self._conn = BlockingConnection(
+                    url=self._addr,
+                    urls=self._addrs,
+                    ssl_domain=self._ssl_domain,
+                    on_disconnection_handler=self._on_disconnection,
+                )
+
+                self._connections.append(self)
+
+                for i, management in enumerate(self._managements):
+                    # Update the broken connection and sender in the management
+                    self._managements[i]._update_connection(self._conn)
+
+                for i, publisher in enumerate(self._publishers):
+                    # Update the broken connection and sender in the publisher
+                    self._publishers[i]._update_connection(self._conn)
+
+                for i, consumer in enumerate(self._consumers):
+                    # Update the broken connection and sender in the consumer
+                    self._consumers[i]._update_connection(self._conn)
+
+            except ConnectionException as e:
+                base_delay *= 2
+                logger.error(
+                    "Reconnection attempt failed",
+                    "attempt",
+                    attempt,
+                    "error",
+                    str(e),
+                )
+                continue
+
+            break
 
     @property
     def active_producers(self) -> int:

@@ -3,6 +3,7 @@ import time
 from rabbitmq_amqp_python_client import (
     ConnectionClosed,
     Environment,
+    RecoveryConfiguration,
     StreamSpecification,
 )
 
@@ -11,7 +12,6 @@ from .http_requests import delete_all_connections
 
 def on_disconnected():
 
-    print("disconnected")
     global disconnected
     disconnected = True
 
@@ -73,7 +73,10 @@ def test_connection_reconnection() -> None:
 
     disconnected = False
 
-    environment = Environment("amqp://guest:guest@localhost:5672/", reconnect=True)
+    environment = Environment(
+        "amqp://guest:guest@localhost:5672/",
+        recovery_configuration=RecoveryConfiguration(active_recovery=True),
+    )
 
     connection = environment.connection()
     connection.dial()
