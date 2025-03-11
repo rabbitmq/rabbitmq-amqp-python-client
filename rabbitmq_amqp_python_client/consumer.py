@@ -68,14 +68,14 @@ class Consumer:
     def _update_connection(self, conn: BlockingConnection) -> None:
         self._conn = conn
         if self._stream_options is None:
-            print("creating new receiver without stream")
+            logger.debug("creating new receiver without stream")
             self._receiver = self._conn.create_receiver(
                 self._addr,
                 options=ReceiverOptionUnsettled(self._addr),
                 handler=self._handler,
             )
         else:
-            print("creating new stream receiver")
+            logger.debug("creating new stream receiver")
             self._stream_options.offset(self._handler.offset - 1)  # type: ignore
             self._receiver = self._conn.create_receiver(
                 self._addr,
