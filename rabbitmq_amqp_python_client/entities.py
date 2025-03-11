@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import timedelta
 from enum import Enum
 from typing import Any, Dict, Optional, Union
 
@@ -208,3 +209,27 @@ class StreamOptions:
             Dict[symbol, Described]: The current filter set configuration
         """
         return self._filter_set
+
+
+@dataclass
+class RecoveryConfiguration:
+    """
+    Configuration options for automatic reconnection.
+
+    This dataclass contains parameters to manage automatic reconnection
+
+    Attributes:
+    active_recovery: Define if the recovery is activated. If is not activated the connection will not try to reconnect
+    back_off_reconnect_interval: the time to wait before trying to createSender after a connection is closed.
+                time will be increased exponentially with each attempt.
+                Default is 5 seconds, each attempt will double the time.
+                The minimum value is 1 second. Avoid setting a value low values since it can cause a high
+                number of reconnection attempts.
+        MaxReconnectAttempts: 		MaxReconnectAttempts The maximum number of reconnection attempts.
+                Default is 5.
+                The minimum value is 1.
+    """
+
+    active_recovery: bool = True
+    back_off_reconnect_interval: timedelta = timedelta(seconds=5)
+    MaxReconnectAttempts: int = 5

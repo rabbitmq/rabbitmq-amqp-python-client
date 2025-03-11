@@ -10,6 +10,7 @@ from rabbitmq_amqp_python_client import (
 from .conftest import (
     ConsumerTestException,
     MyMessageHandlerAcceptStreamOffset,
+    MyMessageHandlerAcceptStreamOffsetReconnect,
 )
 from .utils import publish_messages
 
@@ -362,6 +363,47 @@ def test_stream_match_unfiltered(
         )
         # send with annotations filter banana
         publish_messages(connection, messages_to_send, stream_name)
+        consumer.run()
+    # ack to terminate the consumer
+    except ConsumerTestException:
+        pass
+
+    consumer.close()
+
+    management.delete_queue(stream_name)
+
+
+def test_stream_reconnection(
+    connection_with_reconnect: Connection, environment: Environment
+) -> None:
+
+    consumer = None
+    stream_name = "test_stream_info_with_filtering"
+    messages_to_send = 10
+
+    queue_specification = StreamSpecification(
+        name=stream_name,
+    )
+    management = connection_with_reconnect.management()
+    management.declare_queue(queue_specification)
+
+    addr_queue = AddressHelper.queue_address(stream_name)
+
+    # consume and then publish
+    try:
+        stream_filter_options = StreamOptions()
+        stream_filter_options.filter_values(["banana"])
+        stream_filter_options.filter_match_unfiltered(True)
+        connection_consumer = environment.connection()
+        connection_consumer.dial()
+        consumer = connection_consumer.consumer(
+            addr_queue,
+            # disconnection and check happens here
+            message_handler=MyMessageHandlerAcceptStreamOffsetReconnect(),
+            stream_filter_options=stream_filter_options,
+        )
+        # send with annotations filter banana
+        publish_messages(connection_with_reconnect, messages_to_send, stream_name)
         consumer.run()
     # ack to terminate the consumer
     except ConsumerTestException:

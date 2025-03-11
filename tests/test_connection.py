@@ -1,9 +1,12 @@
 import time
+from datetime import timedelta
 
 from rabbitmq_amqp_python_client import (
     ConnectionClosed,
     Environment,
+    RecoveryConfiguration,
     StreamSpecification,
+    ValidationCodeException,
 )
 
 from .http_requests import delete_all_connections
@@ -11,7 +14,6 @@ from .http_requests import delete_all_connections
 
 def on_disconnected():
 
-    print("disconnected")
     global disconnected
     disconnected = True
 
@@ -71,24 +73,11 @@ def test_environment_connections_management() -> None:
 
 def test_connection_reconnection() -> None:
 
-    reconnected = False
-    connection = None
     disconnected = False
 
-    def on_disconnected():
-
-        nonlocal connection
-
-        # reconnect
-        if connection is not None:
-            connection = environment.connection()
-            connection.dial()
-
-        nonlocal reconnected
-        reconnected = True
-
     environment = Environment(
-        "amqp://guest:guest@localhost:5672/", on_disconnection_handler=on_disconnected
+        "amqp://guest:guest@localhost:5672/",
+        recovery_configuration=RecoveryConfiguration(active_recovery=True),
     )
 
     connection = environment.connection()
@@ -97,9 +86,11 @@ def test_connection_reconnection() -> None:
     # delay
     time.sleep(5)
     # simulate a disconnection
-    delete_all_connections()
     # raise a reconnection
     management = connection.management()
+
+    delete_all_connections()
+
     stream_name = "test_stream_info_with_validation"
     queue_specification = StreamSpecification(
         name=stream_name,
@@ -111,11 +102,29 @@ def test_connection_reconnection() -> None:
         disconnected = True
 
     # check that we reconnected
-    management = connection.management()
     management.declare_queue(queue_specification)
     management.delete_queue(stream_name)
-    environment.close()
     management.close()
+    environment.close()
 
     assert disconnected is True
-    assert reconnected is True
+
+
+def test_reconnection_parameters() -> None:
+
+    exception = False
+
+    environment = Environment(
+        "amqp://guest:guest@localhost:5672/",
+        recovery_configuration=RecoveryConfiguration(
+            active_recovery=True,
+            back_off_reconnect_interval=timedelta(milliseconds=100),
+        ),
+    )
+
+    try:
+        environment.connection()
+    except ValidationCodeException:
+        exception = True
+
+    assert exception is True

@@ -43,12 +43,20 @@ class Publisher:
         self._sender: Optional[BlockingSender] = None
         self._conn = conn
         self._addr = addr
+        self._publishers: list[Publisher] = []
         self._open()
+
+    def _update_connection(self, conn: BlockingConnection) -> None:
+        self._conn = conn
+        self._sender = self._create_sender(self._addr)
 
     def _open(self) -> None:
         if self._sender is None:
             logger.debug("Creating Sender")
             self._sender = self._create_sender(self._addr)
+
+    def _set_publishers_list(self, publishers: []) -> None:  # type: ignore
+        self._publishers = publishers
 
     def publish(self, message: Message) -> Delivery:
         """
@@ -94,6 +102,8 @@ class Publisher:
         logger.debug("Closing Sender")
         if self.is_open:
             self._sender.close()  # type: ignore
+            if self in self._publishers:
+                self._publishers.remove(self)
 
     def _create_sender(self, addr: str) -> BlockingSender:
         return self._conn.create_sender(addr, options=SenderOptionUnseattle(addr))

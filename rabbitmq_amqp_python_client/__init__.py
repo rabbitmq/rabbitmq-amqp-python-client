@@ -11,6 +11,7 @@ from .entities import (
     ExchangeToExchangeBindingSpecification,
     ExchangeToQueueBindingSpecification,
     OffsetSpecification,
+    RecoveryConfiguration,
     StreamOptions,
 )
 from .environment import Environment
@@ -87,4 +88,5 @@ __all__ = [
     "OutcomeState",
     "Environment",
     "ExchangeCustomSpecification",
+    "RecoveryConfiguration",
 ]

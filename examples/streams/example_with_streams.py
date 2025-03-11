@@ -4,6 +4,7 @@ from rabbitmq_amqp_python_client import (  # PosixSSlConfigurationContext,; Posi
     AddressHelper,
     AMQPMessagingHandler,
     Connection,
+    ConnectionClosed,
     Environment,
     Event,
     Message,
@@ -12,7 +13,7 @@ from rabbitmq_amqp_python_client import (  # PosixSSlConfigurationContext,; Posi
     StreamSpecification,
 )
 
-MESSAGES_TO_PUBLISH = 100
+MESSAGES_TO_PUBLISH = 1
 
 
 class MyMessageHandler(AMQPMessagingHandler):
@@ -21,7 +22,7 @@ class MyMessageHandler(AMQPMessagingHandler):
         super().__init__()
         self._count = 0
 
-    def on_message(self, event: Event):
+    def on_amqp_message(self, event: Event):
         # just messages with banana filters get received
         print(
             "received message from stream: "
@@ -86,7 +87,7 @@ def main() -> None:
     queue_name = "example-queue"
 
     print("connection to amqp server")
-    environment = Environment("amqp://guest:guest@localhost:5672/")
+    environment = Environment("amqp://guest:guest@localhost:5672/", reconnect=True)
     connection = create_connection(environment)
 
     management = connection.management()
@@ -134,14 +135,22 @@ def main() -> None:
 
     publisher.close()
 
-    try:
-        consumer.run()
-    except KeyboardInterrupt:
-        pass
+    while True:
+        try:
+            consumer.run()
+        except KeyboardInterrupt:
+            pass
+        except ConnectionClosed:
+            print("connection closed")
+            continue
+        except Exception as e:
+            print("consumer exited for exception " + str(e))
+
+        break
 
     #
     print("delete queue")
-    management.delete_queue(queue_name)
+    # management.delete_queue(queue_name)
 
     print("closing connections")
     management.close()
