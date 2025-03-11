@@ -9,5 +9,8 @@ From the RabbitMQ UI you can break a connection to see the automatic reconnectio
 
 Same for Consumers.
 
-In case of streams we connection will restart consuming from the last consumed offset.
+In case of streams the connection will restart consuming from the last consumed offset.
+
+You can control some reconnection parameters with the RecoveryConfiguration dataclass, where you can specify 
+the backoff interval and the maximum_retries before the client gives up.
 

@@ -278,6 +278,7 @@ class Connection:
 
     def _on_disconnection(self) -> None:
 
+        logger.debug("_on_disconnection: disconnection detected")
         if self in self._connections:
             self._connections.remove(self)
 
@@ -286,6 +287,7 @@ class Connection:
 
         for attempt in range(self._recovery_configuration.MaxReconnectAttempts):  # type: ignore
 
+            logger.debug("attempting a reconnection")
             jitter = timedelta(milliseconds=random.randint(0, 500))
             delay = base_delay + jitter
 
@@ -318,16 +320,24 @@ class Connection:
 
             except ConnectionException as e:
                 base_delay *= 2
-                logger.error(
+                logger.debug(
                     "Reconnection attempt failed",
                     "attempt",
                     attempt,
                     "error",
                     str(e),
                 )
-                continue
+                # maximum attempts reached without establishing a connection
+                if attempt == self._recovery_configuration.MaxReconnectAttempts - 1:  # type: ignore
+                    logger.debug("Not able to reconnect")
+                    raise ConnectionException
+                else:
+                    continue
 
-            break
+            # connection established
+            else:
+                logger.debug("reconnected successful")
+                return
 
     @property
     def active_producers(self) -> int:
