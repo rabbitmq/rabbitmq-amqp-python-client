@@ -149,9 +149,7 @@ You can check the [`ssl example`](./examples/tls/tls_example.py) to see how to e
 
 The client supports automatic reconnection with the ability to reconnect Managements, Producers and Consumers
 
-You can check the [`reconnection example`](./examples/reconnection/reconnection_example.py) to see how to manage disconnections and
-eventually attempt a reconnection
-
+You can check the [`reconnection example`](./examples/reconnection/reconnection_example.py) to see how to manage disconnections
 
 
 
