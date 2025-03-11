@@ -1,10 +1,12 @@
 import time
+from datetime import timedelta
 
 from rabbitmq_amqp_python_client import (
     ConnectionClosed,
     Environment,
     RecoveryConfiguration,
     StreamSpecification,
+    ValidationCodeException,
 )
 
 from .http_requests import delete_all_connections
@@ -106,3 +108,23 @@ def test_connection_reconnection() -> None:
     environment.close()
 
     assert disconnected is True
+
+
+def test_reconnection_parameters() -> None:
+
+    exception = False
+
+    environment = Environment(
+        "amqp://guest:guest@localhost:5672/",
+        recovery_configuration=RecoveryConfiguration(
+            active_recovery=True,
+            back_off_reconnect_interval=timedelta(milliseconds=100),
+        ),
+    )
+
+    try:
+        environment.connection()
+    except ValidationCodeException:
+        exception = True
+
+    assert exception is True

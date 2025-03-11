@@ -41,7 +41,7 @@ class Environment:
         ssl_context: Union[
             PosixSslConfigurationContext, WinSslConfigurationContext, None
         ] = None,
-        recovery_configuration: Optional[RecoveryConfiguration] = None,
+        recovery_configuration: RecoveryConfiguration = RecoveryConfiguration(),
     ):
         """
         Initialize a new Environment instance.

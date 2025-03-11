@@ -14,3 +14,5 @@ In case of streams the connection will restart consuming from the last consumed 
 You can control some reconnection parameters with the RecoveryConfiguration dataclass, where you can specify 
 the backoff interval and the maximum_retries before the client gives up.
 
+To disable automatic reconnection you can set active_recovery of RecoveryConfiguration to False
+

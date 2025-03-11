@@ -15,7 +15,10 @@ import typing_extensions
 from .address_helper import validate_address
 from .consumer import Consumer
 from .entities import RecoveryConfiguration, StreamOptions
-from .exceptions import ArgumentOutOfRangeException
+from .exceptions import (
+    ArgumentOutOfRangeException,
+    ValidationCodeException,
+)
 from .management import Management
 from .publisher import Publisher
 from .qpid.proton._exceptions import ConnectionException
@@ -57,7 +60,7 @@ class Connection:
         ssl_context: Union[
             PosixSslConfigurationContext, WinSslConfigurationContext, None
         ] = None,
-        recovery_configuration: Optional[RecoveryConfiguration] = None,
+        recovery_configuration: RecoveryConfiguration = RecoveryConfiguration(),
     ):
         """
          Initialize a new Connection instance.
@@ -84,15 +87,54 @@ class Connection:
             PosixSslConfigurationContext, WinSslConfigurationContext, None
         ] = ssl_context
         self._managements: list[Management] = []
-        self._recovery_configuration = recovery_configuration
+        self._recovery_configuration: RecoveryConfiguration = recovery_configuration
         self._ssl_domain = None
         self._connections = []  # type: ignore
         self._index: int = -1
         self._publishers: list[Publisher] = []
         self._consumers: list[Consumer] = []
 
+        # Some recovery_configuration validation
+        if recovery_configuration.back_off_reconnect_interval < timedelta(seconds=1):
+            raise ValidationCodeException(
+                "back_off_reconnect_interval must be > 1 second"
+            )
+
+        if recovery_configuration.MaxReconnectAttempts < 1:
+            raise ValidationCodeException("MaxReconnectAttempts must be at least 1")
+
     def _set_environment_connection_list(self, connections: []):  # type: ignore
         self._connections = connections
+
+    def _open_connections(self, reconnect_handlers: bool = False) -> None:
+
+        if self._recovery_configuration.active_recovery is False:
+            self._conn = BlockingConnection(
+                url=self._addr,
+                urls=self._addrs,
+                ssl_domain=self._ssl_domain,
+            )
+        else:
+            self._conn = BlockingConnection(
+                url=self._addr,
+                urls=self._addrs,
+                ssl_domain=self._ssl_domain,
+                on_disconnection_handler=self._on_disconnection,
+            )
+
+        if reconnect_handlers is True:
+
+            for i, management in enumerate(self._managements):
+                # Update the broken connection and sender in the management
+                self._managements[i]._update_connection(self._conn)
+
+            for i, publisher in enumerate(self._publishers):
+                # Update the broken connection and sender in the publisher
+                self._publishers[i]._update_connection(self._conn)
+
+            for i, consumer in enumerate(self._consumers):
+                # Update the broken connection and sender in the consumer
+                self._consumers[i]._update_connection(self._conn)
 
     def dial(self) -> None:
         """
@@ -148,24 +190,7 @@ class Connection:
                     password,
                 )
 
-        if (
-            self._recovery_configuration is None
-            or self._recovery_configuration.active_recovery is False
-        ):
-            self._conn = BlockingConnection(
-                url=self._addr,
-                urls=self._addrs,
-                ssl_domain=self._ssl_domain,
-            )
-        else:
-            self._conn = BlockingConnection(
-                url=self._addr,
-                urls=self._addrs,
-                ssl_domain=self._ssl_domain,
-                on_disconnection_handler=self._on_disconnection,
-            )
-
-        # self._open()
+        self._open_connections()
         logger.debug("Connection to the server established")
 
     def _win_store_to_cert(
@@ -282,10 +307,10 @@ class Connection:
         if self in self._connections:
             self._connections.remove(self)
 
-        base_delay = self._recovery_configuration.back_off_reconnect_interval  # type: ignore
+        base_delay = self._recovery_configuration.back_off_reconnect_interval
         max_delay = timedelta(minutes=1)
 
-        for attempt in range(self._recovery_configuration.MaxReconnectAttempts):  # type: ignore
+        for attempt in range(self._recovery_configuration.MaxReconnectAttempts):
 
             logger.debug("attempting a reconnection")
             jitter = timedelta(milliseconds=random.randint(0, 500))
@@ -297,26 +322,10 @@ class Connection:
             time.sleep(delay.total_seconds())
 
             try:
-                self._conn = BlockingConnection(
-                    url=self._addr,
-                    urls=self._addrs,
-                    ssl_domain=self._ssl_domain,
-                    on_disconnection_handler=self._on_disconnection,
-                )
+
+                self._open_connections(reconnect_handlers=True)
 
                 self._connections.append(self)
-
-                for i, management in enumerate(self._managements):
-                    # Update the broken connection and sender in the management
-                    self._managements[i]._update_connection(self._conn)
-
-                for i, publisher in enumerate(self._publishers):
-                    # Update the broken connection and sender in the publisher
-                    self._publishers[i]._update_connection(self._conn)
-
-                for i, consumer in enumerate(self._consumers):
-                    # Update the broken connection and sender in the consumer
-                    self._consumers[i]._update_connection(self._conn)
 
             except ConnectionException as e:
                 base_delay *= 2
@@ -328,7 +337,7 @@ class Connection:
                     str(e),
                 )
                 # maximum attempts reached without establishing a connection
-                if attempt == self._recovery_configuration.MaxReconnectAttempts - 1:  # type: ignore
+                if attempt == self._recovery_configuration.MaxReconnectAttempts - 1:
                     logger.debug("Not able to reconnect")
                     raise ConnectionException
                 else:
