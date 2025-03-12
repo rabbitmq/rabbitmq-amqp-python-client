@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Any, Dict, Optional, Union
 
 from .common import ExchangeType, QueueType
+from .exceptions import ValidationCodeException
 from .qpid.proton._data import Described, symbol
 
 STREAM_FILTER_SPEC = "rabbitmq:stream-filter"
@@ -156,12 +157,35 @@ class StreamOptions:
 
     Attributes:
         _filter_set: Dictionary of stream filter specifications
+
+    Args:
+        offset_specification: Either an OffsetSpecification enum value or
+                                an integer offset
+        filters: List of filter strings to apply to the stream
     """
 
-    def __init__(self):  # type: ignore
-        self._filter_set: Dict[symbol, Described] = {}
+    def __init__(
+        self,
+        offset_specification: Optional[Union[OffsetSpecification, int]] = None,
+        stream_filters: Optional[list[str]] = None,
+        filter_match_unfiltered: bool = False,
+    ):
 
-    def offset(self, offset_specification: Union[OffsetSpecification, int]) -> None:
+        if offset_specification is None and stream_filters is None:
+            raise ValidationCodeException(
+                "At least one between offset_specification and filters must be set when setting up filtering"
+            )
+        self._filter_set: Dict[symbol, Described] = {}
+        if offset_specification is not None:
+            self._offset(offset_specification)
+
+        if stream_filters is not None:
+            self._filter_values(stream_filters)
+
+        if filter_match_unfiltered is True:
+            self._filter_match_unfiltered(filter_match_unfiltered)
+
+    def _offset(self, offset_specification: Union[OffsetSpecification, int]) -> None:
         """
         Set the offset specification for the stream.
 
@@ -178,7 +202,7 @@ class StreamOptions:
                 symbol(STREAM_OFFSET_SPEC), offset_specification.name
             )
 
-    def filter_values(self, filters: list[str]) -> None:
+    def _filter_values(self, filters: list[str]) -> None:
         """
         Set the filter values for the stream.
 
@@ -189,7 +213,7 @@ class StreamOptions:
             symbol(STREAM_FILTER_SPEC), filters
         )
 
-    def filter_match_unfiltered(self, filter_match_unfiltered: bool) -> None:
+    def _filter_match_unfiltered(self, filter_match_unfiltered: bool) -> None:
         """
         Set whether to match unfiltered messages.
 
