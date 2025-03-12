@@ -108,6 +108,7 @@ class Connection:
 
     def _open_connections(self, reconnect_handlers: bool = False) -> None:
 
+        logger.debug("inside connection._open_connections creating connection")
         if self._recovery_configuration.active_recovery is False:
             self._conn = BlockingConnection(
                 url=self._addr,
@@ -123,7 +124,7 @@ class Connection:
             )
 
         if reconnect_handlers is True:
-
+            logger.debug("reconnecting managements, publishers and consumers handlers")
             for i, management in enumerate(self._managements):
                 # Update the broken connection and sender in the management
                 self._managements[i]._update_connection(self._conn)
@@ -205,10 +206,6 @@ class Connection:
         else:
             typing_extensions.assert_never(store)
         return ca_cert
-
-    def _open(self) -> None:
-        self._management = Management(self._conn)
-        self._management.open()
 
     def management(self) -> Management:
         """
@@ -329,7 +326,7 @@ class Connection:
 
             except ConnectionException as e:
                 base_delay *= 2
-                logger.debug(
+                logger.error(
                     "Reconnection attempt failed",
                     "attempt",
                     attempt,
@@ -338,7 +335,7 @@ class Connection:
                 )
                 # maximum attempts reached without establishing a connection
                 if attempt == self._recovery_configuration.MaxReconnectAttempts - 1:
-                    logger.debug("Not able to reconnect")
+                    logger.error("Not able to reconnect")
                     raise ConnectionException
                 else:
                     continue
