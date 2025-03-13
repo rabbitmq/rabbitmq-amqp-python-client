@@ -167,11 +167,11 @@ class StreamOptions:
     def __init__(
         self,
         offset_specification: Optional[Union[OffsetSpecification, int]] = None,
-        stream_filters: Optional[list[str]] = None,
+        filters: Optional[list[str]] = None,
         filter_match_unfiltered: bool = False,
     ):
 
-        if offset_specification is None and stream_filters is None:
+        if offset_specification is None and filters is None:
             raise ValidationCodeException(
                 "At least one between offset_specification and filters must be set when setting up filtering"
             )
@@ -179,8 +179,8 @@ class StreamOptions:
         if offset_specification is not None:
             self._offset(offset_specification)
 
-        if stream_filters is not None:
-            self._filter_values(stream_filters)
+        if filters is not None:
+            self._filter_values(filters)
 
         if filter_match_unfiltered is True:
             self._filter_match_unfiltered(filter_match_unfiltered)

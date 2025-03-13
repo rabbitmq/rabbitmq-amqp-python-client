@@ -224,7 +224,7 @@ def test_stream_filtering(connection: Connection, environment: Environment) -> N
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),
-            stream_filter_options=StreamOptions(stream_filters=["banana"]),
+            stream_filter_options=StreamOptions(filters=["banana"]),
         )
         # send with annotations filter banana
         publish_messages(connection, messages_to_send, stream_name, ["banana"])
@@ -262,7 +262,7 @@ def test_stream_filtering_mixed(
             addr_queue,
             # check we are reading just from offset 10 as just banana filtering applies
             message_handler=MyMessageHandlerAcceptStreamOffset(10),
-            stream_filter_options=StreamOptions(stream_filters=["banana"]),
+            stream_filter_options=StreamOptions(filters=["banana"]),
         )
         # send with annotations filter apple and then banana
         # consumer will read just from offset 10
@@ -299,7 +299,7 @@ def test_stream_filtering_not_present(
     connection_consumer.dial()
 
     consumer = connection_consumer.consumer(
-        addr_queue, stream_filter_options=StreamOptions(stream_filters=["apple"])
+        addr_queue, stream_filter_options=StreamOptions(filters=["apple"])
     )
     # send with annotations filter banana
     publish_messages(connection, messages_to_send, stream_name, ["banana"])
@@ -341,7 +341,7 @@ def test_stream_match_unfiltered(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),
             stream_filter_options=StreamOptions(
-                stream_filters=["banana"], filter_match_unfiltered=True
+                filters=["banana"], filter_match_unfiltered=True
             ),
         )
         # send with annotations filter banana
@@ -381,7 +381,7 @@ def test_stream_reconnection(
             # disconnection and check happens here
             message_handler=MyMessageHandlerAcceptStreamOffsetReconnect(),
             stream_filter_options=StreamOptions(
-                stream_filters=["banana"], filter_match_unfiltered=True
+                filters=["banana"], filter_match_unfiltered=True
             ),
         )
         # send with annotations filter banana
