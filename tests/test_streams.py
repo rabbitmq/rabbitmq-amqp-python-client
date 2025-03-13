@@ -65,9 +65,6 @@ def test_stream_read_from_last(
 
     addr_queue = AddressHelper.queue_address(stream_name)
 
-    stream_filter_options = StreamOptions()
-    stream_filter_options.offset(OffsetSpecification.last)
-
     # consume and then publish
     try:
         connection_consumer = environment.connection()
@@ -75,7 +72,9 @@ def test_stream_read_from_last(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),
-            stream_filter_options=stream_filter_options,
+            stream_filter_options=StreamOptions(
+                offset_specification=OffsetSpecification.last
+            ),
         )
         publish_messages(connection, messages_to_send, stream_name)
         consumer.run()
@@ -107,16 +106,13 @@ def test_stream_read_from_offset_zero(
     # publish and then consume
     publish_messages(connection, messages_to_send, stream_name)
 
-    stream_filter_options = StreamOptions()
-    stream_filter_options.offset(0)
-
     try:
         connection_consumer = environment.connection()
         connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(0),
-            stream_filter_options=stream_filter_options,
+            stream_filter_options=StreamOptions(offset_specification=0),
         )
 
         consumer.run()
@@ -148,16 +144,13 @@ def test_stream_read_from_offset_first(
     # publish and then consume
     publish_messages(connection, messages_to_send, stream_name)
 
-    stream_filter_options = StreamOptions()
-    stream_filter_options.offset(OffsetSpecification.first)
-
     try:
         connection_consumer = environment.connection()
         connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(0),
-            stream_filter_options=stream_filter_options,
+            stream_filter_options=StreamOptions(OffsetSpecification.first),
         )
 
         consumer.run()
@@ -189,16 +182,13 @@ def test_stream_read_from_offset_ten(
     # publish and then consume
     publish_messages(connection, messages_to_send, stream_name)
 
-    stream_filter_options = StreamOptions()
-    stream_filter_options.offset(10)
-
     try:
         connection_consumer = environment.connection()
         connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(10),
-            stream_filter_options=stream_filter_options,
+            stream_filter_options=StreamOptions(offset_specification=10),
         )
 
         consumer.run()
@@ -228,15 +218,13 @@ def test_stream_filtering(connection: Connection, environment: Environment) -> N
 
     # consume and then publish
     try:
-        stream_filter_options = StreamOptions()
-        stream_filter_options.filter_values(["banana"])
         connection_consumer = environment.connection()
         connection_consumer.dial()
 
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),
-            stream_filter_options=stream_filter_options,
+            stream_filter_options=StreamOptions(filters=["banana"]),
         )
         # send with annotations filter banana
         publish_messages(connection, messages_to_send, stream_name, ["banana"])
@@ -268,15 +256,13 @@ def test_stream_filtering_mixed(
 
     # consume and then publish
     try:
-        stream_filter_options = StreamOptions()
-        stream_filter_options.filter_values(["banana"])
         connection_consumer = environment.connection()
         connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
             # check we are reading just from offset 10 as just banana filtering applies
             message_handler=MyMessageHandlerAcceptStreamOffset(10),
-            stream_filter_options=stream_filter_options,
+            stream_filter_options=StreamOptions(filters=["banana"]),
         )
         # send with annotations filter apple and then banana
         # consumer will read just from offset 10
@@ -309,13 +295,11 @@ def test_stream_filtering_not_present(
     addr_queue = AddressHelper.queue_address(stream_name)
 
     # consume and then publish
-    stream_filter_options = StreamOptions()
-    stream_filter_options.filter_values(["apple"])
     connection_consumer = environment.connection()
     connection_consumer.dial()
 
     consumer = connection_consumer.consumer(
-        addr_queue, stream_filter_options=stream_filter_options
+        addr_queue, stream_filter_options=StreamOptions(filters=["apple"])
     )
     # send with annotations filter banana
     publish_messages(connection, messages_to_send, stream_name, ["banana"])
@@ -351,15 +335,14 @@ def test_stream_match_unfiltered(
 
     # consume and then publish
     try:
-        stream_filter_options = StreamOptions()
-        stream_filter_options.filter_values(["banana"])
-        stream_filter_options.filter_match_unfiltered(True)
         connection_consumer = environment.connection()
         connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),
-            stream_filter_options=stream_filter_options,
+            stream_filter_options=StreamOptions(
+                filters=["banana"], filter_match_unfiltered=True
+            ),
         )
         # send with annotations filter banana
         publish_messages(connection, messages_to_send, stream_name)
@@ -391,16 +374,15 @@ def test_stream_reconnection(
 
     # consume and then publish
     try:
-        stream_filter_options = StreamOptions()
-        stream_filter_options.filter_values(["banana"])
-        stream_filter_options.filter_match_unfiltered(True)
         connection_consumer = environment.connection()
         connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
             # disconnection and check happens here
             message_handler=MyMessageHandlerAcceptStreamOffsetReconnect(),
-            stream_filter_options=stream_filter_options,
+            stream_filter_options=StreamOptions(
+                filters=["banana"], filter_match_unfiltered=True
+            ),
         )
         # send with annotations filter banana
         publish_messages(connection_with_reconnect, messages_to_send, stream_name)

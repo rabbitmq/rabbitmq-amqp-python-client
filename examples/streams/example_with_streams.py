@@ -13,7 +13,7 @@ from rabbitmq_amqp_python_client import (  # PosixSSlConfigurationContext,; Posi
     StreamSpecification,
 )
 
-MESSAGES_TO_PUBLISH = 1
+MESSAGES_TO_PUBLISH = 100
 
 
 class MyMessageHandler(AMQPMessagingHandler):
@@ -87,7 +87,7 @@ def main() -> None:
     queue_name = "example-queue"
 
     print("connection to amqp server")
-    environment = Environment("amqp://guest:guest@localhost:5672/", reconnect=True)
+    environment = Environment("amqp://guest:guest@localhost:5672/")
     connection = create_connection(environment)
 
     management = connection.management()
@@ -98,16 +98,14 @@ def main() -> None:
 
     consumer_connection = create_connection(environment)
 
-    stream_filter_options = StreamOptions()
-    # can be first, last, next or an offset long
-    # you can also specify stream filters with methods: apply_filters and filter_match_unfiltered
-    stream_filter_options.offset(OffsetSpecification.first)
-    stream_filter_options.filter_values(["banana"])
-
     consumer = consumer_connection.consumer(
         addr_queue,
         message_handler=MyMessageHandler(),
-        stream_filter_options=stream_filter_options,
+        # can be first, last, next or an offset long
+        # you can also specify stream filters with methods: apply_filters and filter_match_unfiltered
+        stream_filter_options=StreamOptions(
+            offset_specification=OffsetSpecification.first, filters=["banana"]
+        ),
     )
     print(
         "create a consumer and consume the test message - press control + c to terminate to consume"
