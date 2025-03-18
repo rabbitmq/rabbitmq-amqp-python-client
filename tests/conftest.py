@@ -67,9 +67,9 @@ def connection_with_reconnect(pytestconfig):
 def ssl_context(pytestconfig):
     if sys.platform == "win32":
         return WinSslConfigurationContext(
-            ca_store=PKCS12Store(path=".ci/certs/ca.p12"),
+            ca_store=PKCS12Store(path=".ci/certs/server_localhost.p12"),
             client_cert=WinClientCert(
-                store=PKCS12Store(path=".ci/certs/client.p12"),
+                store=PKCS12Store(path=".ci/certs/client_localhost.p12"),
                 disambiguation_method=FriendlyName(name="1"),
             ),
         )
@@ -77,8 +77,8 @@ def ssl_context(pytestconfig):
         return PosixSslConfigurationContext(
             ca_cert=".ci/certs/ca_certificate.pem",
             client_cert=PosixClientCert(
-                client_cert=".ci/certs/client_certificate.pem",
-                client_key=".ci/certs/client_key.pem",
+                client_cert=".ci/certs/client_localhost_certificate.pem",
+                client_key=".ci/certs/client_localhost_key.pem",
             ),
         )
 
