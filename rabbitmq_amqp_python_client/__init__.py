@@ -10,6 +10,7 @@ from .entities import (
     ExchangeSpecification,
     ExchangeToExchangeBindingSpecification,
     ExchangeToQueueBindingSpecification,
+    OAuth2Options,
     OffsetSpecification,
     RecoveryConfiguration,
     StreamOptions,
@@ -89,4 +90,5 @@ __all__ = [
     "Environment",
     "ExchangeCustomSpecification",
     "RecoveryConfiguration",
+    "OAuth2Options",
 ]
