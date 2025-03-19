@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import datetime, timedelta
 from typing import Optional
 
 import pytest
@@ -9,6 +10,7 @@ from rabbitmq_amqp_python_client import (
     AMQPMessagingHandler,
     Environment,
     Event,
+    OAuth2Options,
     PKCS12Store,
     PosixClientCert,
     PosixSslConfigurationContext,
@@ -22,6 +24,7 @@ from rabbitmq_amqp_python_client.ssl_configuration import (
 )
 
 from .http_requests import delete_all_connections
+from .utils import token
 
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -29,6 +32,20 @@ os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 @pytest.fixture()
 def environment(pytestconfig):
     environment = Environment(uri="amqp://guest:guest@localhost:5672/")
+    try:
+        yield environment
+
+    finally:
+        environment.close()
+
+
+@pytest.fixture()
+def environment_auth(pytestconfig):
+    token_string = token(datetime.now() + timedelta(milliseconds=2500))
+    environment = Environment(
+        uri="amqp://localhost:5672",
+        oauth2_options=OAuth2Options(token=token_string),
+    )
     try:
         yield environment
 

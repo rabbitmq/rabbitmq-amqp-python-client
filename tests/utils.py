@@ -1,4 +1,8 @@
+import base64
+from datetime import datetime
 from typing import Optional
+
+import jwt
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
@@ -92,3 +96,32 @@ def cleanup_dead_lettering(management: Management, bind_path: str) -> None:
     management.unbind(bind_path)
     management.delete_exchange(exchange_dead_lettering)
     management.delete_queue(queue_dead_lettering)
+
+
+def token(duration: datetime) -> str:
+    # Decode the base64 key
+    decoded_key = base64.b64decode("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGH")
+
+    # Define the claims
+    claims = {
+        "iss": "unit_test",
+        "aud": "rabbitmq",
+        "exp": duration,
+        "scope": ["rabbitmq.configure:*/*", "rabbitmq.write:*/*", "rabbitmq.read:*/*"],
+        "random": random_string(6),
+    }
+
+    # Create the token with the claims and sign it
+    token = jwt.encode(
+        claims, decoded_key, algorithm="HS256", headers={"kid": "token-key"}
+    )
+
+    return token
+
+
+# Helper function to generate a random string (replace with your implementation)
+def random_string(length: int) -> str:
+    import random
+    import string
+
+    return "".join(random.choices(string.ascii_letters + string.digits, k=length))

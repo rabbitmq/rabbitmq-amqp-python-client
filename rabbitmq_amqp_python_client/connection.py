@@ -14,7 +14,11 @@ import typing_extensions
 
 from .address_helper import validate_address
 from .consumer import Consumer
-from .entities import RecoveryConfiguration, StreamOptions
+from .entities import (
+    OAuth2Options,
+    RecoveryConfiguration,
+    StreamOptions,
+)
 from .exceptions import (
     ArgumentOutOfRangeException,
     ValidationCodeException,
@@ -60,6 +64,7 @@ class Connection:
         ssl_context: Union[
             PosixSslConfigurationContext, WinSslConfigurationContext, None
         ] = None,
+        oauth2_options: Optional[OAuth2Options] = None,
         recovery_configuration: RecoveryConfiguration = RecoveryConfiguration(),
     ):
         """
@@ -93,6 +98,7 @@ class Connection:
         self._index: int = -1
         self._publishers: list[Publisher] = []
         self._consumers: list[Consumer] = []
+        self._oauth2_options = oauth2_options
 
         # Some recovery_configuration validation
         if recovery_configuration.back_off_reconnect_interval < timedelta(seconds=1):
@@ -109,19 +115,8 @@ class Connection:
     def _open_connections(self, reconnect_handlers: bool = False) -> None:
 
         logger.debug("inside connection._open_connections creating connection")
-        if self._recovery_configuration.active_recovery is False:
-            self._conn = BlockingConnection(
-                url=self._addr,
-                urls=self._addrs,
-                ssl_domain=self._ssl_domain,
-            )
-        else:
-            self._conn = BlockingConnection(
-                url=self._addr,
-                urls=self._addrs,
-                ssl_domain=self._ssl_domain,
-                on_disconnection_handler=self._on_disconnection,
-            )
+
+        self._create_connection()
 
         if reconnect_handlers is True:
             logger.debug("reconnecting managements, publishers and consumers handlers")
@@ -136,6 +131,40 @@ class Connection:
             for i, consumer in enumerate(self._consumers):
                 # Update the broken connection and sender in the consumer
                 self._consumers[i]._update_connection(self._conn)
+
+    def _create_connection(self) -> None:
+
+        user = None
+        password = None
+        mechs = None
+
+        if self._oauth2_options is not None:
+            user = ""
+            password = self._oauth2_options.token
+            mechs = "PLAIN"
+            print("password, mechs: " + user + " " + password)
+
+        if self._recovery_configuration.active_recovery is False:
+            self._conn = BlockingConnection(
+                url=self._addr,
+                urls=self._addrs,
+                oauth2_options=self._oauth2_options,
+                ssl_domain=self._ssl_domain,
+                allowed_mechs=mechs,
+                user=user,
+                password=password,
+            )
+        else:
+            self._conn = BlockingConnection(
+                url=self._addr,
+                urls=self._addrs,
+                oauth2_options=self._oauth2_options,
+                ssl_domain=self._ssl_domain,
+                on_disconnection_handler=self._on_disconnection,
+                allowed_mechs=mechs,
+                user=user,
+                password=password,
+            )
 
     def dial(self) -> None:
         """

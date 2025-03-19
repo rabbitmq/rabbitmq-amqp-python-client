@@ -257,3 +257,8 @@ class RecoveryConfiguration:
     active_recovery: bool = True
     back_off_reconnect_interval: timedelta = timedelta(seconds=5)
     MaxReconnectAttempts: int = 5
+
+
+@dataclass
+class OAuth2Options:
+    token: str

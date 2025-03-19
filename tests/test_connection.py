@@ -43,6 +43,13 @@ def test_connection_ssl(ssl_context) -> None:
     environment.close()
 
 
+def test_connection_auth(environment_auth: Environment) -> None:
+
+    connection = environment_auth.connection()
+    connection.dial()
+    connection.close()
+
+
 def test_environment_connections_management() -> None:
 
     environment = Environment(uri="amqp://guest:guest@localhost:5672/")
