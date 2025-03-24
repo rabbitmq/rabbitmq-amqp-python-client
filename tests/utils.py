@@ -112,7 +112,7 @@ def token(duration: datetime) -> str:
     }
 
     # Create the token with the claims and sign it
-    jwt_token = jwt.encode (
+    jwt_token = jwt.encode(
         claims, decoded_key, algorithm="HS256", headers={"kid": "token-key"}
     )
 
