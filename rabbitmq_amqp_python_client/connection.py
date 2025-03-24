@@ -134,15 +134,14 @@ class Connection:
 
     def _create_connection(self) -> None:
 
-        user = None
-        password = None
-        mechs = None
+        self._user = None
+        self._password = None
+        self._mechs = None
 
         if self._oauth2_options is not None:
-            user = "no"
-            password = self._oauth2_options.token
-            mechs = "PLAIN"
-            print("password, mechs: " + user + " " + password)
+            self._user = "no"
+            self._password = self._oauth2_options.token
+            self._mechs = "PLAIN"
 
         if self._recovery_configuration.active_recovery is False:
             self._conn = BlockingConnection(
@@ -150,9 +149,9 @@ class Connection:
                 urls=self._addrs,
                 oauth2_options=self._oauth2_options,
                 ssl_domain=self._ssl_domain,
-                allowed_mechs=mechs,
-                user=user,
-                password=password,
+                allowed_mechs=self._mechs,
+                user=self._user,
+                password=self._password,
             )
         else:
             self._conn = BlockingConnection(
@@ -161,9 +160,9 @@ class Connection:
                 oauth2_options=self._oauth2_options,
                 ssl_domain=self._ssl_domain,
                 on_disconnection_handler=self._on_disconnection,
-                allowed_mechs=mechs,
-                user=user,
-                password=password,
+                allowed_mechs=self._mechs,
+                user=self._user,
+                password=self._password,
             )
 
     def dial(self) -> None:
@@ -383,3 +382,25 @@ class Connection:
     def active_consumers(self) -> int:
         """Returns the number of active consumers"""
         return len(self._consumers)
+
+    def refresh_token(self, token: str) -> None:
+        """
+        Refresh the oauth token
+
+        Args:
+            token: the oauth token to refresh
+
+        Raises:
+            ValidationCodeException: If oauth is not enabled
+        """
+
+        if self._oauth2_options is None:
+            raise ValidationCodeException("the connection is not oauth enabled")
+
+        # update credentials (for reconnection)
+        self._user = "no"
+        self._password = self._oauth2_options.token
+        self._mechs = "PLAIN"
+
+        management = self.management()
+        management.refresh_token(token)

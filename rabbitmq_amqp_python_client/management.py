@@ -573,3 +573,14 @@ class Management:
             message_count=queue_info["message_count"],
             consumer_count=queue_info["consumer_count"],
         )
+
+    def refresh_token(self, token: str) -> None:
+
+        self.request(
+            token.encode(),
+            CommonValues.path_tokens.value,
+            CommonValues.command_put.value,
+            [
+                CommonValues.response_code_204.value,
+            ],
+        )
