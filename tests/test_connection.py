@@ -4,6 +4,7 @@ from datetime import timedelta
 from rabbitmq_amqp_python_client import (
     ConnectionClosed,
     Environment,
+    QuorumQueueSpecification,
     RecoveryConfiguration,
     StreamSpecification,
     ValidationCodeException,
@@ -47,6 +48,27 @@ def test_connection_auth(environment_auth: Environment) -> None:
 
     connection = environment_auth.connection()
     connection.dial()
+    management = connection.management()
+    management.declare_queue(QuorumQueueSpecification(name="test-queue"))
+    management.close()
+    connection.close()
+
+
+def test_connection_auth_with_timeout(environment_auth: Environment) -> None:
+
+    connection = environment_auth.connection()
+    connection.dial()
+    # let the token expire
+    time.sleep(3)
+    raised = False
+    # token expired
+    try:
+        management = connection.management()
+        management.declare_queue(QuorumQueueSpecification(name="test-queue"))
+    except Exception:
+        raised = True
+
+    assert raised is True
     connection.close()
 
 
