@@ -46,11 +46,11 @@ def environment_auth(pytestconfig):
         uri="amqp://localhost:5672",
         oauth2_options=OAuth2Options(token=token_string),
     )
-    try:
-        yield environment
+    # try:
+    return environment
 
-    finally:
-        environment.close()
+    # finally:
+    #     environment.close()
 
 
 @pytest.fixture()

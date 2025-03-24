@@ -467,7 +467,8 @@ class BlockingConnection(Handler):
                 )
 
             except ConnectionException:
-                self.conn.close()
+                if self.conn is not None:
+                    self.conn.close()
                 if attempt == len(urls):
                     raise
                 continue

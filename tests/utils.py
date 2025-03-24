@@ -106,17 +106,17 @@ def token(duration: datetime) -> str:
     claims = {
         "iss": "unit_test",
         "aud": "rabbitmq",
-        "exp": duration,
+        "exp": int(duration.timestamp()),
         "scope": ["rabbitmq.configure:*/*", "rabbitmq.write:*/*", "rabbitmq.read:*/*"],
         "random": random_string(6),
     }
 
     # Create the token with the claims and sign it
-    token = jwt.encode(
+    jwt_token = jwt.encode(
         claims, decoded_key, algorithm="HS256", headers={"kid": "token-key"}
     )
 
-    return token
+    return jwt_token
 
 
 # Helper function to generate a random string (replace with your implementation)

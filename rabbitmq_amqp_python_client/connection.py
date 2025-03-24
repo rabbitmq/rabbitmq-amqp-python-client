@@ -139,7 +139,7 @@ class Connection:
         mechs = None
 
         if self._oauth2_options is not None:
-            user = ""
+            user = "no"
             password = self._oauth2_options.token
             mechs = "PLAIN"
             print("password, mechs: " + user + " " + password)
