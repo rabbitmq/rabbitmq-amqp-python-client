@@ -13,7 +13,7 @@ This library is in early stages of development. It is meant to be used with Rabb
     * [Consuming messages](#Consuming-messages)
     * [Support for streams](#support-for-streams)
     * [SSL connection](#ssl-connections)
-    * [Oauth connection](#oauth-connections)
+    * [Oauth authentication](#oauth-authentication)
     * [Managing disconnections](#Managing-disconnections)
 
 
@@ -145,9 +145,9 @@ The client supports TLS/SSL connections.
 
 You can check the [`ssl example`](./examples/tls/tls_example.py) to see how to establish a secured connection
 
-### Oauth connections
+### Oauth authentication
 
-The client supports oauth2 connections.
+The client supports oauth2 authentication.
 
 You can check the [`oauth2 example`](./examples/oauth/oaut.py) to see how to establish and refresh a connection using an oauth2 token
 
