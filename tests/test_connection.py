@@ -1,15 +1,17 @@
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from rabbitmq_amqp_python_client import (
     ConnectionClosed,
     Environment,
+    QuorumQueueSpecification,
     RecoveryConfiguration,
     StreamSpecification,
     ValidationCodeException,
 )
 
 from .http_requests import delete_all_connections
+from .utils import token
 
 
 def on_disconnected():
@@ -41,6 +43,56 @@ def test_connection_ssl(ssl_context) -> None:
     connection.dial()
 
     environment.close()
+
+
+def test_connection_oauth(environment_auth: Environment) -> None:
+
+    connection = environment_auth.connection()
+    connection.dial()
+    management = connection.management()
+    management.declare_queue(QuorumQueueSpecification(name="test-queue"))
+    management.close()
+    connection.close()
+
+
+def test_connection_oauth_with_timeout(environment_auth: Environment) -> None:
+
+    connection = environment_auth.connection()
+    connection.dial()
+    # let the token expire
+    time.sleep(3)
+    raised = False
+    # token expired
+    try:
+        management = connection.management()
+        management.declare_queue(QuorumQueueSpecification(name="test-queue"))
+        management.close()
+    except Exception:
+        raised = True
+
+    assert raised is True
+
+    connection.close()
+
+
+def test_connection_oauth_refresh_token(environment_auth: Environment) -> None:
+
+    connection = environment_auth.connection()
+    connection.dial()
+    # let the token expire
+    time.sleep(1)
+    raised = False
+    # token expired, refresh
+    connection.refresh_token(token(datetime.now() + timedelta(milliseconds=5000)))
+    time.sleep(3)
+    try:
+        management = connection.management()
+        management.declare_queue(QuorumQueueSpecification(name="test-queue"))
+    except Exception:
+        raised = True
+
+    assert raised is False
+    connection.close()
 
 
 def test_environment_connections_management() -> None:

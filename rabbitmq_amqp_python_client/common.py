@@ -18,6 +18,7 @@ class CommonValues(enum.Enum):
     key = "key"
     queue = "queues"
     bindings = "bindings"
+    path_tokens = "/auth/tokens"
 
 
 class ExchangeType(enum.Enum):

@@ -9,7 +9,7 @@ from typing import (
 )
 
 from .connection import Connection
-from .entities import RecoveryConfiguration
+from .entities import OAuth2Options, RecoveryConfiguration
 from .ssl_configuration import (
     PosixSslConfigurationContext,
     WinSslConfigurationContext,
@@ -41,6 +41,7 @@ class Environment:
         ssl_context: Union[
             PosixSslConfigurationContext, WinSslConfigurationContext, None
         ] = None,
+        oauth2_options: Optional[OAuth2Options] = None,
         recovery_configuration: RecoveryConfiguration = RecoveryConfiguration(),
     ):
         """
@@ -66,6 +67,7 @@ class Environment:
         self._ssl_context = ssl_context
         self._recovery_configuration = recovery_configuration
         self._connections: list[Connection] = []
+        self._oauth2_options = oauth2_options
 
     def connection(
         self,
@@ -86,6 +88,7 @@ class Environment:
             uri=self._uri,
             uris=self._uris,
             ssl_context=self._ssl_context,
+            oauth2_options=self._oauth2_options,
             recovery_configuration=self._recovery_configuration,
         )
         logger.debug("Environment: Creating and returning a new connection")
