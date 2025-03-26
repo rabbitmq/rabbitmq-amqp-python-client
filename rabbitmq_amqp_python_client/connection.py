@@ -139,6 +139,7 @@ class Connection:
         self._mechs = None
 
         if self._oauth2_options is not None:
+            # To investigate: normally in case of oauth user should be "" but the internal library gives error
             self._user = "no"
             self._password = self._oauth2_options.token
             self._mechs = "PLAIN"
@@ -397,10 +398,9 @@ class Connection:
         if self._oauth2_options is None:
             raise ValidationCodeException("the connection is not oauth enabled")
 
+        management = self.management()
+        management.refresh_token(token)
+
         # update credentials (for reconnection)
         self._user = "no"
         self._password = self._oauth2_options.token
-        self._mechs = "PLAIN"
-
-        management = self.management()
-        management.refresh_token(token)
