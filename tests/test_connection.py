@@ -95,6 +95,29 @@ def test_connection_oauth_refresh_token(environment_auth: Environment) -> None:
     connection.close()
 
 
+def test_connection_oauth_refresh_token_with_disconnection(
+    environment_auth: Environment,
+) -> None:
+
+    connection = environment_auth.connection()
+    connection.dial()
+    # let the token expire
+    time.sleep(1)
+    raised = False
+    # generate new token
+    connection.refresh_token(token(datetime.now() + timedelta(milliseconds=5000)))
+    delete_all_connections()
+    time.sleep(3)
+    try:
+        management = connection.management()
+        management.declare_queue(QuorumQueueSpecification(name="test-queue"))
+    except Exception:
+        raised = True
+
+    assert raised is False
+    connection.close()
+
+
 def test_environment_connections_management() -> None:
 
     environment = Environment(uri="amqp://guest:guest@localhost:5672/")
