@@ -16,7 +16,9 @@ from rabbitmq_amqp_python_client import (
     Publisher,
     QuorumQueueSpecification,
 )
-from rabbitmq_amqp_python_client.utils import string_to_bytes
+from rabbitmq_amqp_python_client.utils import (
+    string_to_bytes,
+)
 
 
 def publish_messages(

@@ -13,7 +13,9 @@ from rabbitmq_amqp_python_client import (
     StreamSpecification,
     ValidationCodeException,
 )
-from rabbitmq_amqp_python_client.utils import string_to_bytes
+from rabbitmq_amqp_python_client.utils import (
+    string_to_bytes,
+)
 
 from .http_requests import delete_all_connections
 from .utils import create_binding, publish_per_message

@@ -84,7 +84,11 @@ from cproton import (
 from ._common import millis2secs, secs2millis
 from ._data import AnnotationDict, Data, char, symbol, ulong
 from ._endpoints import Link
-from ._exceptions import EXCEPTIONS, MessageException, ArgumentOutOfRangeException
+from ._exceptions import (
+    EXCEPTIONS,
+    ArgumentOutOfRangeException,
+    MessageException,
+)
 
 if TYPE_CHECKING:
     from proton._data import Described, PythonAMQPData

@@ -139,7 +139,8 @@ from ._wrapper import Wrapper
 
 if TYPE_CHECKING:
     from ._condition import Condition
-    from ._endpoints import Connection  # would produce circular import
+    from ._endpoints import \
+        Connection  # would produce circular import
 
 
 class TraceAdapter:

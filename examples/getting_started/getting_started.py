@@ -13,7 +13,10 @@ from rabbitmq_amqp_python_client import (  # PosixSSlConfigurationContext,; Posi
     OutcomeState,
     QuorumQueueSpecification,
 )
-from rabbitmq_amqp_python_client.utils import string_to_bytes, bytes_to_string
+from rabbitmq_amqp_python_client.utils import (
+    bytes_to_string,
+    string_to_bytes,
+)
 
 MESSAGES_TO_PUBLISH = 100
 

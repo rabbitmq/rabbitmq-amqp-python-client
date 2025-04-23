@@ -5,7 +5,9 @@ from rabbitmq_amqp_python_client import (
     Environment,
     QuorumQueueSpecification,
 )
-from rabbitmq_amqp_python_client.utils import bytes_to_string
+from rabbitmq_amqp_python_client.utils import (
+    bytes_to_string,
+)
 
 from .conftest import (
     ConsumerTestException,
