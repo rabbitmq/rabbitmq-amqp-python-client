@@ -176,6 +176,7 @@ class BlockingSender(BlockingLink):
         :return: Delivery object for this message.
         """
 
+
         delivery = self.link.send(msg)
         self.connection.wait(
             lambda: _is_settled(delivery),

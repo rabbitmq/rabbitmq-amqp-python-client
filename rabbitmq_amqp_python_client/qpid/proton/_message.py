@@ -84,7 +84,7 @@ from cproton import (
 from ._common import millis2secs, secs2millis
 from ._data import AnnotationDict, Data, char, symbol, ulong
 from ._endpoints import Link
-from ._exceptions import EXCEPTIONS, MessageException
+from ._exceptions import EXCEPTIONS, MessageException, ArgumentOutOfRangeException
 
 if TYPE_CHECKING:
     from proton._data import Described, PythonAMQPData
@@ -110,17 +110,26 @@ class Message(object):
     """ Default AMQP message priority"""
 
     def __init__(
-        self,
-        body: Union[
-            bytes, str, dict, list, int, float, "UUID", "Described", None
-        ] = None,
-        **kwargs
+            self,
+            body: Union[
+                bytes, dict, None
+            ] = None,
+            **kwargs
     ) -> None:
+        # validate the types
+
+        if not isinstance(body, (bytes, dict, type(None))):
+            raise ArgumentOutOfRangeException(
+                "Message body must be of type bytes, dict or None"
+            )
+
         self._msg = pn_message()
         self.instructions = None
         self.annotations = None
         self.properties = None
         self.body = body
+        self.inferred = True
+
         for k, v in kwargs.items():
             getattr(self, k)  # Raise exception if it's not a valid attribute.
             setattr(self, k, v)
@@ -236,7 +245,8 @@ class Message(object):
 
         :raise: :exc:`MessageException` if there is any Proton error when using the setter.
         """
-        return pn_message_is_inferred(self._msg)
+        x = pn_message_is_inferred(self._msg)
+        return x
 
     @inferred.setter
     def inferred(self, value: bool) -> None:
@@ -503,7 +513,7 @@ class Message(object):
 
     @instructions.setter
     def instructions(
-        self, instructions: Optional[Dict[Union[str, int], "PythonAMQPData"]]
+            self, instructions: Optional[Dict[Union[str, int], "PythonAMQPData"]]
     ) -> None:
         if isinstance(instructions, dict):
             self.instruction_dict = AnnotationDict(instructions, raise_on_error=False)
@@ -526,7 +536,7 @@ class Message(object):
 
     @annotations.setter
     def annotations(
-        self, annotations: Optional[Dict[Union[str, int], "PythonAMQPData"]]
+            self, annotations: Optional[Dict[Union[str, int], "PythonAMQPData"]]
     ) -> None:
         if isinstance(annotations, dict):
             self.annotation_dict = AnnotationDict(annotations, raise_on_error=False)
@@ -593,7 +603,8 @@ class Message(object):
         return dlv
 
     @overload
-    def recv(self, link: "Sender") -> None: ...
+    def recv(self, link: "Sender") -> None:
+        ...
 
     def recv(self, link: "Receiver") -> Optional["Delivery"]:
         """
@@ -624,24 +635,24 @@ class Message(object):
     def __repr__(self) -> str:
         props = []
         for attr in (
-            "inferred",
-            "address",
-            "reply_to",
-            "durable",
-            "ttl",
-            "priority",
-            "first_acquirer",
-            "delivery_count",
-            "id",
-            "correlation_id",
-            "user_id",
-            "group_id",
-            "group_sequence",
-            "reply_to_group_id",
-            "instructions",
-            "annotations",
-            "properties",
-            "body",
+                "inferred",
+                "address",
+                "reply_to",
+                "durable",
+                "ttl",
+                "priority",
+                "first_acquirer",
+                "delivery_count",
+                "id",
+                "correlation_id",
+                "user_id",
+                "group_id",
+                "group_sequence",
+                "reply_to_group_id",
+                "instructions",
+                "annotations",
+                "properties",
+                "body",
         ):
             value = getattr(self, attr)
             if value:
