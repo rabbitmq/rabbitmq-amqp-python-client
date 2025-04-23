@@ -3,10 +3,7 @@ from rabbitmq_amqp_python_client import (
     ArgumentOutOfRangeException,
     Connection,
     Environment,
-    QuorumQueueSpecification,
-)
-from rabbitmq_amqp_python_client.utils import (
-    bytes_to_string,
+    QuorumQueueSpecification, Converter,
 )
 
 from .conftest import (
@@ -45,7 +42,7 @@ def test_consumer_sync_queue_accept(connection: Connection) -> None:
     # consumer synchronously without handler
     for i in range(messages_to_send):
         message = consumer.consume()
-        if bytes_to_string(message.body) == "test{}".format(i):
+        if Converter.bytes_to_string(message.body) == "test{}".format(i):
             consumed = consumed + 1
 
     consumer.close()

@@ -5,6 +5,7 @@ from .amqp_consumer_handler import AMQPMessagingHandler
 from .common import ExchangeType, QueueType
 from .connection import Connection
 from .consumer import Consumer
+from .converter import Converter
 from .entities import (
     ExchangeCustomSpecification,
     ExchangeSpecification,
@@ -91,4 +92,5 @@ __all__ = [
     "ExchangeCustomSpecification",
     "RecoveryConfiguration",
     "OAuth2Options",
+    "Converter",
 ]

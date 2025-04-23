@@ -15,17 +15,15 @@ from rabbitmq_amqp_python_client import (
     Message,
     Publisher,
     QuorumQueueSpecification,
-)
-from rabbitmq_amqp_python_client.utils import (
-    string_to_bytes,
+    Converter,
 )
 
 
 def publish_messages(
-    connection: Connection,
-    messages_to_send: int,
-    queue_name,
-    filters: Optional[list[str]] = None,
+        connection: Connection,
+        messages_to_send: int,
+        queue_name,
+        filters: Optional[list[str]] = None,
 ) -> None:
     annotations = {}
     if filters is not None:
@@ -36,13 +34,13 @@ def publish_messages(
     # publish messages_to_send messages
     for i in range(messages_to_send):
         publisher.publish(
-            Message(body=string_to_bytes("test{}".format(i)), annotations=annotations)
+            Message(body=Converter.string_to_bytes("test{}".format(i)), annotations=annotations)
         )
     publisher.close()
 
 
 def publish_per_message(publisher: Publisher, addr: str) -> Delivery:
-    message = Message(body=string_to_bytes("test"))
+    message = Message(body=Converter.string_to_bytes("test"))
     message = AddressHelper.message_to_address_helper(message, addr)
     status = publisher.publish(message)
     return status
@@ -74,7 +72,7 @@ def setup_dead_lettering(management: Management) -> str:
 
 
 def create_binding(
-    management: Management, exchange_name: str, queue_name: str, routing_key: str
+        management: Management, exchange_name: str, queue_name: str, routing_key: str
 ) -> str:
     management.declare_exchange(ExchangeSpecification(name=exchange_name))
 

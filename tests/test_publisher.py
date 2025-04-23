@@ -11,10 +11,7 @@ from rabbitmq_amqp_python_client import (
     QuorumQueueSpecification,
     RecoveryConfiguration,
     StreamSpecification,
-    ValidationCodeException,
-)
-from rabbitmq_amqp_python_client.utils import (
-    string_to_bytes,
+    ValidationCodeException, Converter,
 )
 
 from .http_requests import delete_all_connections
@@ -37,7 +34,7 @@ def test_publish_queue(connection: Connection) -> None:
         publisher = connection.publisher(
             destination=AddressHelper.queue_address(queue_name)
         )
-        status = publisher.publish(Message(body=string_to_bytes("test")))
+        status = publisher.publish(Message(body=Converter.string_to_bytes("test")))
         if status.remote_state == OutcomeState.ACCEPTED:
             accepted = True
     except Exception:
@@ -112,7 +109,7 @@ def test_publish_ssl(connection_ssl: Connection) -> None:
         publisher = connection_ssl.publisher(
             destination=AddressHelper.queue_address(queue_name)
         )
-        publisher.publish(Message(body="test"))
+        publisher.publish(Message(body=Converter.string_to_bytes("test")))
     except Exception:
         raised = True
 
@@ -150,7 +147,7 @@ def test_publish_per_message_to_invalid_destination(connection: Connection) -> N
     queue_name = "test-queue-1"
     raised = False
 
-    message = Message(body=string_to_bytes("test"))
+    message = Message(body=Converter.string_to_bytes("test"))
     message = AddressHelper.message_to_address_helper(
         message, "/invalid_destination/" + queue_name
     )
@@ -182,7 +179,7 @@ def test_publish_per_message_both_address(connection: Connection) -> None:
     )
 
     try:
-        message = Message(body=string_to_bytes("test"))
+        message = Message(body=Converter.string_to_bytes("test"))
         message = AddressHelper.message_to_address_helper(
             message, AddressHelper.queue_address(queue_name)
         )
@@ -215,7 +212,7 @@ def test_publish_exchange(connection: Connection) -> None:
 
     try:
         publisher = connection.publisher(addr)
-        status = publisher.publish(Message(body=string_to_bytes("test")))
+        status = publisher.publish(Message(body=Converter.string_to_bytes("test")))
         if status.ACCEPTED:
             accepted = True
     except Exception:
@@ -247,7 +244,7 @@ def test_publish_purge(connection: Connection) -> None:
             destination=AddressHelper.queue_address(queue_name)
         )
         for i in range(messages_to_publish):
-            publisher.publish(Message(body=string_to_bytes("test")))
+            publisher.publish(Message(body=Converter.string_to_bytes("test")))
     except Exception:
         raised = True
 
@@ -292,7 +289,7 @@ def test_disconnection_reconnection() -> None:
                 # simulate a disconnection
                 delete_all_connections()
             try:
-                publisher.publish(Message(body=string_to_bytes("test")))
+                publisher.publish(Message(body=Converter.string_to_bytes("test")))
 
             except ConnectionClosed:
                 disconnected = True
@@ -334,7 +331,7 @@ def test_queue_info_for_stream_with_validations(connection: Connection) -> None:
     )
 
     for i in range(messages_to_send):
-        publisher.publish(Message(body=string_to_bytes("test")))
+        publisher.publish(Message(body=Converter.string_to_bytes("test")))
 
 
 def test_publish_per_message_exchange(connection: Connection) -> None:

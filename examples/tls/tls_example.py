@@ -1,4 +1,5 @@
 # type: ignore
+import os
 import sys
 from traceback import print_exception
 
@@ -79,15 +80,14 @@ def create_connection(environment: Environment) -> Connection:
 
 
 def main() -> None:
-
     exchange_name = "test-exchange"
     queue_name = "example-queue"
     routing_key = "routing-key"
     ca_p12_store = ".ci/certs/ca.p12"
     ca_cert_file = ".ci/certs/ca_certificate.pem"
-    client_cert = ".ci/certs/client_certificate.pem"
-    client_key = ".ci/certs/client_key.pem"
-    client_p12_store = ".ci/certs/client.p12"
+    client_cert = ".ci/certs/client_localhost_certificate.pem"
+    client_key = ".ci/certs/client_localhost_key.pem"
+    client_p12_store = ".ci/certs/client_localhost.p12"
     uri = "amqps://guest:guest@localhost:5671/"
 
     if sys.platform == "win32":
@@ -138,6 +138,9 @@ def main() -> None:
                 "connection failed. working directory should be project root"
             )
     else:
+        print(" ca_cert_file {}".format(os.path.isfile(ca_cert_file)))
+        print(" client_cert {}".format(os.path.isfile(client_cert)))
+        print(" client_key {}".format(os.path.isfile(client_key)))
         environment = Environment(
             uri,
             ssl_context=PosixSslConfigurationContext(
