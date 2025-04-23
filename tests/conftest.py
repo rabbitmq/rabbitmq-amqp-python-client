@@ -263,8 +263,7 @@ class MyMessageHandlerRequeueWithAnnotations(AMQPMessagingHandler):
         self._received = 0
 
     def on_message(self, event: Event):
-        annotations = {}
-        annotations[symbol("x-opt-string")] = "x-test1"
+        annotations = {symbol("x-opt-string"): "x-test1"}
         self.delivery_context.requeue_with_annotations(event, annotations)
         self._received = self._received + 1
         if self._received == 1000:

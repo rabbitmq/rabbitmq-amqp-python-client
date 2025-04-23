@@ -13,6 +13,7 @@ from rabbitmq_amqp_python_client import (  # PosixSSlConfigurationContext,; Posi
     OutcomeState,
     QuorumQueueSpecification,
 )
+from rabbitmq_amqp_python_client.utils import string_to_bytes, bytes_to_string
 
 MESSAGES_TO_PUBLISH = 100
 
@@ -24,7 +25,7 @@ class MyMessageHandler(AMQPMessagingHandler):
         self._count = 0
 
     def on_amqp_message(self, event: Event):
-        print("received message: {} ".format("".join(map(chr, event.message.body))))
+        print("received message: {} ".format(bytes_to_string(event.message.body)))
 
         # accepting
         self.delivery_context.accept(event)
@@ -123,7 +124,7 @@ def main() -> None:
     for i in range(MESSAGES_TO_PUBLISH):
         print("publishing")
         status = publisher.publish(
-            Message(body=str.encode("test message {} ".format(i)))
+            Message(body=string_to_bytes("test message {} ".format(i)))
         )
         if status.remote_state == OutcomeState.ACCEPTED:
             print("message accepted")
