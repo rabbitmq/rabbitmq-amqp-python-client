@@ -32,10 +32,8 @@ except ImportError:
 
 import proton
 from proton import Sender as ProtonSender
-from proton.handlers import \
-    IncomingMessageHandler as ProtonIncomingMessageHandler
-from proton.handlers import \
-    OutgoingMessageHandler as ProtonOutgoingMessageHandler
+from proton.handlers import IncomingMessageHandler as ProtonIncomingMessageHandler
+from proton.handlers import OutgoingMessageHandler as ProtonOutgoingMessageHandler
 
 _tracer = None
 _trace_key = proton.symbol("x-opt-qpid-tracestate")
