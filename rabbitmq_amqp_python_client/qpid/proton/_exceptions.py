@@ -58,6 +58,7 @@ class MessageException(ProtonException):
 
     pass
 
+
 class ArgumentOutOfRangeException(MessageException):
     """
     An exception class raised when an argument is out of range.
