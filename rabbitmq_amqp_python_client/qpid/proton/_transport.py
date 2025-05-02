@@ -820,7 +820,7 @@ class SSLDomain(object):
 
     def __init__(self, mode: int) -> None:
         self._domain = pn_ssl_domain(mode)
-        if self._domain is None:
+        if isnull(self._domain):
             raise SSLUnavailable()
 
     def _check(self, err: int) -> int:

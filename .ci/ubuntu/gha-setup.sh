@@ -13,6 +13,9 @@ readonly rabbitmq_image=rabbitmq:4.1.0-management
 readonly docker_name_prefix='rabbitmq-amqp-python-client'
 readonly docker_network_name="$docker_name_prefix-network"
 
+readonly rabbitmq_docker_name="$docker_name_prefix-rabbitmq"
+readonly toxiproxy_docker_name="$docker_name_prefix-toxiproxy"
+
 if [[ ! -v GITHUB_ACTIONS ]]
 then
     GITHUB_ACTIONS='false'
@@ -48,9 +51,6 @@ then
 fi
 
 set -o nounset
-
-declare -r rabbitmq_docker_name="$docker_name_prefix-rabbitmq"
-declare -r toxiproxy_docker_name="$docker_name_prefix-toxiproxy"
 
 function start_toxiproxy
 {

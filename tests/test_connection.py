@@ -2,13 +2,18 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import pytest
+
 from rabbitmq_amqp_python_client import (
     ConnectionClosed,
     Environment,
+    PKCS12Store,
+    PosixSslConfigurationContext,
     QuorumQueueSpecification,
     RecoveryConfiguration,
     StreamSpecification,
     ValidationCodeException,
+    WinSslConfigurationContext,
 )
 
 from .http_requests import delete_all_connections
@@ -39,15 +44,30 @@ def test_connection_ssl(ssl_context) -> None:
         "amqps://guest:guest@localhost:5671/",
         ssl_context=ssl_context,
     )
-    path = Path(ssl_context.ca_cert)
-    assert path.is_file() is True
-    assert path.exists() is True
+    if isinstance(ssl_context, PosixSslConfigurationContext):
+        path = Path(ssl_context.ca_cert)
+        assert path.is_file() is True
+        assert path.exists() is True
 
-    path = Path(ssl_context.client_cert.client_cert)
-    assert path.is_file() is True
+        path = Path(ssl_context.client_cert.client_cert)
+        assert path.is_file() is True
+        assert path.exists() is True
 
-    path = Path(ssl_context.client_cert.client_key)
-    assert path.is_file() is True
+        path = Path(ssl_context.client_cert.client_key)
+        assert path.is_file() is True
+        assert path.exists() is True
+    elif isinstance(ssl_context, WinSslConfigurationContext):
+        assert isinstance(ssl_context.ca_store, PKCS12Store)
+        path = Path(ssl_context.ca_store.path)
+        assert path.is_file() is True
+        assert path.exists() is True
+
+        assert isinstance(ssl_context.client_cert.store, PKCS12Store)
+        path = Path(ssl_context.client_cert.store.path)
+        assert path.is_file() is True
+        assert path.exists() is True
+    else:
+        pytest.fail("Unsupported ssl context")
 
     connection = environment.connection()
     connection.dial()

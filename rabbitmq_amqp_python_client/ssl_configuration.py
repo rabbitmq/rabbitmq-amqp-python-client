@@ -48,10 +48,10 @@ class WinClientCert:
 @dataclass
 class PosixSslConfigurationContext:
     ca_cert: str
-    client_cert: Union[PosixClientCert, WinClientCert, None] = None
+    client_cert: Union[PosixClientCert, None] = None
 
 
 @dataclass
 class WinSslConfigurationContext:
     ca_store: Union[LocalMachineStore, CurrentUserStore, PKCS12Store]
-    client_cert: Union[PosixClientCert, WinClientCert, None] = None
+    client_cert: Union[WinClientCert, None] = None
