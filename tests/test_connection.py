@@ -1,5 +1,6 @@
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from rabbitmq_amqp_python_client import (
     ConnectionClosed,
@@ -37,7 +38,17 @@ def test_connection_ssl(ssl_context) -> None:
     environment = Environment(
         "amqps://guest:guest@localhost:5671/",
         ssl_context=ssl_context,
+
     )
+    path = Path(ssl_context.ca_cert)
+    assert path.is_file() is True
+    assert path.exists() is True
+
+    path = Path(ssl_context.client_cert.client_cert)
+    assert path.is_file() is True
+
+    path = Path(ssl_context.client_cert.client_key)
+    assert path.is_file() is True
 
     connection = environment.connection()
     connection.dial()

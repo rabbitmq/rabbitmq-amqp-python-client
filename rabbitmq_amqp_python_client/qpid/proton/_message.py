@@ -511,7 +511,7 @@ class Message(object):
 
     @instructions.setter
     def instructions(
-        self, instructions: Optional[Dict[Union[str, int], "PythonAMQPData"]]
+            self, instructions: Optional[Dict[Union[str, int], "PythonAMQPData"]]
     ) -> None:
         if isinstance(instructions, dict):
             self.instruction_dict = AnnotationDict(instructions, raise_on_error=False)
@@ -534,7 +534,7 @@ class Message(object):
 
     @annotations.setter
     def annotations(
-        self, annotations: Optional[Dict[Union[str, int], "PythonAMQPData"]]
+            self, annotations: Optional[Dict[Union[str, int], "PythonAMQPData"]]
     ) -> None:
         if isinstance(annotations, dict):
             self.annotation_dict = AnnotationDict(annotations, raise_on_error=False)
@@ -601,7 +601,8 @@ class Message(object):
         return dlv
 
     @overload
-    def recv(self, link: "Sender") -> None: ...
+    def recv(self, link: "Sender") -> None:
+        ...
 
     def recv(self, link: "Receiver") -> Optional["Delivery"]:
         """
@@ -632,24 +633,24 @@ class Message(object):
     def __repr__(self) -> str:
         props = []
         for attr in (
-            "inferred",
-            "address",
-            "reply_to",
-            "durable",
-            "ttl",
-            "priority",
-            "first_acquirer",
-            "delivery_count",
-            "id",
-            "correlation_id",
-            "user_id",
-            "group_id",
-            "group_sequence",
-            "reply_to_group_id",
-            "instructions",
-            "annotations",
-            "properties",
-            "body",
+                "inferred",
+                "address",
+                "reply_to",
+                "durable",
+                "ttl",
+                "priority",
+                "first_acquirer",
+                "delivery_count",
+                "id",
+                "correlation_id",
+                "user_id",
+                "group_id",
+                "group_sequence",
+                "reply_to_group_id",
+                "instructions",
+                "annotations",
+                "properties",
+                "body",
         ):
             value = getattr(self, attr)
             if value:
