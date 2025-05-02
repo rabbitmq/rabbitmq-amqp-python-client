@@ -138,9 +138,9 @@ def main() -> None:
                 "connection failed. working directory should be project root"
             )
     else:
-        print(" ca_cert_file {}".format(os.path.isfile(ca_cert_file)))
-        print(" client_cert {}".format(os.path.isfile(client_cert)))
-        print(" client_key {}".format(os.path.isfile(client_key)))
+        print(" ca_cert_file exists: {}".format(os.path.isfile(ca_cert_file)))
+        print(" client_cert exists: {}".format(os.path.isfile(client_cert)))
+        print(" client_key exists: {}".format(os.path.isfile(client_key)))
         environment = Environment(
             uri,
             ssl_context=PosixSslConfigurationContext(
@@ -190,7 +190,7 @@ def main() -> None:
 
     # publish 10 messages
     for i in range(messages_to_publish):
-        status = publisher.publish(Message(body="test"))
+        status = publisher.publish(Message(body=Converter.string_to_bytes("test")))
         if status.ACCEPTED:
             print("message accepted")
         elif status.RELEASED:
