@@ -86,12 +86,11 @@ from ._data import AnnotationDict, Data, char, symbol, ulong
 from ._endpoints import Link
 from ._exceptions import (
     EXCEPTIONS,
-    ArgumentOutOfRangeException,
     MessageException,
 )
 
 if TYPE_CHECKING:
-    from proton._data import Described, PythonAMQPData
+    from proton._data import PythonAMQPData
     from proton._delivery import Delivery
     from proton._endpoints import Receiver, Sender
 

@@ -131,7 +131,7 @@ def test_publish_to_invalid_destination(connection: Connection) -> None:
     publisher = None
     try:
         publisher = connection.publisher("/invalid-destination/" + queue_name)
-        publisher.publish(Message(body=string_to_bytes("test")))
+        publisher.publish(Message(body=Converter.string_to_bytes("test")))
     except ArgumentOutOfRangeException:
         raised = True
     except Exception:
