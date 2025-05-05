@@ -7,7 +7,6 @@ import jwt
 from rabbitmq_amqp_python_client import (
     AddressHelper,
     Connection,
-    Converter,
     Delivery,
     ExchangeSpecification,
     ExchangeToQueueBindingSpecification,
@@ -17,6 +16,7 @@ from rabbitmq_amqp_python_client import (
     Publisher,
     QuorumQueueSpecification,
 )
+from rabbitmq_amqp_python_client.utils import Converter
 
 
 def publish_messages(
