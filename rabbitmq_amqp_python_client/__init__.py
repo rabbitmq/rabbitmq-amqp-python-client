@@ -15,8 +15,6 @@ from .entities import (
     RecoveryConfiguration,
     StreamOptions,
 )
-
-from .utils import Converter
 from .environment import Environment
 from .exceptions import (
     ArgumentOutOfRangeException,
@@ -44,6 +42,7 @@ from .ssl_configuration import (
     WinClientCert,
     WinSslConfigurationContext,
 )
+from .utils import Converter
 
 try:
     __version__ = metadata.version(__package__)

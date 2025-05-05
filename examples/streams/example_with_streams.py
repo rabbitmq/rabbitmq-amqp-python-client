@@ -5,13 +5,13 @@ from rabbitmq_amqp_python_client import (  # PosixSSlConfigurationContext,; Posi
     AMQPMessagingHandler,
     Connection,
     ConnectionClosed,
+    Converter,
     Environment,
     Event,
     Message,
     OffsetSpecification,
     StreamOptions,
     StreamSpecification,
-    Converter,
 )
 
 MESSAGES_TO_PUBLISH = 100
