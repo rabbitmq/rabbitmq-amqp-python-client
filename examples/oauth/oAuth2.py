@@ -86,9 +86,9 @@ def create_connection(environment: Environment) -> Connection:
 
 
 def main() -> None:
-    exchange_name = "test-exchange"
-    queue_name = "example-queue"
-    routing_key = "routing-key"
+    exchange_name = "oAuth2-test-exchange"
+    queue_name = "oAuth2-example-queue"
+    routing_key = "oAuth2-routing-key"
 
     print("connection to amqp server")
     oaut_token = token(

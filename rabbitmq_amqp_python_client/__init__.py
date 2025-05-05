@@ -15,6 +15,8 @@ from .entities import (
     RecoveryConfiguration,
     StreamOptions,
 )
+
+from .utils import Converter
 from .environment import Environment
 from .exceptions import (
     ArgumentOutOfRangeException,
@@ -91,4 +93,5 @@ __all__ = [
     "ExchangeCustomSpecification",
     "RecoveryConfiguration",
     "OAuth2Options",
+    "Converter",
 ]

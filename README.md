@@ -149,7 +149,7 @@ You can check the [`ssl example`](./examples/tls/tls_example.py) to see how to e
 
 The client supports oauth2 authentication.
 
-You can check the [`oauth2 example`](./examples/oauth/oaut.py) to see how to establish and refresh a connection using an oauth2 token
+You can check the [`oauth2 example`](examples/oauth/oAuth2.py) to see how to establish and refresh a connection using an oauth2 token
 
 ### Managing disconnections
 

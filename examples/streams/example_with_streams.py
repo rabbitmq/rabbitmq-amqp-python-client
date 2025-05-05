@@ -11,6 +11,7 @@ from rabbitmq_amqp_python_client import (  # PosixSSlConfigurationContext,; Posi
     OffsetSpecification,
     StreamOptions,
     StreamSpecification,
+    Converter,
 )
 
 MESSAGES_TO_PUBLISH = 100
@@ -26,7 +27,7 @@ class MyMessageHandler(AMQPMessagingHandler):
         # just messages with banana filters get received
         print(
             "received message from stream: "
-            + str(event.message.body)
+            + Converter.bytes_to_string(event.message.body)
             + " with offset: "
             + str(event.message.annotations["x-stream-offset"])
         )
@@ -118,7 +119,8 @@ def main() -> None:
     for i in range(MESSAGES_TO_PUBLISH):
         publisher.publish(
             Message(
-                body="apple: " + str(i), annotations={"x-stream-filter-value": "apple"}
+                Converter.string_to_bytes(body="apple: " + str(i)),
+                annotations={"x-stream-filter-value": "apple"},
             )
         )
 
@@ -126,7 +128,7 @@ def main() -> None:
     for i in range(MESSAGES_TO_PUBLISH):
         publisher.publish(
             Message(
-                body="banana: " + str(i),
+                body=Converter.string_to_bytes("banana: " + str(i)),
                 annotations={"x-stream-filter-value": "banana"},
             )
         )

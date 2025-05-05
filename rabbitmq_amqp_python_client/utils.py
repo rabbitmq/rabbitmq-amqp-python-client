@@ -9,19 +9,6 @@ def validate_annotations(annotations: []) -> bool:  # type: ignore
     return validated
 
 
-def string_to_bytes(body: str) -> bytes:
-    """
-    Convert a string to the body of a message.
-
-    Args:
-        body: The string to convert
-
-    Returns:
-        bytes: The byte representation of the string
-    """
-    return str.encode(body)
-
-
 class Converter:
 
     @staticmethod

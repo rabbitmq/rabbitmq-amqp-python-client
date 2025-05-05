@@ -81,9 +81,9 @@ def create_connection(environment: Environment) -> Connection:
 
 
 def main() -> None:
-    exchange_name = "test-exchange"
-    queue_name = "example-queue"
-    routing_key = "routing-key"
+    exchange_name = "tls-test-exchange"
+    queue_name = "tls-example-queue"
+    routing_key = "tls-routing-key"
     ca_p12_store = ".ci/certs/ca.p12"
     ca_cert_file = ".ci/certs/ca_certificate.pem"
     client_cert = ".ci/certs/client_localhost_certificate.pem"
