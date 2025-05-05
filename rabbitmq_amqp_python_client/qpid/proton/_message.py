@@ -113,20 +113,16 @@ class Message(object):
     DEFAULT_PRIORITY = PN_DEFAULT_PRIORITY
     """ Default AMQP message priority"""
 
-    def __init__(self, body: Union[bytes, dict, None] = None, **kwargs) -> None:
+    def __init__(self, body: Union[str, bytes, dict, None] = None, inferred = True, **kwargs) -> None:
         # validate the types
-
-        if not isinstance(body, (bytes, dict, type(None))):
-            raise ArgumentOutOfRangeException(
-                "Message body must be of type bytes, dict or None"
-            )
 
         self._msg = pn_message()
         self.instructions = None
         self.annotations = None
         self.properties = None
         self.body = body
-        self.inferred = True
+        self.inferred = inferred
+
 
         for k, v in kwargs.items():
             getattr(self, k)  # Raise exception if it's not a valid attribute.

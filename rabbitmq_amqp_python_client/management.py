@@ -98,11 +98,11 @@ class Management:
             self._receiver.close()
 
     def request(
-        self,
-        body: Any,
-        path: str,
-        method: str,
-        expected_response_codes: list[int],
+            self,
+            body: Any,
+            path: str,
+            method: str,
+            expected_response_codes: list[int],
     ) -> Message:
         """
         Send a management request with a new UUID.
@@ -124,16 +124,17 @@ class Management:
         )
 
     def _request(
-        self,
-        id: str,
-        body: Any,
-        path: str,
-        method: str,
-        expected_response_codes: list[int],
+            self,
+            id: str,
+            body: Any,
+            path: str,
+            method: str,
+            expected_response_codes: list[int],
     ) -> Message:
         amq_message = Message(
             id=id,
             body=body,
+            inferred=False,
             reply_to="$me",
             address=path,
             subject=method,
@@ -151,10 +152,10 @@ class Management:
         return msg
 
     def declare_exchange(
-        self,
-        exchange_specification: Union[
-            ExchangeSpecification, ExchangeCustomSpecification
-        ],
+            self,
+            exchange_specification: Union[
+                ExchangeSpecification, ExchangeCustomSpecification
+            ],
     ) -> Union[ExchangeSpecification, ExchangeCustomSpecification]:
         """
         Declare a new exchange in RabbitMQ.
@@ -195,10 +196,10 @@ class Management:
         return exchange_specification
 
     def declare_queue(
-        self,
-        queue_specification: Union[
-            ClassicQueueSpecification, QuorumQueueSpecification, StreamSpecification
-        ],
+            self,
+            queue_specification: Union[
+                ClassicQueueSpecification, QuorumQueueSpecification, StreamSpecification
+            ],
     ) -> Union[
         ClassicQueueSpecification, QuorumQueueSpecification, StreamSpecification
     ]:
@@ -219,7 +220,7 @@ class Management:
         logger.debug("declare_queue operation called")
 
         if isinstance(queue_specification, ClassicQueueSpecification) or isinstance(
-            queue_specification, QuorumQueueSpecification
+                queue_specification, QuorumQueueSpecification
         ):
             body = self._declare_queue(queue_specification)
 
@@ -242,8 +243,8 @@ class Management:
         return queue_specification
 
     def _declare_queue(
-        self,
-        queue_specification: Union[ClassicQueueSpecification, QuorumQueueSpecification],
+            self,
+            queue_specification: Union[ClassicQueueSpecification, QuorumQueueSpecification],
     ) -> dict[str, Any]:
 
         body = {}
@@ -311,7 +312,7 @@ class Management:
         return body
 
     def _declare_stream(
-        self, stream_specification: StreamSpecification
+            self, stream_specification: StreamSpecification
     ) -> dict[str, Any]:
 
         body = {}
@@ -324,7 +325,7 @@ class Management:
 
         if stream_specification.max_age is not None:
             args["x-max-age"] = (
-                str(int(stream_specification.max_age.total_seconds())) + "s"
+                    str(int(stream_specification.max_age.total_seconds())) + "s"
             )
 
         if stream_specification.stream_max_segment_size_bytes is not None:
@@ -392,7 +393,7 @@ class Management:
         )
 
     def _validate_reponse_code(
-        self, response_code: int, expected_response_codes: list[int]
+            self, response_code: int, expected_response_codes: list[int]
     ) -> None:
         if response_code == CommonValues.response_code_409.value:
             raise ValidationCodeException("ErrPreconditionFailed")
@@ -406,10 +407,10 @@ class Management:
         )
 
     def bind(
-        self,
-        bind_specification: Union[
-            ExchangeToQueueBindingSpecification, ExchangeToExchangeBindingSpecification
-        ],
+            self,
+            bind_specification: Union[
+                ExchangeToQueueBindingSpecification, ExchangeToExchangeBindingSpecification
+            ],
     ) -> str:
         """
         Create a binding between exchanges or between an exchange and a queue.
@@ -462,12 +463,12 @@ class Management:
         return binding_path
 
     def unbind(
-        self,
-        bind_specification: Union[
-            str,
-            ExchangeToQueueBindingSpecification,
-            ExchangeToExchangeBindingSpecification,
-        ],
+            self,
+            bind_specification: Union[
+                str,
+                ExchangeToQueueBindingSpecification,
+                ExchangeToExchangeBindingSpecification,
+            ],
     ) -> None:
         """
         Remove a binding between exchanges or between an exchange and a queue.
