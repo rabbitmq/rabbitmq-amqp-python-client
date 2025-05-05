@@ -86,9 +86,7 @@ class Publisher:
             )
 
         if not message.inferred:
-            raise ArgumentOutOfRangeException(
-                "Message inferred must be True"
-            )
+            raise ArgumentOutOfRangeException("Message inferred must be True")
 
         if self._addr != "":
             if self._sender is not None:

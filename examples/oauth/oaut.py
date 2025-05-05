@@ -144,7 +144,9 @@ def main() -> None:
 
     # publish 10 messages
     for i in range(MESSAGES_TO_PUBLISH):
-        status = publisher.publish(Message(body=Converter.string_to_bytes("test_{}".format(i))))
+        status = publisher.publish(
+            Message(body=Converter.string_to_bytes("test_{}".format(i)))
+        )
         if status.remote_state == OutcomeState.ACCEPTED:
             print("message: test_{} accepted".format(i))
         elif status.remote_state == OutcomeState.RELEASED:

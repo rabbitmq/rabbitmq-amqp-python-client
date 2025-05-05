@@ -180,7 +180,6 @@ class Connection:
             self._ssl_domain = SSLDomain(SSLDomain.MODE_CLIENT)
             assert self._ssl_domain
 
-
             if isinstance(self._conf_ssl_context, PosixSslConfigurationContext):
                 ca_cert = self._conf_ssl_context.ca_cert
             elif isinstance(self._conf_ssl_context, WinSslConfigurationContext):

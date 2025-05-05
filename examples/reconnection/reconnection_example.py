@@ -29,7 +29,9 @@ class MyMessageHandler(AMQPMessagingHandler):
 
     def on_message(self, event: Event):
         if self._count % 1000 == 0:
-            print("received 100 message: " + Converter.bytes_to_string(event.message.body))
+            print(
+                "received 100 message: " + Converter.bytes_to_string(event.message.body)
+            )
 
         # accepting
         self.delivery_context.accept(event)

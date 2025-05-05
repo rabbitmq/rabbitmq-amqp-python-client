@@ -25,7 +25,11 @@ class MyMessageHandler(AMQPMessagingHandler):
         self._count = 0
 
     def on_amqp_message(self, event: Event):
-        print("received message: {} ".format(Converter.bytes_to_string(event.message.body)))
+        print(
+            "received message: {} ".format(
+                Converter.bytes_to_string(event.message.body)
+            )
+        )
 
         # accepting
         self.delivery_context.accept(event)

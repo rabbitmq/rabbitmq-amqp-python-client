@@ -38,7 +38,6 @@ def test_connection_ssl(ssl_context) -> None:
     environment = Environment(
         "amqps://guest:guest@localhost:5671/",
         ssl_context=ssl_context,
-
     )
     path = Path(ssl_context.ca_cert)
     assert path.is_file() is True

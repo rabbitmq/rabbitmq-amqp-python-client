@@ -20,10 +20,10 @@ from rabbitmq_amqp_python_client import (
 
 
 def publish_messages(
-        connection: Connection,
-        messages_to_send: int,
-        queue_name,
-        filters: Optional[list[str]] = None,
+    connection: Connection,
+    messages_to_send: int,
+    queue_name,
+    filters: Optional[list[str]] = None,
 ) -> None:
     annotations = {}
     if filters is not None:
@@ -34,7 +34,10 @@ def publish_messages(
     # publish messages_to_send messages
     for i in range(messages_to_send):
         publisher.publish(
-            Message(body=Converter.string_to_bytes("test{}".format(i)), annotations=annotations)
+            Message(
+                body=Converter.string_to_bytes("test{}".format(i)),
+                annotations=annotations,
+            )
         )
     publisher.close()
 
@@ -72,7 +75,7 @@ def setup_dead_lettering(management: Management) -> str:
 
 
 def create_binding(
-        management: Management, exchange_name: str, queue_name: str, routing_key: str
+    management: Management, exchange_name: str, queue_name: str, routing_key: str
 ) -> str:
     management.declare_exchange(ExchangeSpecification(name=exchange_name))
 
