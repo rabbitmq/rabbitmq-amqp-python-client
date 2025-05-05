@@ -5,13 +5,14 @@ from rabbitmq_amqp_python_client import (  # PosixSSlConfigurationContext,; Posi
     AddressHelper,
     AMQPMessagingHandler,
     Connection,
+    Converter,
     Environment,
     Event,
     ExchangeSpecification,
     ExchangeToQueueBindingSpecification,
     Message,
     OutcomeState,
-    QuorumQueueSpecification, Converter,
+    QuorumQueueSpecification,
 )
 
 MESSAGES_TO_PUBLISH = 100

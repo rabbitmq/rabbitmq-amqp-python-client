@@ -7,6 +7,7 @@ from rabbitmq_amqp_python_client import (
     AddressHelper,
     AMQPMessagingHandler,
     Connection,
+    Converter,
     CurrentUserStore,
     Environment,
     Event,
@@ -20,7 +21,6 @@ from rabbitmq_amqp_python_client import (
     QuorumQueueSpecification,
     WinClientCert,
     WinSslConfigurationContext,
-    Converter,
 )
 from rabbitmq_amqp_python_client.ssl_configuration import (
     FriendlyName,

@@ -2,8 +2,9 @@ from rabbitmq_amqp_python_client import (
     AddressHelper,
     ArgumentOutOfRangeException,
     Connection,
+    Converter,
     Environment,
-    QuorumQueueSpecification, Converter,
+    QuorumQueueSpecification,
 )
 
 from .conftest import (

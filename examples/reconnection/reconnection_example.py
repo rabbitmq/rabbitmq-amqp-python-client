@@ -4,12 +4,13 @@ from rabbitmq_amqp_python_client import (
     AMQPMessagingHandler,
     Connection,
     ConnectionClosed,
+    Converter,
     Environment,
     Event,
     ExchangeSpecification,
     ExchangeToQueueBindingSpecification,
     Message,
-    QuorumQueueSpecification, Converter,
+    QuorumQueueSpecification,
 )
 
 # here we keep track of the objects we need to reconnect

@@ -5,13 +5,14 @@ from rabbitmq_amqp_python_client import (
     ArgumentOutOfRangeException,
     Connection,
     ConnectionClosed,
+    Converter,
     Environment,
     Message,
     OutcomeState,
     QuorumQueueSpecification,
     RecoveryConfiguration,
     StreamSpecification,
-    ValidationCodeException, Converter,
+    ValidationCodeException,
 )
 
 from .http_requests import delete_all_connections
