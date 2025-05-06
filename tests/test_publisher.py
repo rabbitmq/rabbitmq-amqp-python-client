@@ -19,6 +19,31 @@ from .http_requests import delete_all_connections
 from .utils import create_binding, publish_per_message
 
 
+def test_validate_message_for_publishing(connection: Connection) -> None:
+    queue_name = "validate-publishing"
+    management = connection.management()
+    management.declare_queue(QuorumQueueSpecification(name=queue_name))
+    publisher = connection.publisher(
+        destination=AddressHelper.queue_address(queue_name)
+    )
+    try:
+        publisher.publish(
+            Message(body=Converter.string_to_bytes("test"), inferred=False)
+        )
+    except ArgumentOutOfRangeException as e:
+        assert e.msg == "Message inferred must be True"
+
+    try:
+        publisher.publish(Message(body="test"))
+    except ArgumentOutOfRangeException as e:
+        assert e.msg == "Message body must be of type bytes or None"
+
+    try:
+        publisher.publish(Message(body={"key": "value"}))
+    except ArgumentOutOfRangeException as e:
+        assert e.msg == "Message body must be of type bytes or None"
+
+
 def test_publish_queue(connection: Connection) -> None:
 
     queue_name = "test-queue"

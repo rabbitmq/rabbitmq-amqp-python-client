@@ -85,7 +85,7 @@ def create_connection(environment: Environment) -> Connection:
 
 
 def main() -> None:
-    queue_name = "example-queue"
+    queue_name = "stream-example-queue"
 
     print("connection to amqp server")
     environment = Environment("amqp://guest:guest@localhost:5672/")

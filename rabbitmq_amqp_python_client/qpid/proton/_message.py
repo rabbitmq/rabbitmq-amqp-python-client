@@ -113,7 +113,7 @@ class Message(object):
     """ Default AMQP message priority"""
 
     def __init__(
-        self, body: Union[str, bytes, dict, None] = None, inferred=True, **kwargs
+        self, body: Union[bytes, None] = None, inferred=True, **kwargs
     ) -> None:
         # validate the types
 
