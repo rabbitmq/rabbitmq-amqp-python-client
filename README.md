@@ -18,10 +18,14 @@ Inside the [examples](./examples) folder you can find a set of examples that sho
 
 ### Build
 
-- Start a RabbitMQ 4.x broker
-- poetry build: build the source project
-- poetry install: resolves and install dependencies
-- poetry run pytest: run the tests
+- `make rabbitmq-server`: run the RabbitMQ server in a docker container
+- `poetry build`: build the source project
+- `poetry install`: resolves and install dependencies
+- `make test`: run the tests
+
+Note for MAC users:
+- TLS does not work, see: https://github.com/rabbitmq/rabbitmq-amqp-python-client/issues/64
+
 
 
 
