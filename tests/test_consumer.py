@@ -5,6 +5,7 @@ from rabbitmq_amqp_python_client import (
     Environment,
     QuorumQueueSpecification,
 )
+from rabbitmq_amqp_python_client.utils import Converter
 
 from .conftest import (
     ConsumerTestException,
@@ -42,7 +43,7 @@ def test_consumer_sync_queue_accept(connection: Connection) -> None:
     # consumer synchronously without handler
     for i in range(messages_to_send):
         message = consumer.consume()
-        if message.body == "test" + str(i):
+        if Converter.bytes_to_string(message.body) == "test{}".format(i):
             consumed = consumed + 1
 
     consumer.close()

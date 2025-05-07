@@ -5,6 +5,7 @@ from rabbitmq_amqp_python_client import (  # PosixSSlConfigurationContext,; Posi
     AddressHelper,
     AMQPMessagingHandler,
     Connection,
+    Converter,
     Environment,
     Event,
     ExchangeSpecification,
@@ -24,7 +25,11 @@ class MyMessageHandler(AMQPMessagingHandler):
         self._count = 0
 
     def on_amqp_message(self, event: Event):
-        print("received message: " + str(event.message.body))
+        print(
+            "received message: {} ".format(
+                Converter.bytes_to_string(event.message.body)
+            )
+        )
 
         # accepting
         self.delivery_context.accept(event)
@@ -43,13 +48,11 @@ class MyMessageHandler(AMQPMessagingHandler):
         # in case of rejection with annotations added
         # self.delivery_context.discard_with_annotations(event)
 
+        self._count = self._count + 1
         print("count " + str(self._count))
 
-        self._count = self._count + 1
-
         if self._count == MESSAGES_TO_PUBLISH:
-            print("closing receiver")
-            # if you want you can add cleanup operations here
+            print("received all messages")
 
     def on_connection_closed(self, event: Event):
         # if you want you can add cleanup operations here
@@ -79,7 +82,6 @@ def create_connection(environment: Environment) -> Connection:
 
 
 def main() -> None:
-
     exchange_name = "test-exchange"
     queue_name = "example-queue"
     routing_key = "routing-key"
@@ -122,8 +124,9 @@ def main() -> None:
 
     # publish 10 messages
     for i in range(MESSAGES_TO_PUBLISH):
-        print("publishing")
-        status = publisher.publish(Message(body="test"))
+        status = publisher.publish(
+            Message(body=Converter.string_to_bytes("test message {} ".format(i)))
+        )
         if status.remote_state == OutcomeState.ACCEPTED:
             print("message accepted")
         elif status.remote_state == OutcomeState.RELEASED:

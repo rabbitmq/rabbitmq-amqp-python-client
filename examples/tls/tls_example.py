@@ -1,4 +1,5 @@
 # type: ignore
+import os
 import sys
 from traceback import print_exception
 
@@ -6,6 +7,7 @@ from rabbitmq_amqp_python_client import (
     AddressHelper,
     AMQPMessagingHandler,
     Connection,
+    Converter,
     CurrentUserStore,
     Environment,
     Event,
@@ -34,7 +36,7 @@ class MyMessageHandler(AMQPMessagingHandler):
         self._count = 0
 
     def on_message(self, event: Event):
-        print("received message: " + str(event.message.body))
+        print("received message: " + Converter.bytes_to_string(event.message.body))
 
         # accepting
         self.delivery_context.accept(event)
@@ -79,15 +81,14 @@ def create_connection(environment: Environment) -> Connection:
 
 
 def main() -> None:
-
-    exchange_name = "test-exchange"
-    queue_name = "example-queue"
-    routing_key = "routing-key"
+    exchange_name = "tls-test-exchange"
+    queue_name = "tls-example-queue"
+    routing_key = "tls-routing-key"
     ca_p12_store = ".ci/certs/ca.p12"
     ca_cert_file = ".ci/certs/ca_certificate.pem"
-    client_cert = ".ci/certs/client_certificate.pem"
-    client_key = ".ci/certs/client_key.pem"
-    client_p12_store = ".ci/certs/client.p12"
+    client_cert = ".ci/certs/client_localhost_certificate.pem"
+    client_key = ".ci/certs/client_localhost_key.pem"
+    client_p12_store = ".ci/certs/client_localhost.p12"
     uri = "amqps://guest:guest@localhost:5671/"
 
     if sys.platform == "win32":
@@ -138,6 +139,9 @@ def main() -> None:
                 "connection failed. working directory should be project root"
             )
     else:
+        print(" ca_cert_file exists: {}".format(os.path.isfile(ca_cert_file)))
+        print(" client_cert exists: {}".format(os.path.isfile(client_cert)))
+        print(" client_key exists: {}".format(os.path.isfile(client_key)))
         environment = Environment(
             uri,
             ssl_context=PosixSslConfigurationContext(
@@ -187,7 +191,7 @@ def main() -> None:
 
     # publish 10 messages
     for i in range(messages_to_publish):
-        status = publisher.publish(Message(body="test"))
+        status = publisher.publish(Message(body=Converter.string_to_bytes("test")))
         if status.ACCEPTED:
             print("message accepted")
         elif status.RELEASED:

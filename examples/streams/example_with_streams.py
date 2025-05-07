@@ -5,6 +5,7 @@ from rabbitmq_amqp_python_client import (  # PosixSSlConfigurationContext,; Posi
     AMQPMessagingHandler,
     Connection,
     ConnectionClosed,
+    Converter,
     Environment,
     Event,
     Message,
@@ -26,7 +27,7 @@ class MyMessageHandler(AMQPMessagingHandler):
         # just messages with banana filters get received
         print(
             "received message from stream: "
-            + str(event.message.body)
+            + Converter.bytes_to_string(event.message.body)
             + " with offset: "
             + str(event.message.annotations["x-stream-offset"])
         )
@@ -84,7 +85,7 @@ def create_connection(environment: Environment) -> Connection:
 
 
 def main() -> None:
-    queue_name = "example-queue"
+    queue_name = "stream-example-queue"
 
     print("connection to amqp server")
     environment = Environment("amqp://guest:guest@localhost:5672/")
@@ -118,7 +119,8 @@ def main() -> None:
     for i in range(MESSAGES_TO_PUBLISH):
         publisher.publish(
             Message(
-                body="apple: " + str(i), annotations={"x-stream-filter-value": "apple"}
+                Converter.string_to_bytes(body="apple: " + str(i)),
+                annotations={"x-stream-filter-value": "apple"},
             )
         )
 
@@ -126,7 +128,7 @@ def main() -> None:
     for i in range(MESSAGES_TO_PUBLISH):
         publisher.publish(
             Message(
-                body="banana: " + str(i),
+                body=Converter.string_to_bytes("banana: " + str(i)),
                 annotations={"x-stream-filter-value": "banana"},
             )
         )

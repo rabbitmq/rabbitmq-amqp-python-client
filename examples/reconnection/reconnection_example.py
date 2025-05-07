@@ -4,6 +4,7 @@ from rabbitmq_amqp_python_client import (
     AMQPMessagingHandler,
     Connection,
     ConnectionClosed,
+    Converter,
     Environment,
     Event,
     ExchangeSpecification,
@@ -14,7 +15,6 @@ from rabbitmq_amqp_python_client import (
 
 # here we keep track of the objects we need to reconnect
 MESSAGES_TO_PUBLISH = 50000
-
 
 environment = Environment(
     uri="amqp://guest:guest@localhost:5672/",
@@ -29,7 +29,9 @@ class MyMessageHandler(AMQPMessagingHandler):
 
     def on_message(self, event: Event):
         if self._count % 1000 == 0:
-            print("received 100 message: " + str(event.message.body))
+            print(
+                "received 100 message: " + Converter.bytes_to_string(event.message.body)
+            )
 
         # accepting
         self.delivery_context.accept(event)
@@ -79,7 +81,6 @@ def create_connection() -> Connection:
 
 
 def main() -> None:
-
     exchange_name = "test-exchange"
     queue_name = "example-queue"
     routing_key = "routing-key"
@@ -128,7 +129,7 @@ def main() -> None:
                 print("published 1000 messages...")
             try:
                 if publisher is not None:
-                    publisher.publish(Message(body="test"))
+                    publisher.publish(Message(body=Converter.string_to_bytes("test")))
             except ConnectionClosed:
                 print("publisher closing exception, resubmitting")
                 # publisher = connection.publisher(addr)

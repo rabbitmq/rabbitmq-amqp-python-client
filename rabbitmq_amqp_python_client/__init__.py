@@ -42,6 +42,7 @@ from .ssl_configuration import (
     WinClientCert,
     WinSslConfigurationContext,
 )
+from .utils import Converter
 
 try:
     __version__ = metadata.version(__package__)
@@ -91,4 +92,5 @@ __all__ = [
     "ExchangeCustomSpecification",
     "RecoveryConfiguration",
     "OAuth2Options",
+    "Converter",
 ]

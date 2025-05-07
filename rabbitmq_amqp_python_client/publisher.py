@@ -80,6 +80,14 @@ class Publisher:
                 "address specified in both message and publisher"
             )
 
+        if not isinstance(message.body, (bytes, type(None))):
+            raise ArgumentOutOfRangeException(
+                "Message body must be of type bytes or None"
+            )
+
+        if not message.inferred:
+            raise ArgumentOutOfRangeException("Message inferred must be True")
+
         if self._addr != "":
             if self._sender is not None:
                 return self._sender.send(message)

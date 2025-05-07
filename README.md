@@ -1,3 +1,5 @@
+from rabbitmq_amqp_python_client import Converter
+
 # RabbitMQ AMQP 1.0 Python Client
 
 This library is in early stages of development. It is meant to be used with RabbitMQ 4.0.
@@ -83,7 +85,7 @@ For example:
 
     # publish messages
     for i in range(messages_to_publish):
-        publisher.publish(Message(body="test"))
+        publisher.publish(Message(body=Converter.string_to_bytes("test")))
 
     publisher.close()
 ```
@@ -149,7 +151,7 @@ You can check the [`ssl example`](./examples/tls/tls_example.py) to see how to e
 
 The client supports oauth2 authentication.
 
-You can check the [`oauth2 example`](./examples/oauth/oaut.py) to see how to establish and refresh a connection using an oauth2 token
+You can check the [`oauth2 example`](examples/oauth/oAuth2.py) to see how to establish and refresh a connection using an oauth2 token
 
 ### Managing disconnections
 

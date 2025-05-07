@@ -134,6 +134,7 @@ class Management:
         amq_message = Message(
             id=id,
             body=body,
+            inferred=False,
             reply_to="$me",
             address=path,
             subject=method,

@@ -16,6 +16,7 @@ from rabbitmq_amqp_python_client import (
     Publisher,
     QuorumQueueSpecification,
 )
+from rabbitmq_amqp_python_client.utils import Converter
 
 
 def publish_messages(
@@ -26,25 +27,29 @@ def publish_messages(
 ) -> None:
     annotations = {}
     if filters is not None:
-        for filter in filters:
-            annotations = {"x-stream-filter-value": filter}
+        for filterItem in filters:
+            annotations = {"x-stream-filter-value": filterItem}
 
     publisher = connection.publisher("/queues/" + queue_name)
     # publish messages_to_send messages
     for i in range(messages_to_send):
-        publisher.publish(Message(body="test" + str(i), annotations=annotations))
+        publisher.publish(
+            Message(
+                body=Converter.string_to_bytes("test{}".format(i)),
+                annotations=annotations,
+            )
+        )
     publisher.close()
 
 
 def publish_per_message(publisher: Publisher, addr: str) -> Delivery:
-    message = Message(body="test")
+    message = Message(body=Converter.string_to_bytes("test"))
     message = AddressHelper.message_to_address_helper(message, addr)
     status = publisher.publish(message)
     return status
 
 
 def setup_dead_lettering(management: Management) -> str:
-
     exchange_dead_lettering = "exchange-dead-letter"
     queue_dead_lettering = "queue-dead-letter"
     binding_key = "key_dead_letter"
@@ -72,7 +77,6 @@ def setup_dead_lettering(management: Management) -> str:
 def create_binding(
     management: Management, exchange_name: str, queue_name: str, routing_key: str
 ) -> str:
-
     management.declare_exchange(ExchangeSpecification(name=exchange_name))
 
     management.declare_queue(QuorumQueueSpecification(name=queue_name))
@@ -89,7 +93,6 @@ def create_binding(
 
 
 def cleanup_dead_lettering(management: Management, bind_path: str) -> None:
-
     exchange_dead_lettering = "exchange-dead-letter"
     queue_dead_lettering = "queue-dead-letter"
 

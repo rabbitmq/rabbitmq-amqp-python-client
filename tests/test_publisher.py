@@ -13,9 +13,35 @@ from rabbitmq_amqp_python_client import (
     StreamSpecification,
     ValidationCodeException,
 )
+from rabbitmq_amqp_python_client.utils import Converter
 
 from .http_requests import delete_all_connections
 from .utils import create_binding, publish_per_message
+
+
+def test_validate_message_for_publishing(connection: Connection) -> None:
+    queue_name = "validate-publishing"
+    management = connection.management()
+    management.declare_queue(QuorumQueueSpecification(name=queue_name))
+    publisher = connection.publisher(
+        destination=AddressHelper.queue_address(queue_name)
+    )
+    try:
+        publisher.publish(
+            Message(body=Converter.string_to_bytes("test"), inferred=False)
+        )
+    except ArgumentOutOfRangeException as e:
+        assert e.msg == "Message inferred must be True"
+
+    try:
+        publisher.publish(Message(body="test"))
+    except ArgumentOutOfRangeException as e:
+        assert e.msg == "Message body must be of type bytes or None"
+
+    try:
+        publisher.publish(Message(body={"key": "value"}))
+    except ArgumentOutOfRangeException as e:
+        assert e.msg == "Message body must be of type bytes or None"
 
 
 def test_publish_queue(connection: Connection) -> None:
@@ -34,7 +60,7 @@ def test_publish_queue(connection: Connection) -> None:
         publisher = connection.publisher(
             destination=AddressHelper.queue_address(queue_name)
         )
-        status = publisher.publish(Message(body="test"))
+        status = publisher.publish(Message(body=Converter.string_to_bytes("test")))
         if status.remote_state == OutcomeState.ACCEPTED:
             accepted = True
     except Exception:
@@ -109,7 +135,7 @@ def test_publish_ssl(connection_ssl: Connection) -> None:
         publisher = connection_ssl.publisher(
             destination=AddressHelper.queue_address(queue_name)
         )
-        publisher.publish(Message(body="test"))
+        publisher.publish(Message(body=Converter.string_to_bytes("test")))
     except Exception:
         raised = True
 
@@ -130,7 +156,7 @@ def test_publish_to_invalid_destination(connection: Connection) -> None:
     publisher = None
     try:
         publisher = connection.publisher("/invalid-destination/" + queue_name)
-        publisher.publish(Message(body="test"))
+        publisher.publish(Message(body=Converter.string_to_bytes("test")))
     except ArgumentOutOfRangeException:
         raised = True
     except Exception:
@@ -147,7 +173,7 @@ def test_publish_per_message_to_invalid_destination(connection: Connection) -> N
     queue_name = "test-queue-1"
     raised = False
 
-    message = Message(body="test")
+    message = Message(body=Converter.string_to_bytes("test"))
     message = AddressHelper.message_to_address_helper(
         message, "/invalid_destination/" + queue_name
     )
@@ -179,7 +205,7 @@ def test_publish_per_message_both_address(connection: Connection) -> None:
     )
 
     try:
-        message = Message(body="test")
+        message = Message(body=Converter.string_to_bytes("test"))
         message = AddressHelper.message_to_address_helper(
             message, AddressHelper.queue_address(queue_name)
         )
@@ -212,7 +238,7 @@ def test_publish_exchange(connection: Connection) -> None:
 
     try:
         publisher = connection.publisher(addr)
-        status = publisher.publish(Message(body="test"))
+        status = publisher.publish(Message(body=Converter.string_to_bytes("test")))
         if status.ACCEPTED:
             accepted = True
     except Exception:
@@ -244,7 +270,7 @@ def test_publish_purge(connection: Connection) -> None:
             destination=AddressHelper.queue_address(queue_name)
         )
         for i in range(messages_to_publish):
-            publisher.publish(Message(body="test"))
+            publisher.publish(Message(body=Converter.string_to_bytes("test")))
     except Exception:
         raised = True
 
@@ -289,7 +315,7 @@ def test_disconnection_reconnection() -> None:
                 # simulate a disconnection
                 delete_all_connections()
             try:
-                publisher.publish(Message(body="test"))
+                publisher.publish(Message(body=Converter.string_to_bytes("test")))
 
             except ConnectionClosed:
                 disconnected = True
@@ -331,8 +357,7 @@ def test_queue_info_for_stream_with_validations(connection: Connection) -> None:
     )
 
     for i in range(messages_to_send):
-
-        publisher.publish(Message(body="test"))
+        publisher.publish(Message(body=Converter.string_to_bytes("test")))
 
 
 def test_publish_per_message_exchange(connection: Connection) -> None:

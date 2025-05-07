@@ -84,10 +84,13 @@ from cproton import (
 from ._common import millis2secs, secs2millis
 from ._data import AnnotationDict, Data, char, symbol, ulong
 from ._endpoints import Link
-from ._exceptions import EXCEPTIONS, MessageException
+from ._exceptions import (
+    EXCEPTIONS,
+    MessageException,
+)
 
 if TYPE_CHECKING:
-    from proton._data import Described, PythonAMQPData
+    from proton._data import PythonAMQPData
     from proton._delivery import Delivery
     from proton._endpoints import Receiver, Sender
 
@@ -110,17 +113,17 @@ class Message(object):
     """ Default AMQP message priority"""
 
     def __init__(
-        self,
-        body: Union[
-            bytes, str, dict, list, int, float, "UUID", "Described", None
-        ] = None,
-        **kwargs
+        self, body: Union[bytes, None] = None, inferred=True, **kwargs
     ) -> None:
+        # validate the types
+
         self._msg = pn_message()
         self.instructions = None
         self.annotations = None
         self.properties = None
         self.body = body
+        self.inferred = inferred
+
         for k, v in kwargs.items():
             getattr(self, k)  # Raise exception if it's not a valid attribute.
             setattr(self, k, v)
@@ -236,7 +239,8 @@ class Message(object):
 
         :raise: :exc:`MessageException` if there is any Proton error when using the setter.
         """
-        return pn_message_is_inferred(self._msg)
+        x = pn_message_is_inferred(self._msg)
+        return x
 
     @inferred.setter
     def inferred(self, value: bool) -> None:
