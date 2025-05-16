@@ -23,8 +23,19 @@ Inside the [examples](./examples) folder you can find a set of examples that sho
 - `poetry install`: resolves and install dependencies
 - `make test`: run the tests
 
-Note for MAC users:
-- TLS does not work, see: https://github.com/rabbitmq/rabbitmq-amqp-python-client/issues/64
+### Note for MAC users:
+
+To run TLS you need to:
+``` bash
+- pip uninstall python-qpid-proton
+- brew install swig
+- brew install pkg-config
+- export CFLAGS="-I/usr/local/opt/openssl/include"; pip install python-qpid-proton --verbose --no-cache-dir
+```
+
+Read more about the issue [here](https://stackoverflow.com/questions/44979947/python-qpid-proton-for-mac-using-amqps 
+)
+
 
 
 
