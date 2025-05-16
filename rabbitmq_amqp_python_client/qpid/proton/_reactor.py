@@ -35,6 +35,7 @@ from typing import (
     Type,
     Union,
 )
+from urllib.parse import urlparse
 
 try:
     from typing import Literal
@@ -1038,7 +1039,7 @@ class Backoff(object):
 
 
 def make_backoff_wrapper(
-    backoff: Optional[Union[List[Union[float, int]], bool, Backoff]]
+    backoff: Optional[Union[List[Union[float, int]], bool, Backoff]],
 ) -> Optional[Union[List[Union[float, int]], bool, Backoff]]:
     """
     Make a wrapper for a backoff object:
@@ -1099,7 +1100,7 @@ class _Connector(Handler):
         connection.url = url
         # if virtual-host not set, use host from address as default
         if self.virtual_host is None:
-            connection.hostname = url.host
+            connection.hostname = url.path
         _logger.info("Connecting to %r..." % url)
 
         transport = Transport()
@@ -1291,7 +1292,7 @@ class Container(Reactor):
         reconnect: Union[None, Literal[False], Backoff] = None,
         heartbeat: Optional[float] = None,
         ssl_domain: Optional[SSLDomain] = None,
-        **kwargs
+        **kwargs,
     ) -> Connection:
         """
         Initiates the establishment of an AMQP connection.
@@ -1427,7 +1428,7 @@ class Container(Reactor):
                 reconnect=reconnect,
                 heartbeat=heartbeat,
                 ssl_domain=_ssl_domain,
-                **_kwargs
+                **_kwargs,
             )
         else:
             return self._connect(
@@ -1437,7 +1438,7 @@ class Container(Reactor):
                 reconnect=reconnect,
                 heartbeat=heartbeat,
                 ssl_domain=ssl_domain,
-                **kwargs
+                **kwargs,
             )
 
     def _connect(
@@ -1448,7 +1449,7 @@ class Container(Reactor):
         reconnect: Optional[Union[List[Union[float, int]], bool, Backoff]] = None,
         heartbeat: None = None,
         ssl_domain: Optional[SSLDomain] = None,
-        **kwargs
+        **kwargs,
     ) -> Connection:
         conn = self.connection(handler)
         conn.container = kwargs.get("container_id", self.container_id) or str(
@@ -1467,6 +1468,14 @@ class Container(Reactor):
         connector.user = kwargs.get("user", self.user)
         connector.password = kwargs.get("password", self.password)
         connector.virtual_host = kwargs.get("virtual_host")
+        if not connector.virtual_host and isinstance(url, Url):
+            connector.virtual_host = url.path
+        elif not connector.virtual_host and urls and isinstance(urls[0], Url):
+            connector.virtual_host = urls[0].path
+        elif not connector.virtual_host and isinstance(url, str):
+            connector.virtual_host = urlparse(url).path
+        elif not connector.virtual_host and urls and isinstance(urls[0], str):
+            connector.virtual_host = urlparse(urls[0]).path
         if connector.virtual_host:
             # only set hostname if virtual-host is a non-empty string
             conn.hostname = connector.virtual_host
