@@ -84,10 +84,7 @@ from cproton import (
 from ._common import millis2secs, secs2millis
 from ._data import AnnotationDict, Data, char, symbol, ulong
 from ._endpoints import Link
-from ._exceptions import (
-    EXCEPTIONS,
-    MessageException,
-)
+from ._exceptions import EXCEPTIONS, MessageException
 
 if TYPE_CHECKING:
     from proton._data import PythonAMQPData
