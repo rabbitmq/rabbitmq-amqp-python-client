@@ -15,6 +15,30 @@ def get_connections_names() -> list:
     return connection_names
 
 
+# not used
+def get_vhosts() -> list:
+    request = "http://localhost:15672/api/vhosts"
+    responses = requests.get(request, auth=HTTPBasicAuth("guest", "guest"))
+    responses.raise_for_status()
+    vhosts = responses.json()
+    vhosts_names = []
+    for vhost in vhosts:
+        vhosts_names.append(vhost["name"])
+    return vhosts_names
+
+
+def create_vhost(vhost_name: str) -> None:
+    request = "http://localhost:15672/api/vhosts/{}".format(vhost_name)
+    responses = requests.put(request, auth=HTTPBasicAuth("guest", "guest"))
+    responses.raise_for_status()
+
+
+def delete_vhost(vhost_name: str) -> None:
+    request = "http://localhost:15672/api/vhosts/{}/".format(vhost_name)
+    responses = requests.delete(request, auth=HTTPBasicAuth("guest", "guest"))
+    responses.raise_for_status()
+
+
 def delete_connections(connection_names: []) -> None:
     for connection_name in connection_names:
         request = (
