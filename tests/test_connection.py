@@ -15,8 +15,15 @@ from rabbitmq_amqp_python_client import (
     ValidationCodeException,
     WinSslConfigurationContext,
 )
+from rabbitmq_amqp_python_client.qpid.proton import (
+    ConnectionException,
+)
 
-from .http_requests import delete_all_connections
+from .http_requests import (
+    create_vhost,
+    delete_all_connections,
+    delete_vhost,
+)
 from .utils import token
 
 
@@ -230,6 +237,37 @@ def test_reconnection_parameters() -> None:
     try:
         environment.connection()
     except ValidationCodeException:
+        exception = True
+
+    assert exception is True
+
+
+def test_connection_vhost() -> None:
+    vhost = "tmpVhost" + str(time.time())
+    create_vhost(vhost)
+    uri = "amqp://guest:guest@localhost:5672/{}".format(vhost)
+    environment = Environment(uri=uri)
+    connection = environment.connection()
+    connection.dial()
+    is_correct_vhost = connection._conn.conn.hostname == "vhost:{}".format(vhost)
+    environment.close()
+    delete_vhost(vhost)
+
+    assert is_correct_vhost is True
+
+
+def test_connection_vhost_not_exists() -> None:
+
+    exception = False
+
+    vhost = "tmpVhost" + str(time.time())
+    uri = "amqp://guest:guest@localhost:5672/{}".format(vhost)
+
+    environment = Environment(uri=uri)
+    try:
+        connection = environment.connection()
+        connection.dial()
+    except ConnectionException:
         exception = True
 
     assert exception is True

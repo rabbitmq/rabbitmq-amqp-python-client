@@ -23,6 +23,7 @@ import logging
 import os
 import queue
 import re
+import urllib
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -1098,8 +1099,12 @@ class _Connector(Handler):
     def _connect(self, connection: Connection, url: Url) -> None:
         connection.url = url
         # if virtual-host not set, use host from address as default
-        if self.virtual_host is None:
+        if url.path is not None and url.path != "":
+            rabbitmq_vhost = urllib.parse.quote(url.path.replace("+", "%2B"))
+            connection.hostname = "vhost:{}".format(rabbitmq_vhost)
+        else:
             connection.hostname = url.host
+
         _logger.info("Connecting to %r..." % url)
 
         transport = Transport()
