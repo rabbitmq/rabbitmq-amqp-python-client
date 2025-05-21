@@ -1099,7 +1099,7 @@ class _Connector(Handler):
     def _connect(self, connection: Connection, url: Url) -> None:
         connection.url = url
         # if virtual-host not set, use host from address as default
-        if url.path is not None and url.path != '':
+        if url.path is not None and url.path != "":
             rabbitmq_vhost = urllib.parse.quote(url.path.replace("+", "%2B"))
             connection.hostname = "vhost:{}".format(rabbitmq_vhost)
         else:
