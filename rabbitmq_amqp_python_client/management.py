@@ -138,6 +138,7 @@ class Management:
             reply_to="$me",
             address=path,
             subject=method,
+            durable=False,
         )
 
         if self._sender is not None:

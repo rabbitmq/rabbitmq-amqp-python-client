@@ -474,16 +474,12 @@ def test_durable_message(connection: Connection) -> None:
     assert status.remote_state == OutcomeState.ACCEPTED
 
     consumer = connection.consumer(destination)
-    # should_be_durable = consumer.consume()
-    # assert should_be_durable.durable is True
+    should_be_durable = consumer.consume()
+    assert should_be_durable.durable is True
 
-    # should_be_not_durable = consumer.consume()
-    # assert should_be_not_durable.durable is False
-
-    consumer.close()
-
+    should_be_not_durable = consumer.consume()
+    assert should_be_not_durable.durable is False
+    message_count = management.purge_queue(queue_name)
+    assert message_count == 0
     management.delete_queue(queue_name)
-
-    management.close()
-
-    pass
+    consumer.close()
