@@ -125,14 +125,14 @@ class Management:
 
     def _request(
         self,
-        id: str,
+        msg_id: str,
         body: Any,
         path: str,
         method: str,
         expected_response_codes: list[int],
     ) -> Message:
         amq_message = Message(
-            id=id,
+            id=msg_id,
             body=body,
             inferred=False,
             reply_to="$me",
@@ -170,9 +170,7 @@ class Management:
             ValidationCodeException: If exchange already exists or other validation fails
         """
         logger.debug("declare_exchange operation called")
-        body: dict[str, Any] = {}
-        body["auto_delete"] = exchange_specification.is_auto_delete
-        body["durable"] = exchange_specification.is_durable
+        body: dict[str, Any] = {"durable": exchange_specification.is_durable}
         if isinstance(exchange_specification, ExchangeSpecification):
             body["type"] = exchange_specification.exchange_type.value
         elif isinstance(exchange_specification, ExchangeCustomSpecification):
