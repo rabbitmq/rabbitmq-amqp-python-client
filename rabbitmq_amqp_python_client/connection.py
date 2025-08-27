@@ -211,6 +211,38 @@ class Connection:
 
         logger.debug(f"Connected to RabbitMQ server version {server_version}")
 
+    def _is_server_version_gte_4_2_0(self) -> bool:
+        """
+        Check if the server version is greater than or equal to 4.2.0.
+
+        This is an internal method that can be used to conditionally enable
+        features that require RabbitMQ 4.2.0 or higher.
+
+        Returns:
+            bool: True if server version >= 4.2.0, False otherwise
+
+        Raises:
+            ValidationCodeException: If connection is not established or
+                                   remote properties are not available
+        """
+        if self._conn is None or self._conn.conn is None:
+            raise ValidationCodeException("Connection not established")
+
+        remote_props = self._conn.conn.remote_properties
+        if remote_props is None:
+            raise ValidationCodeException("No remote properties received from server")
+
+        server_version = remote_props.get("version")
+        if server_version is None:
+            raise ValidationCodeException("Server version not provided")
+
+        try:
+            return version.parse(str(server_version)) >= version.parse("4.2.0")
+        except Exception as e:
+            raise ValidationCodeException(
+                f"Failed to parse server version '{server_version}': {e}"
+            )
+
     def dial(self) -> None:
         """
         Establish a connection to the AMQP server.
