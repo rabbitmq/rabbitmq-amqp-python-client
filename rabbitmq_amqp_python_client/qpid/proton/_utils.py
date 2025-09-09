@@ -465,6 +465,11 @@ class BlockingConnection(Handler):
                     lambda: not (self.conn.state & Endpoint.REMOTE_UNINIT),
                     msg="Opening connection",
                 )
+                self.wait(
+                    lambda: (self.conn.state & Endpoint.REMOTE_ACTIVE),
+                    timeout=10,
+                    msg="Connection opened",
+                )
 
             except ConnectionException:
                 if self.conn is not None:
