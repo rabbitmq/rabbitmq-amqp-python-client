@@ -13,7 +13,7 @@ from .entities import (
     OAuth2Options,
     OffsetSpecification,
     RecoveryConfiguration,
-    StreamOptions,
+    StreamConsumerOptions,
 )
 from .environment import Environment
 from .exceptions import (
@@ -85,7 +85,7 @@ __all__ = [
     "CurrentUserStore",
     "PKCS12Store",
     "ConnectionClosed",
-    "StreamOptions",
+    "StreamConsumerOptions",
     "OffsetSpecification",
     "OutcomeState",
     "Environment",
