@@ -150,16 +150,16 @@ class ExchangeToExchangeBindingSpecification:
 
 
 class StreamFilterOptions:
-    values: Optional[list[str]] = (None,)
-    match_unfiltered: bool = (False,)
-    application_properties: dict = (field(default_factory=dict),)
+    values: Optional[list[str]] = None
+    match_unfiltered: bool = False
+    application_properties: Optional[dict[str, Any]] = None
     sql: str = ""
 
     def __init__(
         self,
         values: Optional[list[str]] = None,
         match_unfiltered: bool = False,
-        application_properties: Optional[dict] = None,
+        application_properties: Optional[dict[str, Any]] = None,
         sql: str = "",
     ):
         self.values = values
