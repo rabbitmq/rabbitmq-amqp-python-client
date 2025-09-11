@@ -148,10 +148,13 @@ class ExchangeToExchangeBindingSpecification:
     destination_exchange: str
     binding_key: Optional[str] = None
 
+
 """
   StreamFilterOptions defines the filtering options for a stream consumer.
   for values and match_unfiltered see: https://www.rabbitmq.com/blog/2023/10/16/stream-filtering
 """
+
+
 class StreamFilterOptions:
     values: Optional[list[str]] = None
     match_unfiltered: bool = False
