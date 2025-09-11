@@ -149,7 +149,32 @@ class ExchangeToExchangeBindingSpecification:
     binding_key: Optional[str] = None
 
 
-class StreamOptions:
+"""
+  StreamFilterOptions defines the filtering options for a stream consumer.
+  for values and match_unfiltered see: https://www.rabbitmq.com/blog/2023/10/16/stream-filtering
+"""
+
+
+class StreamFilterOptions:
+    values: Optional[list[str]] = None
+    match_unfiltered: bool = False
+    application_properties: Optional[dict[str, Any]] = None
+    sql: str = ""
+
+    def __init__(
+        self,
+        values: Optional[list[str]] = None,
+        match_unfiltered: bool = False,
+        application_properties: Optional[dict[str, Any]] = None,
+        sql: str = "",
+    ):
+        self.values = values
+        self.match_unfiltered = match_unfiltered
+        self.application_properties = application_properties
+        self.sql = sql
+
+
+class StreamConsumerOptions:
     """
     Configuration options for stream queues.
 
@@ -161,17 +186,18 @@ class StreamOptions:
     Args:
         offset_specification: Either an OffsetSpecification enum value or
                                 an integer offset
-        filters: List of filter strings to apply to the stream
+        filter_options: Filter options for the stream consumer. See StreamFilterOptions
     """
 
     def __init__(
         self,
         offset_specification: Optional[Union[OffsetSpecification, int]] = None,
-        filters: Optional[list[str]] = None,
-        filter_match_unfiltered: bool = False,
+        filter_options: Optional[StreamFilterOptions] = None,
     ):
 
-        if offset_specification is None and filters is None:
+        self.streamFilterOptions = filter_options
+
+        if offset_specification is None and self.streamFilterOptions is None:
             raise ValidationCodeException(
                 "At least one between offset_specification and filters must be set when setting up filtering"
             )
@@ -179,11 +205,17 @@ class StreamOptions:
         if offset_specification is not None:
             self._offset(offset_specification)
 
-        if filters is not None:
-            self._filter_values(filters)
+        if (
+            self.streamFilterOptions is not None
+            and self.streamFilterOptions.values is not None
+        ):
+            self._filter_values(self.streamFilterOptions.values)
 
-        if filter_match_unfiltered is True:
-            self._filter_match_unfiltered(filter_match_unfiltered)
+        if (
+            self.streamFilterOptions is not None
+            and self.streamFilterOptions.match_unfiltered
+        ):
+            self._filter_match_unfiltered(self.streamFilterOptions.match_unfiltered)
 
     def _offset(self, offset_specification: Union[OffsetSpecification, int]) -> None:
         """

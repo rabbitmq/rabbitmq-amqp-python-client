@@ -18,7 +18,7 @@ from .consumer import Consumer
 from .entities import (
     OAuth2Options,
     RecoveryConfiguration,
-    StreamOptions,
+    StreamConsumerOptions,
 )
 from .exceptions import (
     ArgumentOutOfRangeException,
@@ -363,7 +363,7 @@ class Connection:
             ArgumentOutOfRangeException: If destination address format is invalid
         """
         if destination != "":
-            if validate_address(destination) is False:
+            if not validate_address(destination):
                 raise ArgumentOutOfRangeException(
                     "destination address must start with /queues or /exchanges"
                 )
@@ -376,7 +376,7 @@ class Connection:
         self,
         destination: str,
         message_handler: Optional[MessagingHandler] = None,
-        stream_filter_options: Optional[StreamOptions] = None,
+        stream_consumer_options: Optional[StreamConsumerOptions] = None,
         credit: Optional[int] = None,
     ) -> Consumer:
         """
@@ -385,7 +385,7 @@ class Connection:
         Args:
             destination: The address to consume from
             message_handler: Optional handler for processing messages
-            stream_filter_options: Optional configuration for stream consumption
+            stream_consumer_options: Optional configuration for stream consumption
             credit: Optional credit value for flow control
 
         Returns:
@@ -394,12 +394,12 @@ class Connection:
         Raises:
             ArgumentOutOfRangeException: If destination address format is invalid
         """
-        if validate_address(destination) is False:
+        if not validate_address(destination):
             raise ArgumentOutOfRangeException(
                 "destination address must start with /queues or /exchanges"
             )
         consumer = Consumer(
-            self._conn, destination, message_handler, stream_filter_options, credit
+            self._conn, destination, message_handler, stream_consumer_options, credit
         )
         self._consumers.append(consumer)
         return consumer

@@ -3,8 +3,11 @@ from rabbitmq_amqp_python_client import (
     Connection,
     Environment,
     OffsetSpecification,
-    StreamOptions,
+    StreamConsumerOptions,
     StreamSpecification,
+)
+from rabbitmq_amqp_python_client.entities import (
+    StreamFilterOptions,
 )
 
 from .conftest import (
@@ -18,7 +21,6 @@ from .utils import publish_messages
 def test_stream_read_from_last_default(
     connection: Connection, environment: Environment
 ) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_validation"
     messages_to_send = 10
@@ -52,7 +54,6 @@ def test_stream_read_from_last_default(
 def test_stream_read_from_last(
     connection: Connection, environment: Environment
 ) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_validation"
     messages_to_send = 10
@@ -72,7 +73,7 @@ def test_stream_read_from_last(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),
-            stream_filter_options=StreamOptions(
+            stream_consumer_options=StreamConsumerOptions(
                 offset_specification=OffsetSpecification.last
             ),
         )
@@ -90,7 +91,6 @@ def test_stream_read_from_last(
 def test_stream_read_from_offset_zero(
     connection: Connection, environment: Environment
 ) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_validation"
     messages_to_send = 10
@@ -112,7 +112,7 @@ def test_stream_read_from_offset_zero(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(0),
-            stream_filter_options=StreamOptions(offset_specification=0),
+            stream_consumer_options=StreamConsumerOptions(offset_specification=0),
         )
 
         consumer.run()
@@ -128,7 +128,6 @@ def test_stream_read_from_offset_zero(
 def test_stream_read_from_offset_first(
     connection: Connection, environment: Environment
 ) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_validation"
     messages_to_send = 10
@@ -150,7 +149,7 @@ def test_stream_read_from_offset_first(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(0),
-            stream_filter_options=StreamOptions(OffsetSpecification.first),
+            stream_consumer_options=StreamConsumerOptions(OffsetSpecification.first),
         )
 
         consumer.run()
@@ -166,7 +165,6 @@ def test_stream_read_from_offset_first(
 def test_stream_read_from_offset_ten(
     connection: Connection, environment: Environment
 ) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_validation"
     messages_to_send = 20
@@ -188,7 +186,7 @@ def test_stream_read_from_offset_ten(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(10),
-            stream_filter_options=StreamOptions(offset_specification=10),
+            stream_consumer_options=StreamConsumerOptions(offset_specification=10),
         )
 
         consumer.run()
@@ -203,7 +201,6 @@ def test_stream_read_from_offset_ten(
 
 
 def test_stream_filtering(connection: Connection, environment: Environment) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_filtering"
     messages_to_send = 10
@@ -224,7 +221,9 @@ def test_stream_filtering(connection: Connection, environment: Environment) -> N
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),
-            stream_filter_options=StreamOptions(filters=["banana"]),
+            stream_consumer_options=StreamConsumerOptions(
+                filter_options=StreamFilterOptions(values=["banana"])
+            ),
         )
         # send with annotations filter banana
         publish_messages(connection, messages_to_send, stream_name, ["banana"])
@@ -241,7 +240,6 @@ def test_stream_filtering(connection: Connection, environment: Environment) -> N
 def test_stream_filtering_mixed(
     connection: Connection, environment: Environment
 ) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_filtering"
     messages_to_send = 10
@@ -262,7 +260,9 @@ def test_stream_filtering_mixed(
             addr_queue,
             # check we are reading just from offset 10 as just banana filtering applies
             message_handler=MyMessageHandlerAcceptStreamOffset(10),
-            stream_filter_options=StreamOptions(filters=["banana"]),
+            stream_consumer_options=StreamConsumerOptions(
+                filter_options=StreamFilterOptions(values=["banana"])
+            ),
         )
         # send with annotations filter apple and then banana
         # consumer will read just from offset 10
@@ -281,7 +281,6 @@ def test_stream_filtering_mixed(
 def test_stream_filtering_not_present(
     connection: Connection, environment: Environment
 ) -> None:
-
     raised = False
     stream_name = "test_stream_info_with_filtering"
     messages_to_send = 10
@@ -299,7 +298,10 @@ def test_stream_filtering_not_present(
     connection_consumer.dial()
 
     consumer = connection_consumer.consumer(
-        addr_queue, stream_filter_options=StreamOptions(filters=["apple"])
+        addr_queue,
+        stream_consumer_options=StreamConsumerOptions(
+            filter_options=StreamFilterOptions(values=["apple"])
+        ),
     )
     # send with annotations filter banana
     publish_messages(connection, messages_to_send, stream_name, ["banana"])
@@ -320,7 +322,6 @@ def test_stream_filtering_not_present(
 def test_stream_match_unfiltered(
     connection: Connection, environment: Environment
 ) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_filtering"
     messages_to_send = 10
@@ -340,8 +341,10 @@ def test_stream_match_unfiltered(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),
-            stream_filter_options=StreamOptions(
-                filters=["banana"], filter_match_unfiltered=True
+            stream_consumer_options=StreamConsumerOptions(
+                filter_options=StreamFilterOptions(
+                    values=["banana"], match_unfiltered=True
+                )
             ),
         )
         # send with annotations filter banana
@@ -359,7 +362,6 @@ def test_stream_match_unfiltered(
 def test_stream_reconnection(
     connection_with_reconnect: Connection, environment: Environment
 ) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_filtering"
     messages_to_send = 10
@@ -380,8 +382,10 @@ def test_stream_reconnection(
             addr_queue,
             # disconnection and check happens here
             message_handler=MyMessageHandlerAcceptStreamOffsetReconnect(),
-            stream_filter_options=StreamOptions(
-                filters=["banana"], filter_match_unfiltered=True
+            stream_consumer_options=StreamConsumerOptions(
+                filter_options=StreamFilterOptions(
+                    values=["banana"], match_unfiltered=True
+                )
             ),
         )
         # send with annotations filter banana
