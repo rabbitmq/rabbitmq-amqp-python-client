@@ -104,7 +104,9 @@ def main() -> None:
         message_handler=MyMessageHandler(),
         # can be first, last, next or an offset long
         # you can also specify stream filters with methods: apply_filters and filter_match_unfiltered
-        stream_consumer_options=StreamConsumerOptions(offset_specification=OffsetSpecification.first),
+        stream_consumer_options=StreamConsumerOptions(
+            offset_specification=OffsetSpecification.first
+        ),
     )
     print(
         "create a consumer and consume the test message - press control + c to terminate to consume"
