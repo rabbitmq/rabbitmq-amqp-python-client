@@ -297,10 +297,10 @@ class StreamConsumerOptions:
         self, message_properties: Optional[MessageProperties]
     ) -> None:
         """
-        Set application properties for filtering.
+        Set AMQP message properties for filtering.
 
         Args:
-            message_properties: MessageProperties object containing application properties
+            message_properties: MessageProperties object containing AMQP message properties
         """
         if message_properties is not None:
             # dictionary of symbols and described
