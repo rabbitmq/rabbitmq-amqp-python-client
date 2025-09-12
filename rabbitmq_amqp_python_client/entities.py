@@ -171,12 +171,12 @@ class MessageProperties:
         reply_to_group_id: Id for sending replies to a specific group.
     """
 
-    message_id: Optional[Any] = None
+    message_id: Optional[Union[int, str, bytes]] = None
     user_id: Optional[bytes] = None
     to: Optional[str] = None
     subject: Optional[str] = None
     reply_to: Optional[str] = None
-    correlation_id: Optional[Any] = None
+    correlation_id: Optional[Union[int, str, bytes]] = None
     content_type: Optional[str] = None
     content_encoding: Optional[str] = None
     absolute_expiry_time: Optional[datetime] = None
@@ -307,10 +307,9 @@ class StreamConsumerOptions:
             filter_prop: Dict[symbol, Any] = {}
 
             for key, value in message_properties.__dict__.items():
-                if key is not None:
-                    if message_properties.__dict__[key] is not None:
-                        # replace _ with - for the key
-                        filter_prop[symbol(key.replace("_", "-"))] = value
+                if value is not None:
+                    # replace _ with - for the key
+                    filter_prop[symbol(key.replace("_", "-"))] = value
 
             if len(filter_prop) > 0:
                 self._filter_set[symbol(AMQP_PROPERTIES_FILTER)] = Described(
