@@ -9,6 +9,7 @@ rabbitmq-server-stop:
 
 format:
 	poetry run isort --skip rabbitmq_amqp_python_client/qpid --skip .venv .
+	poetry run mypy --exclude=rabbitmq_amqp_python_client/qpid .
 	poetry run black rabbitmq_amqp_python_client/
 	poetry run black tests/
 	poetry run flake8 --exclude=venv,.venv,local_tests,docs/examples,rabbitmq_amqp_python_client/qpid --max-line-length=120 --ignore=E203,W503

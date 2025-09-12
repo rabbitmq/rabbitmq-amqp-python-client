@@ -285,7 +285,8 @@ class StreamConsumerOptions:
         if filter_options is not None and filter_options.match_unfiltered:
             self._filter_match_unfiltered(filter_options.match_unfiltered)
 
-        self._filter_message_properties(filter_options.message_properties)
+        if filter_options is not None and filter_options.message_properties is not None:
+            self._filter_message_properties(filter_options.message_properties)
 
     def _offset(self, offset_specification: Union[OffsetSpecification, int]) -> None:
         """
@@ -327,7 +328,9 @@ class StreamConsumerOptions:
             symbol(STREAM_FILTER_MATCH_UNFILTERED), filter_match_unfiltered
         )
 
-    def _filter_message_properties(self, message_properties: MessageProperties) -> None:
+    def _filter_message_properties(
+        self, message_properties: Optional[MessageProperties]
+    ) -> None:
         """
         Set application properties for filtering.
 
