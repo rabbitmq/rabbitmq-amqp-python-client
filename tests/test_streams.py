@@ -572,7 +572,7 @@ def test_stream_filter_mixing_different(
         connection_consumer.dial()
         consumer = connection_consumer.consumer(
             addr_queue,
-            message_handler=MyMessageHandlerApplicationPropertiesFilter(),
+            message_handler=MyMessageHandlerMixingDifferentFilters(),
             stream_consumer_options=StreamConsumerOptions(
                 filter_options=StreamFilterOptions(
                     values=["my_value"],
