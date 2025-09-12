@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, Optional, Union
 
@@ -10,6 +10,7 @@ from .qpid.proton._data import Described, symbol
 STREAM_FILTER_SPEC = "rabbitmq:stream-filter"
 STREAM_OFFSET_SPEC = "rabbitmq:stream-offset-spec"
 STREAM_FILTER_MATCH_UNFILTERED = "rabbitmq:stream-match-unfiltered"
+AMQP_PROPERTIES_FILTER = "amqp:properties-filter"
 
 
 @dataclass
@@ -149,6 +150,77 @@ class ExchangeToExchangeBindingSpecification:
     binding_key: Optional[str] = None
 
 
+class MessageProperties:
+    def __init__(
+        self,
+        message_id: Optional[Any] = None,
+        user_id: Optional[bytes] = None,
+        to: Optional[str] = None,
+        subject: Optional[str] = None,
+        reply_to: Optional[str] = None,
+        correlation_id: Optional[Any] = None,
+        content_type: Optional[str] = None,
+        content_encoding: Optional[str] = None,
+        absolute_expiry_time: Optional[datetime] = None,
+        creation_time: Optional[datetime] = None,
+        group_id: Optional[str] = None,
+        group_sequence: Optional[int] = None,
+        reply_to_group_id: Optional[str] = None,
+    ):
+        # Message-id, if set, uniquely identifies a message within the message system.
+        # The message producer is usually responsible for setting the message-id in
+        # such a way that it is assured to be globally unique. A broker MAY discard a
+        # message as a duplicate if the value of the message-id matches that of a
+        # previously received message sent to the same node.
+        #
+        # The value is restricted to the following types:
+        #   - int (for uint64), UUID, bytes, or str
+        self.message_id: Optional[Any] = message_id
+
+        # The identity of the user responsible for producing the message.
+        # The client sets this value, and it MAY be authenticated by intermediaries.
+        self.user_id: Optional[bytes] = user_id
+
+        # The to field identifies the node that is the intended destination of the message.
+        # On any given transfer this might not be the node at the receiving end of the link.
+        self.to: Optional[str] = to
+
+        # A common field for summary information about the message content and purpose.
+        self.subject: Optional[str] = subject
+
+        # The address of the node to send replies to.
+        self.reply_to: Optional[str] = reply_to
+
+        # This is a client-specific id that can be used to mark or identify messages
+        # between clients.
+        #
+        # The value is restricted to the following types:
+        #   - int (for uint64), UUID, bytes, or str
+        self.correlation_id: Optional[Any] = correlation_id
+
+        # The RFC-2046 [RFC2046] MIME type for the message's application-data section (body).
+        self.content_type: Optional[str] = content_type
+
+        # The content-encoding property is used as a modifier to the content-type.
+        self.content_encoding: Optional[str] = content_encoding
+
+        # An absolute time when this message is considered to be expired.
+        self.absolute_expiry_time: Optional[datetime] = absolute_expiry_time
+
+        # An absolute time when this message was created.
+        self.creation_time: Optional[datetime] = creation_time
+
+        # Identifies the group the message belongs to.
+        self.group_id: Optional[str] = group_id
+
+        # The relative position of this message within its group.
+        self.group_sequence: Optional[int] = group_sequence
+
+        # This is a client-specific id that is used so that client can send replies to this
+        # message to a specific group.
+        self.reply_to_group_id: Optional[str] = reply_to_group_id
+
+
 """
   StreamFilterOptions defines the filtering options for a stream consumer.
   for values and match_unfiltered see: https://www.rabbitmq.com/blog/2023/10/16/stream-filtering
@@ -159,6 +231,7 @@ class StreamFilterOptions:
     values: Optional[list[str]] = None
     match_unfiltered: bool = False
     application_properties: Optional[dict[str, Any]] = None
+    message_properties: Optional[MessageProperties] = None
     sql: str = ""
 
     def __init__(
@@ -166,11 +239,13 @@ class StreamFilterOptions:
         values: Optional[list[str]] = None,
         match_unfiltered: bool = False,
         application_properties: Optional[dict[str, Any]] = None,
+        message_properties: Optional[MessageProperties] = None,
         sql: str = "",
     ):
         self.values = values
         self.match_unfiltered = match_unfiltered
         self.application_properties = application_properties
+        self.message_properties = message_properties
         self.sql = sql
 
 
@@ -195,27 +270,22 @@ class StreamConsumerOptions:
         filter_options: Optional[StreamFilterOptions] = None,
     ):
 
-        self.streamFilterOptions = filter_options
+        self._filter_set: Dict[symbol, Described] = {}
 
-        if offset_specification is None and self.streamFilterOptions is None:
+        if offset_specification is None and filter_options is None:
             raise ValidationCodeException(
                 "At least one between offset_specification and filters must be set when setting up filtering"
             )
-        self._filter_set: Dict[symbol, Described] = {}
         if offset_specification is not None:
             self._offset(offset_specification)
 
-        if (
-            self.streamFilterOptions is not None
-            and self.streamFilterOptions.values is not None
-        ):
-            self._filter_values(self.streamFilterOptions.values)
+        if filter_options is not None and filter_options.values is not None:
+            self._filter_values(filter_options.values)
 
-        if (
-            self.streamFilterOptions is not None
-            and self.streamFilterOptions.match_unfiltered
-        ):
-            self._filter_match_unfiltered(self.streamFilterOptions.match_unfiltered)
+        if filter_options is not None and filter_options.match_unfiltered:
+            self._filter_match_unfiltered(filter_options.match_unfiltered)
+
+        self._filter_message_properties(filter_options.message_properties)
 
     def _offset(self, offset_specification: Union[OffsetSpecification, int]) -> None:
         """
@@ -256,6 +326,28 @@ class StreamConsumerOptions:
         self._filter_set[symbol(STREAM_FILTER_MATCH_UNFILTERED)] = Described(
             symbol(STREAM_FILTER_MATCH_UNFILTERED), filter_match_unfiltered
         )
+
+    def _filter_message_properties(self, message_properties: MessageProperties) -> None:
+        """
+        Set application properties for filtering.
+
+        Args:
+            message_properties: MessageProperties object containing application properties
+        """
+        if message_properties.__dict__ is not None:
+            # dictionary of symbols and described
+            filter_prop: Dict[symbol, Any] = {}
+
+            for key, value in message_properties.__dict__.items():
+                if key is not None:
+                    if message_properties.__dict__[key] is not None:
+                        # replace _ with - for the key
+                        filter_prop[symbol(key.replace("_", "-"))] = value
+
+            if len(filter_prop) > 0:
+                self._filter_set[symbol(AMQP_PROPERTIES_FILTER)] = Described(
+                    symbol(AMQP_PROPERTIES_FILTER), filter_prop
+                )
 
     def filter_set(self) -> Dict[symbol, Described]:
         """
