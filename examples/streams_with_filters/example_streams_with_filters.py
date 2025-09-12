@@ -98,7 +98,7 @@ def main() -> None:
                 message_properties=MessageProperties(
                     subject="yellow",
                 ),
-                application_properties={"from": "italy"}
+                application_properties={"from": "italy"},
             ),
         ),
     )
