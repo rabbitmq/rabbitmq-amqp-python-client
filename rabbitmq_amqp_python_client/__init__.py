@@ -10,10 +10,12 @@ from .entities import (
     ExchangeSpecification,
     ExchangeToExchangeBindingSpecification,
     ExchangeToQueueBindingSpecification,
+    MessageProperties,
     OAuth2Options,
     OffsetSpecification,
     RecoveryConfiguration,
     StreamConsumerOptions,
+    StreamFilterOptions,
 )
 from .environment import Environment
 from .exceptions import (
@@ -86,6 +88,8 @@ __all__ = [
     "PKCS12Store",
     "ConnectionClosed",
     "StreamConsumerOptions",
+    "StreamFilterOptions",
+    "MessageProperties",
     "OffsetSpecification",
     "OutcomeState",
     "Environment",

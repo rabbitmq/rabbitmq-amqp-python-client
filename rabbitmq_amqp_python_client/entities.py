@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, Optional, Union
 
@@ -10,6 +10,7 @@ from .qpid.proton._data import Described, symbol
 STREAM_FILTER_SPEC = "rabbitmq:stream-filter"
 STREAM_OFFSET_SPEC = "rabbitmq:stream-offset-spec"
 STREAM_FILTER_MATCH_UNFILTERED = "rabbitmq:stream-match-unfiltered"
+AMQP_PROPERTIES_FILTER = "amqp:properties-filter"
 
 
 @dataclass
@@ -149,6 +150,42 @@ class ExchangeToExchangeBindingSpecification:
     binding_key: Optional[str] = None
 
 
+@dataclass
+class MessageProperties:
+    """
+    Properties for an AMQP message.
+
+    Attributes:
+        message_id: Uniquely identifies a message within the system (int, UUID, bytes, or str).
+        user_id: Identity of the user responsible for producing the message.
+        to: Intended destination node of the message.
+        subject: Summary information about the message content and purpose.
+        reply_to: Address of the node to send replies to.
+        correlation_id: Client-specific id for marking or identifying messages (int, UUID, bytes, or str).
+        content_type: RFC-2046 MIME type for the message's body.
+        content_encoding: Modifier to the content-type.
+        absolute_expiry_time: Absolute time when the message expires.
+        creation_time: Absolute time when the message was created.
+        group_id: Group the message belongs to.
+        group_sequence: Relative position of this message within its group.
+        reply_to_group_id: Id for sending replies to a specific group.
+    """
+
+    message_id: Optional[Union[int, str, bytes]] = None
+    user_id: Optional[bytes] = None
+    to: Optional[str] = None
+    subject: Optional[str] = None
+    reply_to: Optional[str] = None
+    correlation_id: Optional[Union[int, str, bytes]] = None
+    content_type: Optional[str] = None
+    content_encoding: Optional[str] = None
+    absolute_expiry_time: Optional[datetime] = None
+    creation_time: Optional[datetime] = None
+    group_id: Optional[str] = None
+    group_sequence: Optional[int] = None
+    reply_to_group_id: Optional[str] = None
+
+
 """
   StreamFilterOptions defines the filtering options for a stream consumer.
   for values and match_unfiltered see: https://www.rabbitmq.com/blog/2023/10/16/stream-filtering
@@ -159,6 +196,7 @@ class StreamFilterOptions:
     values: Optional[list[str]] = None
     match_unfiltered: bool = False
     application_properties: Optional[dict[str, Any]] = None
+    message_properties: Optional[MessageProperties] = None
     sql: str = ""
 
     def __init__(
@@ -166,11 +204,13 @@ class StreamFilterOptions:
         values: Optional[list[str]] = None,
         match_unfiltered: bool = False,
         application_properties: Optional[dict[str, Any]] = None,
+        message_properties: Optional[MessageProperties] = None,
         sql: str = "",
     ):
         self.values = values
         self.match_unfiltered = match_unfiltered
         self.application_properties = application_properties
+        self.message_properties = message_properties
         self.sql = sql
 
 
@@ -195,27 +235,23 @@ class StreamConsumerOptions:
         filter_options: Optional[StreamFilterOptions] = None,
     ):
 
-        self.streamFilterOptions = filter_options
+        self._filter_set: Dict[symbol, Described] = {}
 
-        if offset_specification is None and self.streamFilterOptions is None:
+        if offset_specification is None and filter_options is None:
             raise ValidationCodeException(
                 "At least one between offset_specification and filters must be set when setting up filtering"
             )
-        self._filter_set: Dict[symbol, Described] = {}
         if offset_specification is not None:
             self._offset(offset_specification)
 
-        if (
-            self.streamFilterOptions is not None
-            and self.streamFilterOptions.values is not None
-        ):
-            self._filter_values(self.streamFilterOptions.values)
+        if filter_options is not None and filter_options.values is not None:
+            self._filter_values(filter_options.values)
 
-        if (
-            self.streamFilterOptions is not None
-            and self.streamFilterOptions.match_unfiltered
-        ):
-            self._filter_match_unfiltered(self.streamFilterOptions.match_unfiltered)
+        if filter_options is not None and filter_options.match_unfiltered:
+            self._filter_match_unfiltered(filter_options.match_unfiltered)
+
+        if filter_options is not None and filter_options.message_properties is not None:
+            self._filter_message_properties(filter_options.message_properties)
 
     def _offset(self, offset_specification: Union[OffsetSpecification, int]) -> None:
         """
@@ -256,6 +292,29 @@ class StreamConsumerOptions:
         self._filter_set[symbol(STREAM_FILTER_MATCH_UNFILTERED)] = Described(
             symbol(STREAM_FILTER_MATCH_UNFILTERED), filter_match_unfiltered
         )
+
+    def _filter_message_properties(
+        self, message_properties: Optional[MessageProperties]
+    ) -> None:
+        """
+        Set AMQP message properties for filtering.
+
+        Args:
+            message_properties: MessageProperties object containing AMQP message properties
+        """
+        if message_properties is not None:
+            # dictionary of symbols and described
+            filter_prop: Dict[symbol, Any] = {}
+
+            for key, value in message_properties.__dict__.items():
+                if value is not None:
+                    # replace _ with - for the key
+                    filter_prop[symbol(key.replace("_", "-"))] = value
+
+            if len(filter_prop) > 0:
+                self._filter_set[symbol(AMQP_PROPERTIES_FILTER)] = Described(
+                    symbol(AMQP_PROPERTIES_FILTER), filter_prop
+                )
 
     def filter_set(self) -> Dict[symbol, Described]:
         """

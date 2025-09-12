@@ -5,3 +5,4 @@ Client examples
  - [TLS](./tls/tls_example.py) - Producer and Consumer using a TLS connection
  - [Streams](./streams/example_with_streams.py) - Example supporting stream capabilities
  - [Oauth](./oauth/oAuth2.py) - Connection through Oauth token
+ - [Streams with filters](./streams_with_filters/example_streams_with_filters.py) - Example supporting stream capabilities with filters
