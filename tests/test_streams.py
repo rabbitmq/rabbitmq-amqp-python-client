@@ -1,3 +1,5 @@
+import time
+
 from rabbitmq_amqp_python_client import (
     AddressHelper,
     AMQPMessagingHandler,
@@ -459,6 +461,144 @@ def test_stream_filter_message_properties(
                 group_id="group_{}".format(i),
             )
             publisher.publish(msg)
+
+        publisher.close()
+
+        consumer.run()
+    # ack to terminate the consumer
+    except ConsumerTestException:
+        pass
+
+    if consumer is not None:
+        consumer.close()
+
+    management.delete_queue(stream_name)
+
+
+class MyMessageHandlerApplicationPropertiesFilter(AMQPMessagingHandler):
+    def __init__(
+        self,
+    ):
+        super().__init__()
+
+    def on_message(self, event: Event):
+        self.delivery_context.accept(event)
+        assert event.message.application_properties == {"key": "value_17"}
+        raise ConsumerTestException("consumed")
+
+
+def test_stream_filter_application_properties(
+    connection: Connection, environment: Environment
+) -> None:
+    consumer = None
+    stream_name = "test_stream_application_message_properties"
+    messages_to_send = 30
+
+    queue_specification = StreamSpecification(
+        name=stream_name,
+    )
+    management = connection.management()
+    management.declare_queue(queue_specification)
+
+    addr_queue = AddressHelper.queue_address(stream_name)
+
+    # consume and then publish
+    try:
+        connection_consumer = environment.connection()
+        connection_consumer.dial()
+        consumer = connection_consumer.consumer(
+            addr_queue,
+            message_handler=MyMessageHandlerApplicationPropertiesFilter(),
+            stream_consumer_options=StreamConsumerOptions(
+                filter_options=StreamFilterOptions(
+                    application_properties={"key": "value_17"},
+                )
+            ),
+        )
+        publisher = connection.publisher(addr_queue)
+        for i in range(messages_to_send):
+            msg = Message(
+                body=Converter.string_to_bytes("hello_{}".format(i)),
+                application_properties={"key": "value_{}".format(i)},
+            )
+            publisher.publish(msg)
+
+        publisher.close()
+
+        consumer.run()
+    # ack to terminate the consumer
+    except ConsumerTestException:
+        pass
+
+    if consumer is not None:
+        consumer.close()
+
+    management.delete_queue(stream_name)
+
+
+class MyMessageHandlerMixingDifferentFilters(AMQPMessagingHandler):
+    def __init__(
+        self,
+    ):
+        super().__init__()
+
+    def on_message(self, event: Event):
+        self.delivery_context.accept(event)
+        assert event.message.annotations == {"x-stream-filter-value": "my_value"}
+        assert event.message.application_properties == {"key": "value_17"}
+        assert event.message.subject == "important_15"
+        assert event.message.body == Converter.string_to_bytes("the_right_one")
+        raise ConsumerTestException("consumed")
+
+
+def test_stream_filter_mixing_different(
+    connection: Connection, environment: Environment
+) -> None:
+    consumer = None
+    stream_name = "test_stream_filter_mixing_different"
+    messages_to_send = 30
+
+    queue_specification = StreamSpecification(
+        name=stream_name,
+    )
+    management = connection.management()
+    management.declare_queue(queue_specification)
+
+    addr_queue = AddressHelper.queue_address(stream_name)
+
+    # consume and then publish
+    try:
+        connection_consumer = environment.connection()
+        connection_consumer.dial()
+        consumer = connection_consumer.consumer(
+            addr_queue,
+            message_handler=MyMessageHandlerApplicationPropertiesFilter(),
+            stream_consumer_options=StreamConsumerOptions(
+                filter_options=StreamFilterOptions(
+                    values=["my_value"],
+                    application_properties={"key": "value_17"},
+                    message_properties=MessageProperties(subject="important_15"),
+                )
+            ),
+        )
+        publisher = connection.publisher(addr_queue)
+        # all these messages will be filtered out
+        for i in range(messages_to_send):
+            msg = Message(
+                body=Converter.string_to_bytes("hello_{}".format(i)),
+            )
+            publisher.publish(msg)
+
+        time.sleep(
+            0.5
+        )  # wait a bit to ensure messages are published in different chunks
+        msg = Message(
+            body=Converter.string_to_bytes("the_right_one"),
+            annotations={"x-stream-filter-value": "my_value"},
+            application_properties={"key": "value_17"},
+            subject="important_15",
+        )
+        publisher.publish(msg)
 
         publisher.close()
 
