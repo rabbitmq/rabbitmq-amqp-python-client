@@ -54,10 +54,9 @@ def test_stream_read_from_last_default(
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 def test_stream_read_from_last(
@@ -91,10 +90,9 @@ def test_stream_read_from_last(
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 def test_stream_read_from_offset_zero(
@@ -128,10 +126,9 @@ def test_stream_read_from_offset_zero(
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 def test_stream_read_from_offset_first(
@@ -165,10 +162,9 @@ def test_stream_read_from_offset_first(
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 def test_stream_read_from_offset_ten(
@@ -203,10 +199,9 @@ def test_stream_read_from_offset_ten(
     # this will finish after 10 messages read
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 def test_stream_filtering(connection: Connection, environment: Environment) -> None:
@@ -240,10 +235,9 @@ def test_stream_filtering(connection: Connection, environment: Environment) -> N
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 def test_stream_filtering_mixed(
@@ -281,10 +275,9 @@ def test_stream_filtering_mixed(
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 def test_stream_filtering_not_present(
@@ -362,10 +355,9 @@ def test_stream_match_unfiltered(
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 def test_stream_reconnection(
@@ -403,10 +395,9 @@ def test_stream_reconnection(
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 class MyMessageHandlerMessagePropertiesFilter(AMQPMessagingHandler):
@@ -468,11 +459,10 @@ def test_stream_filter_message_properties(
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    if consumer is not None:
-        consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        if consumer is not None:
+            consumer.close()
+        management.delete_queue(stream_name)
 
 
 class MyMessageHandlerApplicationPropertiesFilter(AMQPMessagingHandler):
@@ -529,11 +519,10 @@ def test_stream_filter_application_properties(
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    if consumer is not None:
-        consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        if consumer is not None:
+            consumer.close()
+        management.delete_queue(stream_name)
 
 
 class MyMessageHandlerSQLFilter(AMQPMessagingHandler):
@@ -605,11 +594,10 @@ def test_stream_filter_sql(connection: Connection, environment: Environment) -> 
         # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    if consumer is not None:
-        consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        if consumer is not None:
+            consumer.close()
+        management.delete_queue(stream_name)
 
 
 class MyMessageHandlerMixingDifferentFilters(AMQPMessagingHandler):
@@ -681,8 +669,7 @@ def test_stream_filter_mixing_different(
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    if consumer is not None:
-        consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        if consumer is not None:
+            consumer.close()
+        management.delete_queue(stream_name)
