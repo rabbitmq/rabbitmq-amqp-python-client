@@ -544,10 +544,10 @@ class MyMessageHandlerMixingDifferentFilters(AMQPMessagingHandler):
 
     def on_message(self, event: Event):
         self.delivery_context.accept(event)
-        assert event.message.annotations == {"x-stream-filter-value": "my_value"}
-        assert event.message.application_properties == {"key": "value_17"}
-        assert event.message.subject == "important_15"
-        assert event.message.body == Converter.string_to_bytes("the_right_one")
+        assert event.message.annotations["x-stream-filter-value"] == "the_value_filter"
+        assert event.message.application_properties == {"key": "app_value_9999"}
+        assert event.message.subject == "important_9999"
+        assert event.message.body == Converter.string_to_bytes("the_right_one_9999")
         raise ConsumerTestException("consumed")
 
 
@@ -562,6 +562,7 @@ def test_stream_filter_mixing_different(
         name=stream_name,
     )
     management = connection.management()
+    management.delete_queue(stream_name)
     management.declare_queue(queue_specification)
 
     addr_queue = AddressHelper.queue_address(stream_name)
@@ -575,9 +576,9 @@ def test_stream_filter_mixing_different(
             message_handler=MyMessageHandlerMixingDifferentFilters(),
             stream_consumer_options=StreamConsumerOptions(
                 filter_options=StreamFilterOptions(
-                    values=["my_value"],
-                    application_properties={"key": "value_17"},
-                    message_properties=MessageProperties(subject="important_15"),
+                    values=["the_value_filter"],
+                    application_properties={"key": "app_value_9999"},
+                    message_properties=MessageProperties(subject="important_9999"),
                 )
             ),
         )
@@ -589,14 +590,12 @@ def test_stream_filter_mixing_different(
             )
             publisher.publish(msg)
 
-        time.sleep(
-            0.5
-        )  # wait a bit to ensure messages are published in different chunks
+        time.sleep(1)  # wait a bit to ensure messages are published in different chunks
         msg = Message(
-            body=Converter.string_to_bytes("the_right_one"),
-            annotations={"x-stream-filter-value": "my_value"},
-            application_properties={"key": "value_17"},
-            subject="important_15",
+            body=Converter.string_to_bytes("the_right_one_9999"),
+            annotations={"x-stream-filter-value": "the_value_filter"},
+            application_properties={"key": "app_value_9999"},
+            subject="important_9999",
         )
         publisher.publish(msg)
 
