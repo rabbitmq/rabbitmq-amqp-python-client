@@ -7,6 +7,8 @@ from .common import ExchangeType, QueueType
 from .exceptions import ValidationCodeException
 from .qpid.proton._data import Described, symbol
 
+SQL_FILTER = "sql-filter"
+AMQP_SQL_FILTER = "amqp:sql-filter"
 STREAM_FILTER_SPEC = "rabbitmq:stream-filter"
 STREAM_OFFSET_SPEC = "rabbitmq:stream-offset-spec"
 STREAM_FILTER_MATCH_UNFILTERED = "rabbitmq:stream-match-unfiltered"
@@ -245,19 +247,23 @@ class StreamConsumerOptions:
         if offset_specification is not None:
             self._offset(offset_specification)
 
-        if filter_options is not None and filter_options.values is not None:
+        if filter_options is None:
+            return
+
+        if filter_options.values is not None:
             self._filter_values(filter_options.values)
 
-        if filter_options is not None and filter_options.match_unfiltered:
+        if filter_options.match_unfiltered:
             self._filter_match_unfiltered(filter_options.match_unfiltered)
 
-        if filter_options is not None and filter_options.message_properties is not None:
+        if filter_options.message_properties is not None:
             self._filter_message_properties(filter_options.message_properties)
-        if (
-            filter_options is not None
-            and filter_options.application_properties is not None
-        ):
+
+        if filter_options.application_properties is not None:
             self._filter_application_properties(filter_options.application_properties)
+
+        if filter_options.sql is not None and filter_options.sql != "":
+            self._filter_sql(filter_options.sql)
 
     def _offset(self, offset_specification: Union[OffsetSpecification, int]) -> None:
         """
@@ -333,6 +339,18 @@ class StreamConsumerOptions:
                 self._filter_set[symbol(AMQP_APPLICATION_PROPERTIES_FILTER)] = (
                     Described(symbol(AMQP_APPLICATION_PROPERTIES_FILTER), app_prop)
                 )
+
+    def _filter_sql(self, sql: str) -> None:
+        """
+        Set SQL filter for the stream.
+
+        Args:
+            sql: SQL string to apply as a filter
+        """
+        if sql != "":
+            self._filter_set[symbol(SQL_FILTER)] = Described(
+                symbol(AMQP_SQL_FILTER), sql
+            )
 
     def filter_set(self) -> Dict[symbol, Described]:
         """
