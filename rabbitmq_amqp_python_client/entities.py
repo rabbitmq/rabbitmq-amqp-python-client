@@ -11,6 +11,7 @@ STREAM_FILTER_SPEC = "rabbitmq:stream-filter"
 STREAM_OFFSET_SPEC = "rabbitmq:stream-offset-spec"
 STREAM_FILTER_MATCH_UNFILTERED = "rabbitmq:stream-match-unfiltered"
 AMQP_PROPERTIES_FILTER = "amqp:properties-filter"
+AMQP_APPLICATION_PROPERTIES_FILTER = "amqp:application-properties-filter"
 
 
 @dataclass
@@ -252,6 +253,11 @@ class StreamConsumerOptions:
 
         if filter_options is not None and filter_options.message_properties is not None:
             self._filter_message_properties(filter_options.message_properties)
+        if (
+            filter_options is not None
+            and filter_options.application_properties is not None
+        ):
+            self._filter_application_properties(filter_options.application_properties)
 
     def _offset(self, offset_specification: Union[OffsetSpecification, int]) -> None:
         """
@@ -314,6 +320,19 @@ class StreamConsumerOptions:
             if len(filter_prop) > 0:
                 self._filter_set[symbol(AMQP_PROPERTIES_FILTER)] = Described(
                     symbol(AMQP_PROPERTIES_FILTER), filter_prop
+                )
+
+    def _filter_application_properties(
+        self, application_properties: Optional[dict[str, Any]]
+    ) -> None:
+        app_prop = {}
+        if application_properties is not None:
+            for key, value in application_properties.items():
+                app_prop[key] = value
+
+            if len(app_prop) > 0:
+                self._filter_set[symbol(AMQP_APPLICATION_PROPERTIES_FILTER)] = (
+                    Described(symbol(AMQP_APPLICATION_PROPERTIES_FILTER), app_prop)
                 )
 
     def filter_set(self) -> Dict[symbol, Described]:

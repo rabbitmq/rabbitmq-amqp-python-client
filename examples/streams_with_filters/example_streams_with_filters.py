@@ -29,11 +29,13 @@ class MyMessageHandler(AMQPMessagingHandler):
 
     def on_amqp_message(self, event: Event):
         # only messages with banana filters and with subject yellow
+        # and application property from = italy get received
         self._count = self._count + 1
         logger.info(
-            "Received message: {}, subject {}.[Total Consumed: {}]".format(
+            "Received message: {}, subject {} application properties {} .[Total Consumed: {}]".format(
                 Converter.bytes_to_string(event.message.body),
                 event.message.subject,
+                event.message.application_properties,
                 self._count,
             )
         )
@@ -88,6 +90,7 @@ def main() -> None:
         addr_queue,
         message_handler=MyMessageHandler(),
         # the consumer will only receive messages with filter value banana and subject yellow
+        # and application property from = italy
         stream_consumer_options=StreamConsumerOptions(
             offset_specification=OffsetSpecification.first,
             filter_options=StreamFilterOptions(
@@ -95,6 +98,7 @@ def main() -> None:
                 message_properties=MessageProperties(
                     subject="yellow",
                 ),
+                application_properties={"from": "italy"}
             ),
         ),
     )
@@ -108,11 +112,13 @@ def main() -> None:
     # publish with a filter of apple
     for i in range(MESSAGES_TO_PUBLISH):
         color = "green" if i % 2 == 0 else "yellow"
+        from_value = "italy" if i % 3 == 0 else "spain"
         publisher.publish(
             Message(
                 Converter.string_to_bytes(body="apple: " + str(i)),
                 annotations={"x-stream-filter-value": "apple"},
                 subject=color,
+                application_properties={"from": from_value},
             )
         )
 
@@ -121,11 +127,13 @@ def main() -> None:
     # publish with a filter of banana
     for i in range(MESSAGES_TO_PUBLISH):
         color = "green" if i % 2 == 0 else "yellow"
+        from_value = "italy" if i % 3 == 0 else "spain"
         publisher.publish(
             Message(
                 body=Converter.string_to_bytes("banana: " + str(i)),
                 annotations={"x-stream-filter-value": "banana"},
                 subject=color,
+                application_properties={"from": from_value},
             )
         )
 
