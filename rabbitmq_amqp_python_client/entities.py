@@ -161,7 +161,6 @@ class MessageProperties:
     Attributes:
         message_id: Uniquely identifies a message within the system (int, UUID, bytes, or str).
         user_id: Identity of the user responsible for producing the message.
-        to: Intended destination node of the message.
         subject: Summary information about the message content and purpose.
         reply_to: Address of the node to send replies to.
         correlation_id: Client-specific id for marking or identifying messages (int, UUID, bytes, or str).
@@ -176,7 +175,6 @@ class MessageProperties:
 
     message_id: Optional[Union[int, str, bytes]] = None
     user_id: Optional[bytes] = None
-    to: Optional[str] = None
     subject: Optional[str] = None
     reply_to: Optional[str] = None
     correlation_id: Optional[Union[int, str, bytes]] = None

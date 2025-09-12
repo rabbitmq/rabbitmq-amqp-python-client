@@ -536,6 +536,82 @@ def test_stream_filter_application_properties(
     management.delete_queue(stream_name)
 
 
+class MyMessageHandlerSQLFilter(AMQPMessagingHandler):
+    def __init__(
+        self,
+    ):
+        super().__init__()
+
+    def on_message(self, event: Event):
+        self.delivery_context.accept(event)
+        assert event.message.body == Converter.string_to_bytes("the_right_one_sql")
+        assert event.message.subject == "something_in_the_filter"
+        assert event.message.reply_to == "the_reply_to"
+        assert (
+            event.message.application_properties["a_in_the_filter_key"]
+            == "a_in_the_filter_value"
+        )
+
+        raise ConsumerTestException("consumed")
+
+
+def test_stream_filter_sql(connection: Connection, environment: Environment) -> None:
+    consumer = None
+    stream_name = "test_stream_filter_sql"
+    messages_to_send = 30
+
+    queue_specification = StreamSpecification(
+        name=stream_name,
+    )
+    management = connection.management()
+    management.delete_queue(stream_name)
+    management.declare_queue(queue_specification)
+
+    addr_queue = AddressHelper.queue_address(stream_name)
+    sql = (
+        "properties.subject LIKE '%in_the_filter%' AND properties.reply_to = 'the_reply_to' "
+        "AND a_in_the_filter_key = 'a_in_the_filter_value'"
+    )
+    try:
+        connection_consumer = environment.connection()
+        connection_consumer.dial()
+        consumer = connection_consumer.consumer(
+            addr_queue,
+            message_handler=MyMessageHandlerSQLFilter(),
+            stream_consumer_options=StreamConsumerOptions(
+                filter_options=StreamFilterOptions(sql=sql)
+            ),
+        )
+        publisher = connection.publisher(addr_queue)
+        # won't match
+        for i in range(messages_to_send):
+            msg = Message(
+                body=Converter.string_to_bytes("hello_{}".format(i)),
+            )
+            publisher.publish(msg)
+
+        msqMatch = Message(
+            body=Converter.string_to_bytes("the_right_one_sql"),
+            subject="something_in_the_filter",
+            reply_to="the_reply_to",
+            application_properties={"a_in_the_filter_key": "a_in_the_filter_value"},
+        )
+
+        publisher.publish(msqMatch)
+
+        publisher.close()
+
+        consumer.run()
+        # ack to terminate the consumer
+    except ConsumerTestException:
+        pass
+
+    if consumer is not None:
+        consumer.close()
+
+    management.delete_queue(stream_name)
+
+
 class MyMessageHandlerMixingDifferentFilters(AMQPMessagingHandler):
     def __init__(
         self,
