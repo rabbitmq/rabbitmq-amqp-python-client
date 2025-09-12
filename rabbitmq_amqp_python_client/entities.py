@@ -327,8 +327,7 @@ class StreamConsumerOptions:
     ) -> None:
         app_prop = {}
         if application_properties is not None:
-            for key, value in application_properties.items():
-                app_prop[key] = value
+            app_prop = application_properties.copy()
 
             if len(app_prop) > 0:
                 self._filter_set[symbol(AMQP_APPLICATION_PROPERTIES_FILTER)] = (
