@@ -150,75 +150,40 @@ class ExchangeToExchangeBindingSpecification:
     binding_key: Optional[str] = None
 
 
+@dataclass
 class MessageProperties:
-    def __init__(
-        self,
-        message_id: Optional[Any] = None,
-        user_id: Optional[bytes] = None,
-        to: Optional[str] = None,
-        subject: Optional[str] = None,
-        reply_to: Optional[str] = None,
-        correlation_id: Optional[Any] = None,
-        content_type: Optional[str] = None,
-        content_encoding: Optional[str] = None,
-        absolute_expiry_time: Optional[datetime] = None,
-        creation_time: Optional[datetime] = None,
-        group_id: Optional[str] = None,
-        group_sequence: Optional[int] = None,
-        reply_to_group_id: Optional[str] = None,
-    ):
-        # Message-id, if set, uniquely identifies a message within the message system.
-        # The message producer is usually responsible for setting the message-id in
-        # such a way that it is assured to be globally unique. A broker MAY discard a
-        # message as a duplicate if the value of the message-id matches that of a
-        # previously received message sent to the same node.
-        #
-        # The value is restricted to the following types:
-        #   - int (for uint64), UUID, bytes, or str
-        self.message_id: Optional[Any] = message_id
+    """
+    Properties for an AMQP message.
 
-        # The identity of the user responsible for producing the message.
-        # The client sets this value, and it MAY be authenticated by intermediaries.
-        self.user_id: Optional[bytes] = user_id
+    Attributes:
+        message_id: Uniquely identifies a message within the system (int, UUID, bytes, or str).
+        user_id: Identity of the user responsible for producing the message.
+        to: Intended destination node of the message.
+        subject: Summary information about the message content and purpose.
+        reply_to: Address of the node to send replies to.
+        correlation_id: Client-specific id for marking or identifying messages (int, UUID, bytes, or str).
+        content_type: RFC-2046 MIME type for the message's body.
+        content_encoding: Modifier to the content-type.
+        absolute_expiry_time: Absolute time when the message expires.
+        creation_time: Absolute time when the message was created.
+        group_id: Group the message belongs to.
+        group_sequence: Relative position of this message within its group.
+        reply_to_group_id: Id for sending replies to a specific group.
+    """
 
-        # The to field identifies the node that is the intended destination of the message.
-        # On any given transfer this might not be the node at the receiving end of the link.
-        self.to: Optional[str] = to
-
-        # A common field for summary information about the message content and purpose.
-        self.subject: Optional[str] = subject
-
-        # The address of the node to send replies to.
-        self.reply_to: Optional[str] = reply_to
-
-        # This is a client-specific id that can be used to mark or identify messages
-        # between clients.
-        #
-        # The value is restricted to the following types:
-        #   - int (for uint64), UUID, bytes, or str
-        self.correlation_id: Optional[Any] = correlation_id
-
-        # The RFC-2046 [RFC2046] MIME type for the message's application-data section (body).
-        self.content_type: Optional[str] = content_type
-
-        # The content-encoding property is used as a modifier to the content-type.
-        self.content_encoding: Optional[str] = content_encoding
-
-        # An absolute time when this message is considered to be expired.
-        self.absolute_expiry_time: Optional[datetime] = absolute_expiry_time
-
-        # An absolute time when this message was created.
-        self.creation_time: Optional[datetime] = creation_time
-
-        # Identifies the group the message belongs to.
-        self.group_id: Optional[str] = group_id
-
-        # The relative position of this message within its group.
-        self.group_sequence: Optional[int] = group_sequence
-
-        # This is a client-specific id that is used so that client can send replies to this
-        # message to a specific group.
-        self.reply_to_group_id: Optional[str] = reply_to_group_id
+    message_id: Optional[Any] = None
+    user_id: Optional[bytes] = None
+    to: Optional[str] = None
+    subject: Optional[str] = None
+    reply_to: Optional[str] = None
+    correlation_id: Optional[Any] = None
+    content_type: Optional[str] = None
+    content_encoding: Optional[str] = None
+    absolute_expiry_time: Optional[datetime] = None
+    creation_time: Optional[datetime] = None
+    group_id: Optional[str] = None
+    group_sequence: Optional[int] = None
+    reply_to_group_id: Optional[str] = None
 
 
 """

@@ -30,8 +30,13 @@ class MyMessageHandler(AMQPMessagingHandler):
     def on_amqp_message(self, event: Event):
         # only messages with banana filters and with subject yellow
         self._count = self._count + 1
-        logger.info("Received message: {}, subject {}.[Total Consumed: {}]".
-                    format(Converter.bytes_to_string(event.message.body), event.message.subject, self._count))
+        logger.info(
+            "Received message: {}, subject {}.[Total Consumed: {}]".format(
+                Converter.bytes_to_string(event.message.body),
+                event.message.subject,
+                self._count,
+            )
+        )
         self.delivery_context.accept(event)
 
     def on_connection_closed(self, event: Event):
@@ -82,15 +87,16 @@ def main() -> None:
     consumer = consumer_connection.consumer(
         addr_queue,
         message_handler=MyMessageHandler(),
-
         # the consumer will only receive messages with filter value banana and subject yellow
-
         stream_consumer_options=StreamConsumerOptions(
             offset_specification=OffsetSpecification.first,
             filter_options=StreamFilterOptions(
                 values=["banana"],
-                message_properties=MessageProperties(subject="yellow", )))
-
+                message_properties=MessageProperties(
+                    subject="yellow",
+                ),
+            ),
+        ),
     )
     print(
         "create a consumer and consume the test message - press control + c to terminate to consume"
