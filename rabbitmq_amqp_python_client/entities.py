@@ -302,7 +302,7 @@ class StreamConsumerOptions:
         Args:
             message_properties: MessageProperties object containing application properties
         """
-        if message_properties.__dict__ is not None:
+        if message_properties is not None:
             # dictionary of symbols and described
             filter_prop: Dict[symbol, Any] = {}
 
