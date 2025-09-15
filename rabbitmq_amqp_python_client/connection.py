@@ -390,7 +390,7 @@ class Connection:
         Args:
             destination: The address to consume from
             message_handler: Optional handler for processing messages
-            consumer_options: Optional configuration for queue consumption. Each queue has its own consumer options.co
+            consumer_options: Optional configuration for queue consumption. Each queue has its own consumer options.
             credit: Optional credit value for flow control
 
         Returns:
