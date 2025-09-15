@@ -16,9 +16,9 @@ from packaging import version
 from .address_helper import validate_address
 from .consumer import Consumer
 from .entities import (
+    ConsumerOptions,
     OAuth2Options,
     RecoveryConfiguration,
-    StreamConsumerOptions,
 )
 from .exceptions import (
     ArgumentOutOfRangeException,
@@ -211,15 +211,15 @@ class Connection:
 
         logger.debug(f"Connected to RabbitMQ server version {server_version}")
 
-    def _is_server_version_gte_4_2_0(self) -> bool:
+    def _is_server_version_gte(self, target_version: str) -> bool:
         """
-        Check if the server version is greater than or equal to 4.2.0.
+        Check if the server version is greater than or equal to version.
 
         This is an internal method that can be used to conditionally enable
-        features that require RabbitMQ 4.2.0 or higher.
+        features that require RabbitMQ version or higher.
 
         Returns:
-            bool: True if server version >= 4.2.0, False otherwise
+            bool: True if server version >= version, False otherwise
 
         Raises:
             ValidationCodeException: If connection is not established or
@@ -237,7 +237,12 @@ class Connection:
             raise ValidationCodeException("Server version not provided")
 
         try:
-            return version.parse(str(server_version)) >= version.parse("4.2.0")
+            srv = version.parse(str(server_version))
+            trg = version.parse(target_version)
+            # compare the version even if it contains pre-release or build metadata
+            return (
+                version.parse("{}.{}.{}".format(srv.major, srv.minor, srv.micro)) >= trg
+            )
         except Exception as e:
             raise ValidationCodeException(
                 f"Failed to parse server version '{server_version}': {e}"
@@ -376,7 +381,7 @@ class Connection:
         self,
         destination: str,
         message_handler: Optional[MessagingHandler] = None,
-        stream_consumer_options: Optional[StreamConsumerOptions] = None,
+        consumer_options: Optional[ConsumerOptions] = None,
         credit: Optional[int] = None,
     ) -> Consumer:
         """
@@ -385,7 +390,7 @@ class Connection:
         Args:
             destination: The address to consume from
             message_handler: Optional handler for processing messages
-            stream_consumer_options: Optional configuration for stream consumption
+            consumer_options: Optional configuration for queue consumption. Each queue has its own consumer options.co
             credit: Optional credit value for flow control
 
         Returns:
@@ -398,8 +403,16 @@ class Connection:
             raise ArgumentOutOfRangeException(
                 "destination address must start with /queues or /exchanges"
             )
+        if consumer_options is not None:
+            consumer_options.validate(
+                {
+                    "4.0.0": self._is_server_version_gte("4.0.0"),
+                    "4.1.0": self._is_server_version_gte("4.1.0"),
+                    "4.2.0": self._is_server_version_gte("4.2.0"),
+                }
+            )
         consumer = Consumer(
-            self._conn, destination, message_handler, stream_consumer_options, credit
+            self._conn, destination, message_handler, consumer_options, credit
         )
         self._consumers.append(consumer)
         return consumer

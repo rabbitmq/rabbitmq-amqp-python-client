@@ -91,7 +91,7 @@ def main() -> None:
         message_handler=MyMessageHandler(),
         # the consumer will only receive messages with filter value banana and subject yellow
         # and application property from = italy
-        stream_consumer_options=StreamConsumerOptions(
+        consumer_options=StreamConsumerOptions(
             offset_specification=OffsetSpecification.first,
             filter_options=StreamFilterOptions(
                 values=["banana"],

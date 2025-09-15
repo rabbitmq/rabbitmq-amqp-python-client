@@ -9,6 +9,7 @@ from rabbitmq_amqp_python_client import (
     OffsetSpecification,
     StreamConsumerOptions,
     StreamSpecification,
+    ValidationCodeException,
 )
 from rabbitmq_amqp_python_client.entities import (
     MessageProperties,
@@ -81,7 +82,7 @@ def test_stream_read_from_last(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),
-            stream_consumer_options=StreamConsumerOptions(
+            consumer_options=StreamConsumerOptions(
                 offset_specification=OffsetSpecification.last
             ),
         )
@@ -119,7 +120,7 @@ def test_stream_read_from_offset_zero(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(0),
-            stream_consumer_options=StreamConsumerOptions(offset_specification=0),
+            consumer_options=StreamConsumerOptions(offset_specification=0),
         )
 
         consumer.run()
@@ -155,7 +156,7 @@ def test_stream_read_from_offset_first(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(0),
-            stream_consumer_options=StreamConsumerOptions(OffsetSpecification.first),
+            consumer_options=StreamConsumerOptions(OffsetSpecification.first),
         )
 
         consumer.run()
@@ -191,7 +192,7 @@ def test_stream_read_from_offset_ten(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(10),
-            stream_consumer_options=StreamConsumerOptions(offset_specification=10),
+            consumer_options=StreamConsumerOptions(offset_specification=10),
         )
 
         consumer.run()
@@ -225,7 +226,7 @@ def test_stream_filtering(connection: Connection, environment: Environment) -> N
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),
-            stream_consumer_options=StreamConsumerOptions(
+            consumer_options=StreamConsumerOptions(
                 filter_options=StreamFilterOptions(values=["banana"])
             ),
         )
@@ -263,7 +264,7 @@ def test_stream_filtering_mixed(
             addr_queue,
             # check we are reading just from offset 10 as just banana filtering applies
             message_handler=MyMessageHandlerAcceptStreamOffset(10),
-            stream_consumer_options=StreamConsumerOptions(
+            consumer_options=StreamConsumerOptions(
                 filter_options=StreamFilterOptions(values=["banana"])
             ),
         )
@@ -301,7 +302,7 @@ def test_stream_filtering_not_present(
 
     consumer = connection_consumer.consumer(
         addr_queue,
-        stream_consumer_options=StreamConsumerOptions(
+        consumer_options=StreamConsumerOptions(
             filter_options=StreamFilterOptions(values=["apple"])
         ),
     )
@@ -343,7 +344,7 @@ def test_stream_match_unfiltered(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),
-            stream_consumer_options=StreamConsumerOptions(
+            consumer_options=StreamConsumerOptions(
                 filter_options=StreamFilterOptions(
                     values=["banana"], match_unfiltered=True
                 )
@@ -383,7 +384,7 @@ def test_stream_reconnection(
             addr_queue,
             # disconnection and check happens here
             message_handler=MyMessageHandlerAcceptStreamOffsetReconnect(),
-            stream_consumer_options=StreamConsumerOptions(
+            consumer_options=StreamConsumerOptions(
                 filter_options=StreamFilterOptions(
                     values=["banana"], match_unfiltered=True
                 )
@@ -436,7 +437,7 @@ def test_stream_filter_message_properties(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerMessagePropertiesFilter(),
-            stream_consumer_options=StreamConsumerOptions(
+            consumer_options=StreamConsumerOptions(
                 filter_options=StreamFilterOptions(
                     message_properties=MessageProperties(
                         subject="important_15", group_id="group_15"
@@ -499,7 +500,7 @@ def test_stream_filter_application_properties(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerApplicationPropertiesFilter(),
-            stream_consumer_options=StreamConsumerOptions(
+            consumer_options=StreamConsumerOptions(
                 filter_options=StreamFilterOptions(
                     application_properties={"key": "value_17"},
                 )
@@ -567,7 +568,7 @@ def test_stream_filter_sql(connection: Connection, environment: Environment) -> 
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerSQLFilter(),
-            stream_consumer_options=StreamConsumerOptions(
+            consumer_options=StreamConsumerOptions(
                 filter_options=StreamFilterOptions(sql=sql)
             ),
         )
@@ -639,7 +640,7 @@ def test_stream_filter_mixing_different(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerMixingDifferentFilters(),
-            stream_consumer_options=StreamConsumerOptions(
+            consumer_options=StreamConsumerOptions(
                 filter_options=StreamFilterOptions(
                     values=["the_value_filter"],
                     application_properties={"key": "app_value_9999"},
@@ -674,3 +675,34 @@ def test_stream_filter_mixing_different(
         if consumer is not None:
             consumer.close()
         management.delete_queue(stream_name)
+
+
+def test_consumer_options_validation() -> None:
+    try:
+        x = StreamConsumerOptions(filter_options=StreamFilterOptions(sql="test"))
+        x.validate({"4.0.0": True, "4.1.0": False, "4.2.0": False})
+        assert False
+    except ValidationCodeException:
+        assert True
+
+    try:
+        x = StreamConsumerOptions(
+            filter_options=StreamFilterOptions(
+                message_properties=MessageProperties(subject="important_9999")
+            )
+        )
+        x.validate({"4.0.0": True, "4.1.0": True, "4.2.0": False})
+        assert True
+    except ValidationCodeException:
+        assert False
+
+    try:
+        x = StreamConsumerOptions(
+            filter_options=StreamFilterOptions(
+                application_properties={"key": "app_value_9999"}
+            )
+        )
+        x.validate({"4.0.0": True, "4.1.0": True, "4.2.0": False})
+        assert True
+    except ValidationCodeException:
+        assert False

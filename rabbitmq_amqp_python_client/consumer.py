@@ -2,7 +2,7 @@ import logging
 from typing import Literal, Optional, Union, cast
 
 from .amqp_consumer_handler import AMQPMessagingHandler
-from .entities import StreamConsumerOptions
+from .entities import ConsumerOptions
 from .options import (
     ReceiverOptionUnsettled,
     ReceiverOptionUnsettledWithFilters,
@@ -38,7 +38,7 @@ class Consumer:
         conn: BlockingConnection,
         addr: str,
         handler: Optional[AMQPMessagingHandler] = None,
-        stream_options: Optional[StreamConsumerOptions] = None,
+        stream_options: Optional[ConsumerOptions] = None,
         credit: Optional[int] = None,
     ):
         """
