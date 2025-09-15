@@ -579,6 +579,7 @@ def test_stream_filter_sql(connection: Connection, environment: Environment) -> 
             )
             publisher.publish(msg)
 
+        # the only one that will match
         msqMatch = Message(
             body=Converter.string_to_bytes("the_right_one_sql"),
             subject="something_in_the_filter",

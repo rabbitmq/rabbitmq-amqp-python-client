@@ -1,6 +1,5 @@
 # type: ignore
 import logging
-import time
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
@@ -11,7 +10,6 @@ from rabbitmq_amqp_python_client import (
     Environment,
     Event,
     Message,
-    MessageProperties,
     OffsetSpecification,
     StreamConsumerOptions,
     StreamFilterOptions,
@@ -64,15 +62,12 @@ logger.setLevel(logging.INFO)
 
 def main() -> None:
     """
-    In this example we create a stream queue and a consumer with filtering options.
-    The example combines two filters:
-    - filter value: banana
-    - subject: yellow
+    In this example we create a stream queue and a consumer with SQL filter
 
     See: https://www.rabbitmq.com/docs/next/stream-filtering#stage-2-amqp-filter-expressions
     """
 
-    queue_name = "stream-example-with-message-properties-filter-queue"
+    queue_name = "stream-example-with-sql-filter-queue"
     logger.info("Creating connection")
     environment = Environment("amqp://guest:guest@localhost:5672/")
     connection = create_connection(environment)
@@ -85,21 +80,17 @@ def main() -> None:
     addr_queue = AddressHelper.queue_address(queue_name)
 
     consumer_connection = create_connection(environment)
+    sql = (
+        "properties.subject LIKE '%in_the_filter%' "
+        "AND a_in_the_filter_key = 'a_in_the_filter_value'"
+    )
 
     consumer = consumer_connection.consumer(
         addr_queue,
         message_handler=MyMessageHandler(),
-        # the consumer will only receive messages with filter value banana and subject yellow
-        # and application property from = italy
         stream_consumer_options=StreamConsumerOptions(
             offset_specification=OffsetSpecification.first,
-            filter_options=StreamFilterOptions(
-                values=["banana"],
-                message_properties=MessageProperties(
-                    subject="yellow",
-                ),
-                application_properties={"from": "italy"},
-            ),
+            filter_options=StreamFilterOptions(sql=sql),
         ),
     )
     print(
@@ -109,33 +100,19 @@ def main() -> None:
     # print("create a publisher and publish a test message")
     publisher = connection.publisher(addr_queue)
 
-    # publish with a filter of apple
+    # publish messages won't match the filter
     for i in range(MESSAGES_TO_PUBLISH):
-        color = "green" if i % 2 == 0 else "yellow"
-        from_value = "italy" if i % 3 == 0 else "spain"
-        publisher.publish(
-            Message(
-                Converter.string_to_bytes(body="apple: " + str(i)),
-                annotations={"x-stream-filter-value": "apple"},
-                subject=color,
-                application_properties={"from": from_value},
-            )
-        )
+        publisher.publish(Message(Converter.string_to_bytes(body="apple: " + str(i))))
 
-    time.sleep(0.5)  # wait a bit to ensure messages are published in different chunks
-
-    # publish with a filter of banana
+    # publish messages that will match the filter
     for i in range(MESSAGES_TO_PUBLISH):
-        color = "green" if i % 2 == 0 else "yellow"
-        from_value = "italy" if i % 3 == 0 else "spain"
-        publisher.publish(
-            Message(
-                body=Converter.string_to_bytes("banana: " + str(i)),
-                annotations={"x-stream-filter-value": "banana"},
-                subject=color,
-                application_properties={"from": from_value},
-            )
+        msqMatch = Message(
+            body=Converter.string_to_bytes("the_right_one_sql"),
+            # will match due of %
+            subject="something_in_the_filter_{}".format(i),
+            application_properties={"a_in_the_filter_key": "a_in_the_filter_value"},
         )
+        publisher.publish(msqMatch)
 
     publisher.close()
 
