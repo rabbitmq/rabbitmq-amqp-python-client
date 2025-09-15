@@ -390,13 +390,13 @@ class StreamConsumerOptions(ConsumerOptions):
             )
         if self._filter_option.message_properties and not versions.get("4.1.0", False):
             raise ValidationCodeException(
-                "Stream filter by SQL requires RabbitMQ 4.1.0 or higher"
+                "Stream filter by message_properties requires RabbitMQ 4.1.0 or higher"
             )
         if self._filter_option.application_properties and not versions.get(
             "4.1.0", False
         ):
             raise ValidationCodeException(
-                "Stream filter by SQL requires RabbitMQ 4.1.0 or higher"
+                "Stream filter by application_properties requires RabbitMQ 4.1.0 or higher"
             )
 
 
