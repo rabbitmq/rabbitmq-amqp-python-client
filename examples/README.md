@@ -6,3 +6,4 @@ Client examples
  - [Streams](./streams/example_with_streams.py) - Example supporting stream capabilities
  - [Oauth](./oauth/oAuth2.py) - Connection through Oauth token
  - [Streams with filters](./streams_with_filters/example_streams_with_filters.py) - Example supporting stream capabilities with filters
+ - [Streams With Sql filters](./streams_with_sql_filters) - Example supporting stream capabilities with SQL filters
