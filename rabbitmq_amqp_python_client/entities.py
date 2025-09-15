@@ -345,10 +345,9 @@ class StreamConsumerOptions:
         Args:
             sql: SQL string to apply as a filter
         """
-        if sql != "":
-            self._filter_set[symbol(SQL_FILTER)] = Described(
-                symbol(AMQP_SQL_FILTER), sql
-            )
+        self._filter_set[symbol(SQL_FILTER)] = Described(
+            symbol(AMQP_SQL_FILTER), sql
+        )
 
     def filter_set(self) -> Dict[symbol, Described]:
         """
