@@ -153,6 +153,14 @@ class ExchangeToExchangeBindingSpecification:
     binding_key: Optional[str] = None
 
 
+class ConsumerOptions:
+    def validate(self, versions: Dict[str, bool]) -> None:
+        raise NotImplementedError("Subclasses should implement this method")
+
+    def filter_set(self) -> Dict[symbol, Described]:
+        raise NotImplementedError("Subclasses should implement this method")
+
+
 @dataclass
 class MessageProperties:
     """
@@ -215,7 +223,7 @@ class StreamFilterOptions:
         self.sql = sql
 
 
-class StreamConsumerOptions:
+class StreamConsumerOptions(ConsumerOptions):
     """
     Configuration options for stream queues.
 
@@ -237,6 +245,7 @@ class StreamConsumerOptions:
     ):
 
         self._filter_set: Dict[symbol, Described] = {}
+        self._filter_option = filter_options
 
         if offset_specification is None and filter_options is None:
             raise ValidationCodeException(
@@ -329,7 +338,6 @@ class StreamConsumerOptions:
     def _filter_application_properties(
         self, application_properties: Optional[dict[str, Any]]
     ) -> None:
-        app_prop = {}
         if application_properties is not None:
             app_prop = application_properties.copy()
 
@@ -355,6 +363,41 @@ class StreamConsumerOptions:
             Dict[symbol, Described]: The current filter set configuration
         """
         return self._filter_set
+
+    def validate(self, versions: Dict[str, bool]) -> None:
+        """
+        Validates stream filter options against supported RabbitMQ server versions.
+
+        Args:
+            versions: Dictionary mapping version strings to boolean indicating support.
+
+        Raises:
+            ValidationCodeException: If a filter option requires a higher RabbitMQ version.
+        """
+        if self._filter_option is None:
+            return
+        if self._filter_option.values and not versions.get("4.1.0", False):
+            raise ValidationCodeException(
+                "Stream filter by values requires RabbitMQ 4.1.0 or higher"
+            )
+        if self._filter_option.match_unfiltered and not versions.get("4.1.0", False):
+            raise ValidationCodeException(
+                "Stream filter by match_unfiltered requires RabbitMQ 4.1.0 or higher"
+            )
+        if self._filter_option.sql and not versions.get("4.2.0", False):
+            raise ValidationCodeException(
+                "Stream filter by SQL requires RabbitMQ 4.2.0 or higher"
+            )
+        if self._filter_option.message_properties and not versions.get("4.1.0", False):
+            raise ValidationCodeException(
+                "Stream filter by message_properties requires RabbitMQ 4.1.0 or higher"
+            )
+        if self._filter_option.application_properties and not versions.get(
+            "4.1.0", False
+        ):
+            raise ValidationCodeException(
+                "Stream filter by application_properties requires RabbitMQ 4.1.0 or higher"
+            )
 
 
 @dataclass

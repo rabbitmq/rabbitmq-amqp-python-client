@@ -1,4 +1,4 @@
-from .entities import StreamConsumerOptions
+from .entities import ConsumerOptions
 from .qpid.proton._data import (  # noqa: E402
     PropertyDict,
     symbol,
@@ -68,8 +68,8 @@ class ReceiverOptionUnsettled(LinkOption):  # type: ignore
 
 
 class ReceiverOptionUnsettledWithFilters(Filter):  # type: ignore
-    def __init__(self, addr: str, filter_options: StreamConsumerOptions):
-        super().__init__(filter_options.filter_set())
+    def __init__(self, addr: str, consumer_options: ConsumerOptions):
+        super().__init__(consumer_options.filter_set())
         self._addr = addr
 
     def apply(self, link: Link) -> None:

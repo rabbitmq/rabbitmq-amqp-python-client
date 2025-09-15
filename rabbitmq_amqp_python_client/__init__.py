@@ -6,6 +6,7 @@ from .common import ExchangeType, QueueType
 from .connection import Connection
 from .consumer import Consumer
 from .entities import (
+    ConsumerOptions,
     ExchangeCustomSpecification,
     ExchangeSpecification,
     ExchangeToExchangeBindingSpecification,
@@ -89,6 +90,7 @@ __all__ = [
     "ConnectionClosed",
     "StreamConsumerOptions",
     "StreamFilterOptions",
+    "ConsumerOptions",
     "MessageProperties",
     "OffsetSpecification",
     "OutcomeState",

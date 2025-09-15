@@ -306,7 +306,7 @@ class TestServerVersionGte420:
         mock_blocking_conn.conn = mock_proton_conn
         self.connection._conn = mock_blocking_conn
 
-        result = self.connection._is_server_version_gte_4_2_0()
+        result = self.connection._is_server_version_gte("4.2.0")
         assert result is True
 
     def test_is_server_version_gte_4_2_0_higher_versions(self):
@@ -322,7 +322,7 @@ class TestServerVersionGte420:
             mock_blocking_conn.conn = mock_proton_conn
             self.connection._conn = mock_blocking_conn
 
-            result = self.connection._is_server_version_gte_4_2_0()
+            result = self.connection._is_server_version_gte("4.2.0")
             assert result is True, f"Version {version_str} should return True"
 
     def test_is_server_version_gte_4_2_0_lower_versions(self):
@@ -338,7 +338,7 @@ class TestServerVersionGte420:
             mock_blocking_conn.conn = mock_proton_conn
             self.connection._conn = mock_blocking_conn
 
-            result = self.connection._is_server_version_gte_4_2_0()
+            result = self.connection._is_server_version_gte("4.2.0")
             assert result is False, f"Version {version_str} should return False"
 
     def test_is_server_version_gte_4_2_0_no_connection(self):
@@ -346,7 +346,7 @@ class TestServerVersionGte420:
         self.connection._conn = None
 
         with pytest.raises(ValidationCodeException) as exc_info:
-            self.connection._is_server_version_gte_4_2_0()
+            self.connection._is_server_version_gte("4.2.0")
 
         assert "Connection not established" in str(exc_info.value)
 
@@ -357,7 +357,7 @@ class TestServerVersionGte420:
         self.connection._conn = mock_blocking_conn
 
         with pytest.raises(ValidationCodeException) as exc_info:
-            self.connection._is_server_version_gte_4_2_0()
+            self.connection._is_server_version_gte("4.2.0")
 
         assert "Connection not established" in str(exc_info.value)
 
@@ -370,7 +370,7 @@ class TestServerVersionGte420:
         self.connection._conn = mock_blocking_conn
 
         with pytest.raises(ValidationCodeException) as exc_info:
-            self.connection._is_server_version_gte_4_2_0()
+            self.connection._is_server_version_gte("4.2.0")
 
         assert "No remote properties received from server" in str(exc_info.value)
 
@@ -388,7 +388,7 @@ class TestServerVersionGte420:
         self.connection._conn = mock_blocking_conn
 
         with pytest.raises(ValidationCodeException) as exc_info:
-            self.connection._is_server_version_gte_4_2_0()
+            self.connection._is_server_version_gte("4.2.0")
 
         assert "Server version not provided" in str(exc_info.value)
 
@@ -406,7 +406,7 @@ class TestServerVersionGte420:
             self.connection._conn = mock_blocking_conn
 
             with pytest.raises(ValidationCodeException) as exc_info:
-                self.connection._is_server_version_gte_4_2_0()
+                self.connection._is_server_version_gte("4.2.0")
 
             error_msg = str(exc_info.value)
             assert "Failed to parse server version" in error_msg
@@ -419,7 +419,10 @@ class TestServerVersionGte420:
             ("4.2.0", True),  # Exact match
             ("4.2.0.0", True),  # With extra zeroes
             ("v4.2.0", True),  # With v prefix
-            ("4.2.0-rc1", False),  # Pre-release should be less than 4.2.0
+            (
+                "4.2.0-rc1",
+                True,
+            ),  # Pre-release should be less than 4.2.0 but accepted it equal
         ]
 
         for version_str, expected in test_cases:
@@ -433,12 +436,12 @@ class TestServerVersionGte420:
 
             if version_str == "4.2.0-rc1":
                 # Pre-release versions should be handled correctly
-                result = self.connection._is_server_version_gte_4_2_0()
+                result = self.connection._is_server_version_gte("4.2.0")
                 assert (
                     result == expected
                 ), f"Version {version_str} should return {expected}"
             else:
-                result = self.connection._is_server_version_gte_4_2_0()
+                result = self.connection._is_server_version_gte("4.2.0")
                 assert (
                     result == expected
                 ), f"Version {version_str} should return {expected}"

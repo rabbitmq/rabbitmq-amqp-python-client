@@ -88,7 +88,7 @@ def main() -> None:
     consumer = consumer_connection.consumer(
         addr_queue,
         message_handler=MyMessageHandler(),
-        stream_consumer_options=StreamConsumerOptions(
+        consumer_options=StreamConsumerOptions(
             offset_specification=OffsetSpecification.first,
             filter_options=StreamFilterOptions(sql=sql),
         ),
