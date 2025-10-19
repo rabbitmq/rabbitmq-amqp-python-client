@@ -62,7 +62,7 @@ class Consumer:
 
     def _open(self) -> None:
         if self._receiver is None:
-            logger.debug("Creating Sender")
+            logger.debug("Creating Receiver")
             self._receiver = self._create_receiver(self._addr)
 
     def _update_connection(self, conn: BlockingConnection) -> None:
