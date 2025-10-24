@@ -110,7 +110,7 @@ class Message(object):
     """ Default AMQP message priority"""
 
     def __init__(
-        self, body: Union[bytes, None] = None, inferred=True, **kwargs
+        self, body: Union[bytes, None] = None, inferred=True, durable=True, **kwargs
     ) -> None:
         # validate the types
 
@@ -120,6 +120,7 @@ class Message(object):
         self.application_properties = None
         self.body = body
         self.inferred = inferred
+        self.durable = durable
 
         for k, v in kwargs.items():
             getattr(self, k)  # Raise exception if it's not a valid attribute.

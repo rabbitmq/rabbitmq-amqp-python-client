@@ -45,7 +45,6 @@ def test_validate_message_for_publishing(connection: Connection) -> None:
 
 
 def test_publish_queue(connection: Connection) -> None:
-
     queue_name = "test-queue"
     management = connection.management()
 
@@ -77,7 +76,6 @@ def test_publish_queue(connection: Connection) -> None:
 
 
 def test_publish_per_message(connection: Connection) -> None:
-
     queue_name = "test-queue-1"
     queue_name_2 = "test-queue-2"
     management = connection.management()
@@ -123,7 +121,6 @@ def test_publish_per_message(connection: Connection) -> None:
 
 
 def test_publish_ssl(connection_ssl: Connection) -> None:
-
     queue_name = "test-queue"
     management = connection_ssl.management()
 
@@ -148,7 +145,6 @@ def test_publish_ssl(connection_ssl: Connection) -> None:
 
 
 def test_publish_to_invalid_destination(connection: Connection) -> None:
-
     queue_name = "test-queue"
 
     raised = False
@@ -169,7 +165,6 @@ def test_publish_to_invalid_destination(connection: Connection) -> None:
 
 
 def test_publish_per_message_to_invalid_destination(connection: Connection) -> None:
-
     queue_name = "test-queue-1"
     raised = False
 
@@ -193,7 +188,6 @@ def test_publish_per_message_to_invalid_destination(connection: Connection) -> N
 
 
 def test_publish_per_message_both_address(connection: Connection) -> None:
-
     queue_name = "test-queue-1"
     raised = False
 
@@ -223,7 +217,6 @@ def test_publish_per_message_both_address(connection: Connection) -> None:
 
 
 def test_publish_exchange(connection: Connection) -> None:
-
     exchange_name = "test-exchange"
     queue_name = "test-queue"
     management = connection.management()
@@ -342,7 +335,6 @@ def test_disconnection_reconnection() -> None:
 
 
 def test_queue_info_for_stream_with_validations(connection: Connection) -> None:
-
     stream_name = "test_stream_info_with_validation"
     messages_to_send = 200
 
@@ -361,7 +353,6 @@ def test_queue_info_for_stream_with_validations(connection: Connection) -> None:
 
 
 def test_publish_per_message_exchange(connection: Connection) -> None:
-
     exchange_name = "test-exchange-per-message"
     queue_name = "test-queue-per-message"
     management = connection.management()
@@ -407,7 +398,6 @@ def test_publish_per_message_exchange(connection: Connection) -> None:
 
 
 def test_multiple_publishers(environment: Environment) -> None:
-
     stream_name = "test_multiple_publisher_1"
     stream_name_2 = "test_multiple_publisher_2"
     connection = environment.connection()
@@ -456,3 +446,41 @@ def test_multiple_publishers(environment: Environment) -> None:
     management.delete_queue(stream_name_2)
 
     management.close()
+
+
+def test_durable_message(connection: Connection) -> None:
+    queue_name = "test_durable_message"
+
+    management = connection.management()
+    management.declare_queue(QuorumQueueSpecification(name=queue_name))
+    destination = AddressHelper.queue_address(queue_name)
+    publisher = connection.publisher(destination)
+    # message should be durable by default
+    status = publisher.publish(
+        Message(
+            body=Converter.string_to_bytes("durable"),
+        )
+    )
+
+    assert status.remote_state == OutcomeState.ACCEPTED
+    # message should be not durable by setting the durable to False by the user
+
+    m = Message(
+        body=Converter.string_to_bytes("not durable"),
+        durable=False,
+    )
+    status = publisher.publish(m)
+
+    assert status.remote_state == OutcomeState.ACCEPTED
+
+    consumer = connection.consumer(destination)
+    should_be_durable = consumer.consume()
+    assert should_be_durable.durable is True
+    consumer.close()
+    # it does not work due of https://github.com/rabbitmq/rabbitmq-amqp-python-client/issues/83
+    # should_be_not_durable = consumer.consume()
+    # assert should_be_not_durable.durable is False
+    # message_count = management.purge_queue(queue_name)
+    management.purge_queue(queue_name)
+    # assert message_count == 0
+    management.delete_queue(queue_name)
