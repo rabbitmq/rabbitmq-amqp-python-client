@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, Optional, Union
 
@@ -7,9 +7,13 @@ from .common import ExchangeType, QueueType
 from .exceptions import ValidationCodeException
 from .qpid.proton._data import Described, symbol
 
+SQL_FILTER = "sql-filter"
+AMQP_SQL_FILTER = "amqp:sql-filter"
 STREAM_FILTER_SPEC = "rabbitmq:stream-filter"
 STREAM_OFFSET_SPEC = "rabbitmq:stream-offset-spec"
 STREAM_FILTER_MATCH_UNFILTERED = "rabbitmq:stream-match-unfiltered"
+AMQP_PROPERTIES_FILTER = "amqp:properties-filter"
+AMQP_APPLICATION_PROPERTIES_FILTER = "amqp:application-properties-filter"
 
 
 @dataclass
@@ -149,7 +153,77 @@ class ExchangeToExchangeBindingSpecification:
     binding_key: Optional[str] = None
 
 
-class StreamOptions:
+class ConsumerOptions:
+    def validate(self, versions: Dict[str, bool]) -> None:
+        raise NotImplementedError("Subclasses should implement this method")
+
+    def filter_set(self) -> Dict[symbol, Described]:
+        raise NotImplementedError("Subclasses should implement this method")
+
+
+@dataclass
+class MessageProperties:
+    """
+    Properties for an AMQP message.
+
+    Attributes:
+        message_id: Uniquely identifies a message within the system (int, UUID, bytes, or str).
+        user_id: Identity of the user responsible for producing the message.
+        subject: Summary information about the message content and purpose.
+        reply_to: Address of the node to send replies to.
+        correlation_id: Client-specific id for marking or identifying messages (int, UUID, bytes, or str).
+        content_type: RFC-2046 MIME type for the message's body.
+        content_encoding: Modifier to the content-type.
+        absolute_expiry_time: Absolute time when the message expires.
+        creation_time: Absolute time when the message was created.
+        group_id: Group the message belongs to.
+        group_sequence: Relative position of this message within its group.
+        reply_to_group_id: Id for sending replies to a specific group.
+    """
+
+    message_id: Optional[Union[int, str, bytes]] = None
+    user_id: Optional[bytes] = None
+    subject: Optional[str] = None
+    reply_to: Optional[str] = None
+    correlation_id: Optional[Union[int, str, bytes]] = None
+    content_type: Optional[str] = None
+    content_encoding: Optional[str] = None
+    absolute_expiry_time: Optional[datetime] = None
+    creation_time: Optional[datetime] = None
+    group_id: Optional[str] = None
+    group_sequence: Optional[int] = None
+    reply_to_group_id: Optional[str] = None
+
+
+"""
+  StreamFilterOptions defines the filtering options for a stream consumer.
+  for values and match_unfiltered see: https://www.rabbitmq.com/blog/2023/10/16/stream-filtering
+"""
+
+
+class StreamFilterOptions:
+    values: Optional[list[str]] = None
+    match_unfiltered: bool = False
+    application_properties: Optional[dict[str, Any]] = None
+    message_properties: Optional[MessageProperties] = None
+    sql: str = ""
+
+    def __init__(
+        self,
+        values: Optional[list[str]] = None,
+        match_unfiltered: bool = False,
+        application_properties: Optional[dict[str, Any]] = None,
+        message_properties: Optional[MessageProperties] = None,
+        sql: str = "",
+    ):
+        self.values = values
+        self.match_unfiltered = match_unfiltered
+        self.application_properties = application_properties
+        self.message_properties = message_properties
+        self.sql = sql
+
+
+class StreamConsumerOptions(ConsumerOptions):
     """
     Configuration options for stream queues.
 
@@ -161,29 +235,42 @@ class StreamOptions:
     Args:
         offset_specification: Either an OffsetSpecification enum value or
                                 an integer offset
-        filters: List of filter strings to apply to the stream
+        filter_options: Filter options for the stream consumer. See StreamFilterOptions
     """
 
     def __init__(
         self,
         offset_specification: Optional[Union[OffsetSpecification, int]] = None,
-        filters: Optional[list[str]] = None,
-        filter_match_unfiltered: bool = False,
+        filter_options: Optional[StreamFilterOptions] = None,
     ):
 
-        if offset_specification is None and filters is None:
+        self._filter_set: Dict[symbol, Described] = {}
+        self._filter_option = filter_options
+
+        if offset_specification is None and filter_options is None:
             raise ValidationCodeException(
                 "At least one between offset_specification and filters must be set when setting up filtering"
             )
-        self._filter_set: Dict[symbol, Described] = {}
         if offset_specification is not None:
             self._offset(offset_specification)
 
-        if filters is not None:
-            self._filter_values(filters)
+        if filter_options is None:
+            return
 
-        if filter_match_unfiltered is True:
-            self._filter_match_unfiltered(filter_match_unfiltered)
+        if filter_options.values is not None:
+            self._filter_values(filter_options.values)
+
+        if filter_options.match_unfiltered:
+            self._filter_match_unfiltered(filter_options.match_unfiltered)
+
+        if filter_options.message_properties is not None:
+            self._filter_message_properties(filter_options.message_properties)
+
+        if filter_options.application_properties is not None:
+            self._filter_application_properties(filter_options.application_properties)
+
+        if filter_options.sql is not None and filter_options.sql != "":
+            self._filter_sql(filter_options.sql)
 
     def _offset(self, offset_specification: Union[OffsetSpecification, int]) -> None:
         """
@@ -225,6 +312,49 @@ class StreamOptions:
             symbol(STREAM_FILTER_MATCH_UNFILTERED), filter_match_unfiltered
         )
 
+    def _filter_message_properties(
+        self, message_properties: Optional[MessageProperties]
+    ) -> None:
+        """
+        Set AMQP message properties for filtering.
+
+        Args:
+            message_properties: MessageProperties object containing AMQP message properties
+        """
+        if message_properties is not None:
+            # dictionary of symbols and described
+            filter_prop: Dict[symbol, Any] = {}
+
+            for key, value in message_properties.__dict__.items():
+                if value is not None:
+                    # replace _ with - for the key
+                    filter_prop[symbol(key.replace("_", "-"))] = value
+
+            if len(filter_prop) > 0:
+                self._filter_set[symbol(AMQP_PROPERTIES_FILTER)] = Described(
+                    symbol(AMQP_PROPERTIES_FILTER), filter_prop
+                )
+
+    def _filter_application_properties(
+        self, application_properties: Optional[dict[str, Any]]
+    ) -> None:
+        if application_properties is not None:
+            app_prop = application_properties.copy()
+
+            if len(app_prop) > 0:
+                self._filter_set[symbol(AMQP_APPLICATION_PROPERTIES_FILTER)] = (
+                    Described(symbol(AMQP_APPLICATION_PROPERTIES_FILTER), app_prop)
+                )
+
+    def _filter_sql(self, sql: str) -> None:
+        """
+        Set SQL filter for the stream.
+
+        Args:
+            sql: SQL string to apply as a filter
+        """
+        self._filter_set[symbol(SQL_FILTER)] = Described(symbol(AMQP_SQL_FILTER), sql)
+
     def filter_set(self) -> Dict[symbol, Described]:
         """
         Get the current filter set configuration.
@@ -233,6 +363,41 @@ class StreamOptions:
             Dict[symbol, Described]: The current filter set configuration
         """
         return self._filter_set
+
+    def validate(self, versions: Dict[str, bool]) -> None:
+        """
+        Validates stream filter options against supported RabbitMQ server versions.
+
+        Args:
+            versions: Dictionary mapping version strings to boolean indicating support.
+
+        Raises:
+            ValidationCodeException: If a filter option requires a higher RabbitMQ version.
+        """
+        if self._filter_option is None:
+            return
+        if self._filter_option.values and not versions.get("4.1.0", False):
+            raise ValidationCodeException(
+                "Stream filter by values requires RabbitMQ 4.1.0 or higher"
+            )
+        if self._filter_option.match_unfiltered and not versions.get("4.1.0", False):
+            raise ValidationCodeException(
+                "Stream filter by match_unfiltered requires RabbitMQ 4.1.0 or higher"
+            )
+        if self._filter_option.sql and not versions.get("4.2.0", False):
+            raise ValidationCodeException(
+                "Stream filter by SQL requires RabbitMQ 4.2.0 or higher"
+            )
+        if self._filter_option.message_properties and not versions.get("4.1.0", False):
+            raise ValidationCodeException(
+                "Stream filter by message_properties requires RabbitMQ 4.1.0 or higher"
+            )
+        if self._filter_option.application_properties and not versions.get(
+            "4.1.0", False
+        ):
+            raise ValidationCodeException(
+                "Stream filter by application_properties requires RabbitMQ 4.1.0 or higher"
+            )
 
 
 @dataclass

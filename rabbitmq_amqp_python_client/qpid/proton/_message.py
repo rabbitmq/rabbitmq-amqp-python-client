@@ -117,7 +117,7 @@ class Message(object):
         self._msg = pn_message()
         self.instructions = None
         self.annotations = None
-        self.properties = None
+        self.application_properties = None
         self.body = body
         self.inferred = inferred
         self.durable = durable
@@ -150,7 +150,7 @@ class Message(object):
         # We cannot make changes to the dict while iterating, so we
         # must save and make the changes afterwards
         changed_keys = []
-        for k in self.properties.keys():
+        for k in self.application_properties.keys():
             if isinstance(k, str):
                 # strings and their subclasses
                 if type(k) is symbol or type(k) is char:
@@ -170,9 +170,12 @@ class Message(object):
                 )
         # Make the key changes
         for old_key, new_key in changed_keys:
-            self.properties[new_key] = self.properties.pop(old_key)
+            self.application_properties[new_key] = self.application_properties.pop(
+                old_key
+            )
 
     def _pre_encode(self) -> None:
+
         inst = Data(pn_message_instructions(self._msg))
         ann = Data(pn_message_annotations(self._msg))
         props = Data(pn_message_properties(self._msg))
@@ -185,9 +188,9 @@ class Message(object):
         if self.annotations is not None:
             ann.put_object(self.annotations)
         props.clear()
-        if self.properties is not None:
+        if self.application_properties is not None:
             self._check_property_keys()
-            props.put_object(self.properties)
+            props.put_object(self.application_properties)
         body.clear()
         if self.body is not None:
             body.put_object(self.body)
@@ -207,9 +210,9 @@ class Message(object):
         else:
             self.annotations = None
         if props.next():
-            self.properties = props.get_object()
+            self.application_properties = props.get_object()
         else:
-            self.properties = None
+            self.application_properties = None
         if body.next():
             self.body = body.get_object()
         else:
@@ -223,7 +226,7 @@ class Message(object):
         pn_message_clear(self._msg)
         self.instructions = None
         self.annotations = None
-        self.properties = None
+        self.application_properties = None
         self.body = None
 
     @property
@@ -642,7 +645,7 @@ class Message(object):
             "reply_to_group_id",
             "instructions",
             "annotations",
-            "properties",
+            "application_properties",
             "body",
         ):
             value = getattr(self, attr)

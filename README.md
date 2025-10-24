@@ -1,5 +1,5 @@
 ## RabbitMQ AMQP 1.0 Python Client
-This library is meant to be used with RabbitMQ 4.0. Suitable for testing in pre-production environments.
+This library is meant to be used with RabbitMQ `4.x`. Suitable for testing in pre-production environments.
 
 The client is distributed via [`PIP`](https://pypi.org/project/rabbitmq-amqp-python-client/):
 ```bash

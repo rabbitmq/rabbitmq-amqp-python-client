@@ -11,13 +11,14 @@ from typing import (
 )
 
 import typing_extensions
+from packaging import version
 
 from .address_helper import validate_address
 from .consumer import Consumer
 from .entities import (
+    ConsumerOptions,
     OAuth2Options,
     RecoveryConfiguration,
-    StreamOptions,
 )
 from .exceptions import (
     ArgumentOutOfRangeException,
@@ -166,6 +167,87 @@ class Connection:
                 password=self._password,
             )
 
+        self._validate_server_properties()
+
+    def _validate_server_properties(self) -> None:
+        """
+        Validate the server properties returned in the connection handshake.
+
+        Checks that the server is RabbitMQ and the version is >= 4.0.0.
+
+        Raises:
+            ValidationCodeException: If server is not RabbitMQ or version < 4.0.0
+        """
+        if self._conn is None or self._conn.conn is None:
+            raise ValidationCodeException("Connection not established")
+
+        remote_props = self._conn.conn.remote_properties
+        if remote_props is None:
+            raise ValidationCodeException("No remote properties received from server")
+
+        # Check if server is RabbitMQ
+        product = remote_props.get("product")
+        if product != "RabbitMQ":
+            raise ValidationCodeException(
+                f"Connection to non-RabbitMQ server detected. "
+                f"Expected 'RabbitMQ', got '{product}'"
+            )
+
+        # Check server version is >= 4.0.0
+        server_version = remote_props.get("version")
+        if server_version is None:
+            raise ValidationCodeException("Server version not provided")
+
+        try:
+            if version.parse(str(server_version)) < version.parse("4.0.0"):
+                raise ValidationCodeException(
+                    f"The AMQP client library requires RabbitMQ 4.0.0 or higher. "
+                    f"Server version: {server_version}"
+                )
+        except Exception as e:
+            raise ValidationCodeException(
+                f"Failed to parse server version '{server_version}': {e}"
+            )
+
+        logger.debug(f"Connected to RabbitMQ server version {server_version}")
+
+    def _is_server_version_gte(self, target_version: str) -> bool:
+        """
+        Check if the server version is greater than or equal to version.
+
+        This is an internal method that can be used to conditionally enable
+        features that require RabbitMQ version or higher.
+
+        Returns:
+            bool: True if server version >= version, False otherwise
+
+        Raises:
+            ValidationCodeException: If connection is not established or
+                                   remote properties are not available
+        """
+        if self._conn is None or self._conn.conn is None:
+            raise ValidationCodeException("Connection not established")
+
+        remote_props = self._conn.conn.remote_properties
+        if remote_props is None:
+            raise ValidationCodeException("No remote properties received from server")
+
+        server_version = remote_props.get("version")
+        if server_version is None:
+            raise ValidationCodeException("Server version not provided")
+
+        try:
+            srv = version.parse(str(server_version))
+            trg = version.parse(target_version)
+            # compare the version even if it contains pre-release or build metadata
+            return (
+                version.parse("{}.{}.{}".format(srv.major, srv.minor, srv.micro)) >= trg
+            )
+        except Exception as e:
+            raise ValidationCodeException(
+                f"Failed to parse server version '{server_version}': {e}"
+            )
+
     def dial(self) -> None:
         """
         Establish a connection to the AMQP server.
@@ -286,7 +368,7 @@ class Connection:
             ArgumentOutOfRangeException: If destination address format is invalid
         """
         if destination != "":
-            if validate_address(destination) is False:
+            if not validate_address(destination):
                 raise ArgumentOutOfRangeException(
                     "destination address must start with /queues or /exchanges"
                 )
@@ -299,7 +381,7 @@ class Connection:
         self,
         destination: str,
         message_handler: Optional[MessagingHandler] = None,
-        stream_filter_options: Optional[StreamOptions] = None,
+        consumer_options: Optional[ConsumerOptions] = None,
         credit: Optional[int] = None,
     ) -> Consumer:
         """
@@ -308,7 +390,7 @@ class Connection:
         Args:
             destination: The address to consume from
             message_handler: Optional handler for processing messages
-            stream_filter_options: Optional configuration for stream consumption
+            consumer_options: Optional configuration for queue consumption. Each queue has its own consumer options.
             credit: Optional credit value for flow control
 
         Returns:
@@ -317,12 +399,20 @@ class Connection:
         Raises:
             ArgumentOutOfRangeException: If destination address format is invalid
         """
-        if validate_address(destination) is False:
+        if not validate_address(destination):
             raise ArgumentOutOfRangeException(
                 "destination address must start with /queues or /exchanges"
             )
+        if consumer_options is not None:
+            consumer_options.validate(
+                {
+                    "4.0.0": self._is_server_version_gte("4.0.0"),
+                    "4.1.0": self._is_server_version_gte("4.1.0"),
+                    "4.2.0": self._is_server_version_gte("4.2.0"),
+                }
+            )
         consumer = Consumer(
-            self._conn, destination, message_handler, stream_filter_options, credit
+            self._conn, destination, message_handler, consumer_options, credit
         )
         self._consumers.append(consumer)
         return consumer

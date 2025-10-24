@@ -482,7 +482,7 @@ class Connection(Wrapper, Endpoint):
         return c and SymbolList(c)
 
     @property
-    def remote_properties(self):
+    def remote_properties(self) -> Optional[Data]:
         """
         The properties specified by the remote peer for this connection.
 

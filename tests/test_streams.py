@@ -1,10 +1,23 @@
+import time
+
 from rabbitmq_amqp_python_client import (
     AddressHelper,
+    AMQPMessagingHandler,
     Connection,
+    Converter,
     Environment,
     OffsetSpecification,
-    StreamOptions,
+    StreamConsumerOptions,
     StreamSpecification,
+    ValidationCodeException,
+)
+from rabbitmq_amqp_python_client.entities import (
+    MessageProperties,
+    StreamFilterOptions,
+)
+from rabbitmq_amqp_python_client.qpid.proton import (
+    Event,
+    Message,
 )
 
 from .conftest import (
@@ -18,7 +31,6 @@ from .utils import publish_messages
 def test_stream_read_from_last_default(
     connection: Connection, environment: Environment
 ) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_validation"
     messages_to_send = 10
@@ -43,16 +55,14 @@ def test_stream_read_from_last_default(
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 def test_stream_read_from_last(
     connection: Connection, environment: Environment
 ) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_validation"
     messages_to_send = 10
@@ -72,7 +82,7 @@ def test_stream_read_from_last(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),
-            stream_filter_options=StreamOptions(
+            consumer_options=StreamConsumerOptions(
                 offset_specification=OffsetSpecification.last
             ),
         )
@@ -81,16 +91,14 @@ def test_stream_read_from_last(
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 def test_stream_read_from_offset_zero(
     connection: Connection, environment: Environment
 ) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_validation"
     messages_to_send = 10
@@ -112,23 +120,21 @@ def test_stream_read_from_offset_zero(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(0),
-            stream_filter_options=StreamOptions(offset_specification=0),
+            consumer_options=StreamConsumerOptions(offset_specification=0),
         )
 
         consumer.run()
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 def test_stream_read_from_offset_first(
     connection: Connection, environment: Environment
 ) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_validation"
     messages_to_send = 10
@@ -150,23 +156,21 @@ def test_stream_read_from_offset_first(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(0),
-            stream_filter_options=StreamOptions(OffsetSpecification.first),
+            consumer_options=StreamConsumerOptions(OffsetSpecification.first),
         )
 
         consumer.run()
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 def test_stream_read_from_offset_ten(
     connection: Connection, environment: Environment
 ) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_validation"
     messages_to_send = 20
@@ -188,7 +192,7 @@ def test_stream_read_from_offset_ten(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(10),
-            stream_filter_options=StreamOptions(offset_specification=10),
+            consumer_options=StreamConsumerOptions(offset_specification=10),
         )
 
         consumer.run()
@@ -196,14 +200,12 @@ def test_stream_read_from_offset_ten(
     # this will finish after 10 messages read
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 def test_stream_filtering(connection: Connection, environment: Environment) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_filtering"
     messages_to_send = 10
@@ -224,7 +226,9 @@ def test_stream_filtering(connection: Connection, environment: Environment) -> N
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),
-            stream_filter_options=StreamOptions(filters=["banana"]),
+            consumer_options=StreamConsumerOptions(
+                filter_options=StreamFilterOptions(values=["banana"])
+            ),
         )
         # send with annotations filter banana
         publish_messages(connection, messages_to_send, stream_name, ["banana"])
@@ -232,16 +236,14 @@ def test_stream_filtering(connection: Connection, environment: Environment) -> N
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 def test_stream_filtering_mixed(
     connection: Connection, environment: Environment
 ) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_filtering"
     messages_to_send = 10
@@ -262,7 +264,9 @@ def test_stream_filtering_mixed(
             addr_queue,
             # check we are reading just from offset 10 as just banana filtering applies
             message_handler=MyMessageHandlerAcceptStreamOffset(10),
-            stream_filter_options=StreamOptions(filters=["banana"]),
+            consumer_options=StreamConsumerOptions(
+                filter_options=StreamFilterOptions(values=["banana"])
+            ),
         )
         # send with annotations filter apple and then banana
         # consumer will read just from offset 10
@@ -272,16 +276,14 @@ def test_stream_filtering_mixed(
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 def test_stream_filtering_not_present(
     connection: Connection, environment: Environment
 ) -> None:
-
     raised = False
     stream_name = "test_stream_info_with_filtering"
     messages_to_send = 10
@@ -299,7 +301,10 @@ def test_stream_filtering_not_present(
     connection_consumer.dial()
 
     consumer = connection_consumer.consumer(
-        addr_queue, stream_filter_options=StreamOptions(filters=["apple"])
+        addr_queue,
+        consumer_options=StreamConsumerOptions(
+            filter_options=StreamFilterOptions(values=["apple"])
+        ),
     )
     # send with annotations filter banana
     publish_messages(connection, messages_to_send, stream_name, ["banana"])
@@ -320,7 +325,6 @@ def test_stream_filtering_not_present(
 def test_stream_match_unfiltered(
     connection: Connection, environment: Environment
 ) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_filtering"
     messages_to_send = 10
@@ -340,8 +344,10 @@ def test_stream_match_unfiltered(
         consumer = connection_consumer.consumer(
             addr_queue,
             message_handler=MyMessageHandlerAcceptStreamOffset(),
-            stream_filter_options=StreamOptions(
-                filters=["banana"], filter_match_unfiltered=True
+            consumer_options=StreamConsumerOptions(
+                filter_options=StreamFilterOptions(
+                    values=["banana"], match_unfiltered=True
+                )
             ),
         )
         # send with annotations filter banana
@@ -350,16 +356,14 @@ def test_stream_match_unfiltered(
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
 
 def test_stream_reconnection(
     connection_with_reconnect: Connection, environment: Environment
 ) -> None:
-
     consumer = None
     stream_name = "test_stream_info_with_filtering"
     messages_to_send = 10
@@ -380,8 +384,10 @@ def test_stream_reconnection(
             addr_queue,
             # disconnection and check happens here
             message_handler=MyMessageHandlerAcceptStreamOffsetReconnect(),
-            stream_filter_options=StreamOptions(
-                filters=["banana"], filter_match_unfiltered=True
+            consumer_options=StreamConsumerOptions(
+                filter_options=StreamFilterOptions(
+                    values=["banana"], match_unfiltered=True
+                )
             ),
         )
         # send with annotations filter banana
@@ -390,7 +396,313 @@ def test_stream_reconnection(
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
+    finally:
+        consumer.close()
+        management.delete_queue(stream_name)
 
-    consumer.close()
 
+class MyMessageHandlerMessagePropertiesFilter(AMQPMessagingHandler):
+    def __init__(
+        self,
+    ):
+        super().__init__()
+
+    def on_message(self, event: Event):
+        self.delivery_context.accept(event)
+        assert event.message.subject == "important_15"
+        assert event.message.group_id == "group_15"
+        assert event.message.body == Converter.string_to_bytes("hello_15")
+        raise ConsumerTestException("consumed")
+
+
+def test_stream_filter_message_properties(
+    connection: Connection, environment: Environment
+) -> None:
+    consumer = None
+    stream_name = "test_stream_filter_message_properties"
+    messages_to_send = 30
+
+    queue_specification = StreamSpecification(
+        name=stream_name,
+    )
+    management = connection.management()
+    management.declare_queue(queue_specification)
+
+    addr_queue = AddressHelper.queue_address(stream_name)
+
+    # consume and then publish
+    try:
+        connection_consumer = environment.connection()
+        connection_consumer.dial()
+        consumer = connection_consumer.consumer(
+            addr_queue,
+            message_handler=MyMessageHandlerMessagePropertiesFilter(),
+            consumer_options=StreamConsumerOptions(
+                filter_options=StreamFilterOptions(
+                    message_properties=MessageProperties(
+                        subject="important_15", group_id="group_15"
+                    )
+                )
+            ),
+        )
+        publisher = connection.publisher(addr_queue)
+        for i in range(messages_to_send):
+            msg = Message(
+                body=Converter.string_to_bytes("hello_{}".format(i)),
+                subject="important_{}".format(i),
+                group_id="group_{}".format(i),
+            )
+            publisher.publish(msg)
+
+        publisher.close()
+
+        consumer.run()
+    # ack to terminate the consumer
+    except ConsumerTestException:
+        pass
+    finally:
+        if consumer is not None:
+            consumer.close()
+        management.delete_queue(stream_name)
+
+
+class MyMessageHandlerApplicationPropertiesFilter(AMQPMessagingHandler):
+    def __init__(
+        self,
+    ):
+        super().__init__()
+
+    def on_message(self, event: Event):
+        self.delivery_context.accept(event)
+        assert event.message.application_properties == {"key": "value_17"}
+        raise ConsumerTestException("consumed")
+
+
+def test_stream_filter_application_properties(
+    connection: Connection, environment: Environment
+) -> None:
+    consumer = None
+    stream_name = "test_stream_application_message_properties"
+    messages_to_send = 30
+
+    queue_specification = StreamSpecification(
+        name=stream_name,
+    )
+    management = connection.management()
+    management.declare_queue(queue_specification)
+
+    addr_queue = AddressHelper.queue_address(stream_name)
+
+    # consume and then publish
+    try:
+        connection_consumer = environment.connection()
+        connection_consumer.dial()
+        consumer = connection_consumer.consumer(
+            addr_queue,
+            message_handler=MyMessageHandlerApplicationPropertiesFilter(),
+            consumer_options=StreamConsumerOptions(
+                filter_options=StreamFilterOptions(
+                    application_properties={"key": "value_17"},
+                )
+            ),
+        )
+        publisher = connection.publisher(addr_queue)
+        for i in range(messages_to_send):
+            msg = Message(
+                body=Converter.string_to_bytes("hello_{}".format(i)),
+                application_properties={"key": "value_{}".format(i)},
+            )
+            publisher.publish(msg)
+
+        publisher.close()
+
+        consumer.run()
+    # ack to terminate the consumer
+    except ConsumerTestException:
+        pass
+    finally:
+        if consumer is not None:
+            consumer.close()
+        management.delete_queue(stream_name)
+
+
+class MyMessageHandlerSQLFilter(AMQPMessagingHandler):
+    def __init__(
+        self,
+    ):
+        super().__init__()
+
+    def on_message(self, event: Event):
+        self.delivery_context.accept(event)
+        assert event.message.body == Converter.string_to_bytes("the_right_one_sql")
+        assert event.message.subject == "something_in_the_filter"
+        assert event.message.reply_to == "the_reply_to"
+        assert (
+            event.message.application_properties["a_in_the_filter_key"]
+            == "a_in_the_filter_value"
+        )
+
+        raise ConsumerTestException("consumed")
+
+
+def test_stream_filter_sql(connection: Connection, environment: Environment) -> None:
+    consumer = None
+    stream_name = "test_stream_filter_sql"
+    messages_to_send = 30
+
+    queue_specification = StreamSpecification(
+        name=stream_name,
+    )
+    management = connection.management()
     management.delete_queue(stream_name)
+    management.declare_queue(queue_specification)
+
+    addr_queue = AddressHelper.queue_address(stream_name)
+    sql = (
+        "properties.subject LIKE '%in_the_filter%' AND properties.reply_to = 'the_reply_to' "
+        "AND a_in_the_filter_key = 'a_in_the_filter_value'"
+    )
+    try:
+        connection_consumer = environment.connection()
+        connection_consumer.dial()
+        consumer = connection_consumer.consumer(
+            addr_queue,
+            message_handler=MyMessageHandlerSQLFilter(),
+            consumer_options=StreamConsumerOptions(
+                filter_options=StreamFilterOptions(sql=sql)
+            ),
+        )
+        publisher = connection.publisher(addr_queue)
+        # won't match
+        for i in range(messages_to_send):
+            msg = Message(
+                body=Converter.string_to_bytes("hello_{}".format(i)),
+            )
+            publisher.publish(msg)
+
+        # the only one that will match
+        msqMatch = Message(
+            body=Converter.string_to_bytes("the_right_one_sql"),
+            subject="something_in_the_filter",
+            reply_to="the_reply_to",
+            application_properties={"a_in_the_filter_key": "a_in_the_filter_value"},
+        )
+
+        publisher.publish(msqMatch)
+
+        publisher.close()
+
+        consumer.run()
+        # ack to terminate the consumer
+    except ConsumerTestException:
+        pass
+    finally:
+        if consumer is not None:
+            consumer.close()
+        management.delete_queue(stream_name)
+
+
+class MyMessageHandlerMixingDifferentFilters(AMQPMessagingHandler):
+    def __init__(
+        self,
+    ):
+        super().__init__()
+
+    def on_message(self, event: Event):
+        self.delivery_context.accept(event)
+        assert event.message.annotations["x-stream-filter-value"] == "the_value_filter"
+        assert event.message.application_properties == {"key": "app_value_9999"}
+        assert event.message.subject == "important_9999"
+        assert event.message.body == Converter.string_to_bytes("the_right_one_9999")
+        raise ConsumerTestException("consumed")
+
+
+def test_stream_filter_mixing_different(
+    connection: Connection, environment: Environment
+) -> None:
+    consumer = None
+    stream_name = "test_stream_filter_mixing_different"
+    messages_to_send = 30
+
+    queue_specification = StreamSpecification(
+        name=stream_name,
+    )
+    management = connection.management()
+    management.delete_queue(stream_name)
+    management.declare_queue(queue_specification)
+
+    addr_queue = AddressHelper.queue_address(stream_name)
+
+    # consume and then publish
+    try:
+        connection_consumer = environment.connection()
+        connection_consumer.dial()
+        consumer = connection_consumer.consumer(
+            addr_queue,
+            message_handler=MyMessageHandlerMixingDifferentFilters(),
+            consumer_options=StreamConsumerOptions(
+                filter_options=StreamFilterOptions(
+                    values=["the_value_filter"],
+                    application_properties={"key": "app_value_9999"},
+                    message_properties=MessageProperties(subject="important_9999"),
+                )
+            ),
+        )
+        publisher = connection.publisher(addr_queue)
+        # all these messages will be filtered out
+        for i in range(messages_to_send):
+            msg = Message(
+                body=Converter.string_to_bytes("hello_{}".format(i)),
+            )
+            publisher.publish(msg)
+
+        time.sleep(1)  # wait a bit to ensure messages are published in different chunks
+        msg = Message(
+            body=Converter.string_to_bytes("the_right_one_9999"),
+            annotations={"x-stream-filter-value": "the_value_filter"},
+            application_properties={"key": "app_value_9999"},
+            subject="important_9999",
+        )
+        publisher.publish(msg)
+
+        publisher.close()
+
+        consumer.run()
+    # ack to terminate the consumer
+    except ConsumerTestException:
+        pass
+    finally:
+        if consumer is not None:
+            consumer.close()
+        management.delete_queue(stream_name)
+
+
+def test_consumer_options_validation() -> None:
+    try:
+        x = StreamConsumerOptions(filter_options=StreamFilterOptions(sql="test"))
+        x.validate({"4.0.0": True, "4.1.0": False, "4.2.0": False})
+        assert False
+    except ValidationCodeException:
+        assert True
+
+    try:
+        x = StreamConsumerOptions(
+            filter_options=StreamFilterOptions(
+                message_properties=MessageProperties(subject="important_9999")
+            )
+        )
+        x.validate({"4.0.0": True, "4.1.0": True, "4.2.0": False})
+        assert True
+    except ValidationCodeException:
+        assert False
+
+    try:
+        x = StreamConsumerOptions(
+            filter_options=StreamFilterOptions(
+                application_properties={"key": "app_value_9999"}
+            )
+        )
+        x.validate({"4.0.0": True, "4.1.0": True, "4.2.0": False})
+        assert True
+    except ValidationCodeException:
+        assert False

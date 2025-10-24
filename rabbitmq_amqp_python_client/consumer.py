@@ -2,7 +2,7 @@ import logging
 from typing import Literal, Optional, Union, cast
 
 from .amqp_consumer_handler import AMQPMessagingHandler
-from .entities import StreamOptions
+from .entities import ConsumerOptions
 from .options import (
     ReceiverOptionUnsettled,
     ReceiverOptionUnsettledWithFilters,
@@ -29,7 +29,7 @@ class Consumer:
         _conn (BlockingConnection): The underlying connection to RabbitMQ
         _addr (str): The address to consume from
         _handler (Optional[MessagingHandler]): Optional message handling callback
-        _stream_options (Optional[StreamOptions]): Configuration for stream consumption
+        _stream_options (Optional[StreamConsumerOptions]): Configuration for stream consumption
         _credit (Optional[int]): Flow control credit value
     """
 
@@ -38,7 +38,7 @@ class Consumer:
         conn: BlockingConnection,
         addr: str,
         handler: Optional[AMQPMessagingHandler] = None,
-        stream_options: Optional[StreamOptions] = None,
+        stream_options: Optional[ConsumerOptions] = None,
         credit: Optional[int] = None,
     ):
         """
@@ -62,7 +62,7 @@ class Consumer:
 
     def _open(self) -> None:
         if self._receiver is None:
-            logger.debug("Creating Sender")
+            logger.debug("Creating Receiver")
             self._receiver = self._create_receiver(self._addr)
 
     def _update_connection(self, conn: BlockingConnection) -> None:

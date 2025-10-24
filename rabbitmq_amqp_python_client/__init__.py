@@ -6,14 +6,17 @@ from .common import ExchangeType, QueueType
 from .connection import Connection
 from .consumer import Consumer
 from .entities import (
+    ConsumerOptions,
     ExchangeCustomSpecification,
     ExchangeSpecification,
     ExchangeToExchangeBindingSpecification,
     ExchangeToQueueBindingSpecification,
+    MessageProperties,
     OAuth2Options,
     OffsetSpecification,
     RecoveryConfiguration,
-    StreamOptions,
+    StreamConsumerOptions,
+    StreamFilterOptions,
 )
 from .environment import Environment
 from .exceptions import (
@@ -85,7 +88,10 @@ __all__ = [
     "CurrentUserStore",
     "PKCS12Store",
     "ConnectionClosed",
-    "StreamOptions",
+    "StreamConsumerOptions",
+    "StreamFilterOptions",
+    "ConsumerOptions",
+    "MessageProperties",
     "OffsetSpecification",
     "OutcomeState",
     "Environment",
