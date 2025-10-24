@@ -15,6 +15,9 @@ Inside the [examples](./examples) folder you can find a set of examples that sho
 
 [Client Guide](https://www.rabbitmq.com/client-libraries/amqp-client-libraries) select the python section.
 
+### Client Limitations
+It is not possible to set message durable to False because of this [issue](https://github.com/rabbitmq/rabbitmq-amqp-python-client/issues/83)
+
 
 ### Build
 
@@ -33,8 +36,7 @@ To run TLS you need to:
 - export CFLAGS="-I/usr/local/opt/openssl/include"; pip install python-qpid-proton --verbose --no-cache-dir
 ```
 
-Read more about the issue [here](https://stackoverflow.com/questions/44979947/python-qpid-proton-for-mac-using-amqps 
-)
+Read more about the issue [here](https://stackoverflow.com/questions/44979947/python-qpid-proton-for-mac-using-amqps)
 
 
 
