@@ -466,9 +466,9 @@ def test_durable_message(connection: Connection) -> None:
     # message should be not durable by setting the durable to False by the user
 
     m = Message(
-            body=Converter.string_to_bytes("not durable"),
-            durable=False,
-        )
+        body=Converter.string_to_bytes("not durable"),
+        durable=False,
+    )
     status = publisher.publish(m)
 
     assert status.remote_state == OutcomeState.ACCEPTED
@@ -479,7 +479,8 @@ def test_durable_message(connection: Connection) -> None:
     # it does not work due of https://github.com/rabbitmq/rabbitmq-amqp-python-client/issues/83
     # should_be_not_durable = consumer.consume()
     # assert should_be_not_durable.durable is False
-    message_count = management.purge_queue(queue_name)
+    # message_count = management.purge_queue(queue_name)
+    management.purge_queue(queue_name)
     # assert message_count == 0
     management.delete_queue(queue_name)
     consumer.close()
