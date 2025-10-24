@@ -476,6 +476,7 @@ def test_durable_message(connection: Connection) -> None:
     consumer = connection.consumer(destination)
     should_be_durable = consumer.consume()
     assert should_be_durable.durable is True
+    consumer.close()
     # it does not work due of https://github.com/rabbitmq/rabbitmq-amqp-python-client/issues/83
     # should_be_not_durable = consumer.consume()
     # assert should_be_not_durable.durable is False
@@ -483,4 +484,3 @@ def test_durable_message(connection: Connection) -> None:
     management.purge_queue(queue_name)
     # assert message_count == 0
     management.delete_queue(queue_name)
-    consumer.close()
