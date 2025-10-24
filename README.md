@@ -15,10 +15,6 @@ Inside the [examples](./examples) folder you can find a set of examples that sho
 
 [Client Guide](https://www.rabbitmq.com/client-libraries/amqp-client-libraries) select the python section.
 
-### Client Limitations
-It is not possible to set message durability to `False` for classic queues because of this [issue](https://github.com/rabbitmq/rabbitmq-amqp-python-client/issues/83). <br/> 
-Quorum and Stream are always durable. 
-
 
 ### Build
 
