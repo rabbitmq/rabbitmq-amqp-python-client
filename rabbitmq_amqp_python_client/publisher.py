@@ -8,6 +8,7 @@ from .exceptions import (
 )
 from .options import SenderOptionUnseattle
 from .qpid.proton._delivery import Delivery
+from .qpid.proton._endpoints import Endpoint
 from .qpid.proton._message import Message
 from .qpid.proton.utils import (
     BlockingConnection,
@@ -110,16 +111,24 @@ class Publisher:
         logger.debug("Closing Sender")
         if self.is_open:
             self._sender.close()  # type: ignore
+            self._sender = None
             if self in self._publishers:
                 self._publishers.remove(self)
 
     def _create_sender(self, addr: str) -> BlockingSender:
         return self._conn.create_sender(addr, options=SenderOptionUnseattle(addr))
 
+    def _is_sender_closed(self) -> bool:
+        if self._sender is None:
+            return True
+        return bool(
+            self._sender.link.state & (Endpoint.LOCAL_CLOSED | Endpoint.REMOTE_CLOSED)
+        )
+
     @property
     def is_open(self) -> bool:
         """Check if publisher is open and ready to send messages."""
-        return self._sender is not None
+        return self._sender is not None and not self._is_sender_closed()
 
     @property
     def address(self) -> str:
