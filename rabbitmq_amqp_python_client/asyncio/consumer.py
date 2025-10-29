@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from types import TracebackType
-from typing import Literal, Optional, Type, Union
+from typing import Callable, Literal, Optional, Type, Union
 
 from ..amqp_consumer_handler import AMQPMessagingHandler
 from ..consumer import Consumer
@@ -30,6 +30,11 @@ class AsyncConsumer:
         self._loop = loop
         self._connection_lock = connection_lock or asyncio.Lock()
 
+    def _set_remove_callback(
+        self, callback: Optional[Callable[["AsyncConsumer"], None]]
+    ) -> None:
+        self._remove_callback = callback
+
     async def consume(
         self, timeout: Union[None, Literal[False], float] = False
     ) -> Message:
@@ -41,6 +46,9 @@ class AsyncConsumer:
     async def close(self) -> None:
         async with self._connection_lock:
             await self._event_loop.run_in_executor(None, self._consumer.close)
+
+        if self._remove_callback is not None:
+            self._remove_callback(self)
 
     async def run(self) -> None:
         async with self._connection_lock:

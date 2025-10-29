@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 from ..entities import (
     ExchangeCustomSpecification,
@@ -35,6 +35,11 @@ class AsyncManagement:
         self._loop = loop
         self._connection_lock = connection_lock or asyncio.Lock()
 
+    def _set_remove_callback(
+        self, callback: Optional[Callable[["AsyncManagement"], None]]
+    ) -> None:
+        self._remove_callback = callback
+
     async def open(self) -> None:
         async with self._connection_lock:
             await self._event_loop.run_in_executor(None, self._management.open)
@@ -42,6 +47,9 @@ class AsyncManagement:
     async def close(self) -> None:
         async with self._connection_lock:
             await self._event_loop.run_in_executor(None, self._management.close)
+
+        if self._remove_callback is not None:
+            self._remove_callback(self)
 
     async def request(
         self,

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from types import TracebackType
-from typing import Optional, Type
+from typing import Callable, Optional, Type
 
 from ..publisher import Publisher
 from ..qpid.proton._delivery import Delivery
@@ -25,6 +25,12 @@ class AsyncPublisher:
         self._publisher = Publisher(conn, addr)
         self._loop = loop
         self._connection_lock = connection_lock or asyncio.Lock()
+        self._remove_callback = None
+
+    def _set_remove_callback(
+        self, callback: Optional[Callable[["AsyncPublisher"], None]]
+    ) -> None:
+        self._remove_callback = callback
 
     async def publish(self, message: Message) -> Delivery:
         async with self._connection_lock:
@@ -37,6 +43,9 @@ class AsyncPublisher:
             return
         async with self._connection_lock:
             await self._event_loop.run_in_executor(None, self._publisher.close)
+
+        if self._remove_callback is not None:
+            self._remove_callback(self)
 
     async def __aenter__(self) -> "AsyncPublisher":
         return self

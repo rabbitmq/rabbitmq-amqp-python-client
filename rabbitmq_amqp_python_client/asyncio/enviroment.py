@@ -44,6 +44,10 @@ class AsyncEnvironment:
         self._connections: list[AsyncConnection] = []
         self._connections_lock = asyncio.Lock()
 
+    def _remove_connection(self, connection: AsyncConnection) -> None:
+        if connection in self._connections:
+            self._connections.remove(connection)
+
     async def connection(self) -> AsyncConnection:
         async with self._connections_lock:
             connection = AsyncConnection(
@@ -56,6 +60,9 @@ class AsyncEnvironment:
             )
             logger.debug("AsyncEnvironment: Creating new async connection")
             self._connections.append(connection)
+
+            connection._set_remove_callback(self._remove_connection)
+
             return connection
 
     async def close(self) -> None:
@@ -72,7 +79,9 @@ class AsyncEnvironment:
                 logger.error(f"Exception closing async connection: {e}")
 
         if errors:
-            raise RuntimeError(f"Errors closing async connections: {'; '.join(errors)}")
+            raise RuntimeError(
+                f"Errors closing async connections: {'; '.join([str(e) for e in errors])}"
+            )
 
     async def connections(self) -> list[AsyncConnection]:
         return self._connections

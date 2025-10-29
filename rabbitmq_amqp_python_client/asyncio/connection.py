@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Optional, Union
+from typing import Callable, Optional, Union
 
 from ..address_helper import validate_address
 from ..connection import Connection
@@ -52,10 +52,47 @@ class AsyncConnection:
         self._async_publishers: list[AsyncPublisher] = []
         self._async_consumers: list[AsyncConsumer] = []
         self._async_managements: list[AsyncManagement] = []
+        self._remove_callback = None
 
     async def dial(self) -> None:
         async with self._connection_lock:
             await self._event_loop.run_in_executor(None, self._connection.dial)
+
+    def _set_remove_callback(
+        self, callback: Optional[Callable[["AsyncConnection"], None]]
+    ) -> None:
+        self._remove_callback = callback
+
+    def _remove_publisher(self, publisher: AsyncPublisher) -> None:
+        if publisher in self._async_publishers:
+            self._async_publishers.remove(publisher)
+
+    def _remove_consumer(self, consumer: AsyncConsumer) -> None:
+        if consumer in self._async_consumers:
+            self._async_consumers.remove(consumer)
+
+    def _remove_management(self, management: AsyncManagement) -> None:
+        if management in self._async_managements:
+            self._async_managements.remove(management)
+
+    async def close(self) -> None:
+        logger.debug("Closing async connection")
+        try:
+            for async_publisher in self._async_publishers[:]:
+                await async_publisher.close()
+            for async_consumer in self._async_consumers[:]:
+                await async_consumer.close()
+            for async_management in self._async_managements[:]:
+                await async_management.close()
+
+            async with self._connection_lock:
+                await self._event_loop.run_in_executor(None, self._connection.close)
+
+            if self._remove_callback is not None:
+                self._remove_callback(self)
+        except Exception as e:
+            logger.error(f"Error closing async connections: {e}")
+            raise e
 
     def _set_connection_managements(self, management: Management) -> None:
         if len(self._connection._managements) == 0:
@@ -81,26 +118,12 @@ class AsyncConnection:
                 )  # TODO: check this
                 self._async_managements.append(async_management)
 
+                async_management._set_remove_callback(self._remove_management)
+
         if async_management is not None:
             await async_management.open()
 
         return self._async_managements[0]
-
-    async def close(self) -> None:
-        logger.debug("Closing async connection")
-        try:
-            for async_publisher in self._async_publishers[:]:
-                await async_publisher.close()
-            for async_consumer in self._async_consumers[:]:
-                await async_consumer.close()
-            for async_management in self._async_managements[:]:
-                await async_management.close()
-
-            async with self._connection_lock:
-                await self._event_loop.run_in_executor(None, self._connection.close)
-        except Exception as e:
-            logger.error(f"Error closing async connection: {e}")
-            raise e
 
     def _set_connection_publishers(self, publisher: Publisher) -> None:
         publisher._set_publishers_list(
@@ -126,6 +149,9 @@ class AsyncConnection:
                 async_publisher._publisher
             )  # TODO: check this
             self._async_publishers.append(async_publisher)
+
+            async_publisher._set_remove_callback(self._remove_publisher)
+
             return async_publisher
 
     def _set_connection_consumers(self, consumer: Consumer) -> None:
@@ -163,6 +189,9 @@ class AsyncConnection:
             )
             self._set_connection_consumers(async_consumer._consumer)  # TODO: check this
             self._async_consumers.append(async_consumer)
+
+            async_consumer._set_remove_callback(self._remove_consumer)
+
             return async_consumer
 
     async def refresh_token(self, token: str) -> None:
@@ -187,7 +216,7 @@ class AsyncConnection:
 
     @property
     def _event_loop(self) -> asyncio.AbstractEventLoop:
-        return self._loop or asyncio.get_event_loop()
+        return self._loop or asyncio.get_running_loop()
 
     @property
     def active_producers(self) -> int:
