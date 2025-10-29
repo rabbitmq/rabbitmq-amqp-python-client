@@ -41,11 +41,16 @@ class AsyncPublisher:
     async def close(self) -> None:
         if not self.is_open:
             return
-        async with self._connection_lock:
-            await self._event_loop.run_in_executor(None, self._publisher.close)
-
-        if self._remove_callback is not None:
-            self._remove_callback(self)
+    
+        try:
+            async with self._connection_lock:
+                await self._event_loop.run_in_executor(None, self._publisher.close)
+        except Exception as e:
+            logger.error(f"Error closing publisher: {e}")
+            raise
+        finally:
+            if self._remove_callback is not None:
+                self._remove_callback(self)
 
     async def __aenter__(self) -> "AsyncPublisher":
         return self
@@ -64,6 +69,7 @@ class AsyncPublisher:
 
     @property
     def is_open(self) -> bool:
+        print( self._publisher.is_open )
         return self._publisher.is_open
 
     @property

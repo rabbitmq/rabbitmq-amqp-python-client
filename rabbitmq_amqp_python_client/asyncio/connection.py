@@ -87,12 +87,12 @@ class AsyncConnection:
 
             async with self._connection_lock:
                 await self._event_loop.run_in_executor(None, self._connection.close)
-
-            if self._remove_callback is not None:
-                self._remove_callback(self)
         except Exception as e:
             logger.error(f"Error closing async connections: {e}")
             raise e
+        finally:
+            if self._remove_callback is not None:
+                self._remove_callback(self)
 
     def _set_connection_managements(self, management: Management) -> None:
         if len(self._connection._managements) == 0:

@@ -44,11 +44,15 @@ class AsyncConsumer:
             )
 
     async def close(self) -> None:
-        async with self._connection_lock:
-            await self._event_loop.run_in_executor(None, self._consumer.close)
-
-        if self._remove_callback is not None:
-            self._remove_callback(self)
+        try:
+            async with self._connection_lock:
+                await self._event_loop.run_in_executor(None, self._consumer.close)
+        except Exception as e:
+            logger.error(f"Error closing consumer: {e}")
+            raise
+        finally:
+            if self._remove_callback is not None:
+                self._remove_callback(self)
 
     async def run(self) -> None:
         async with self._connection_lock:

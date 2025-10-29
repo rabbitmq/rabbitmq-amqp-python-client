@@ -45,11 +45,15 @@ class AsyncManagement:
             await self._event_loop.run_in_executor(None, self._management.open)
 
     async def close(self) -> None:
-        async with self._connection_lock:
-            await self._event_loop.run_in_executor(None, self._management.close)
-
-        if self._remove_callback is not None:
-            self._remove_callback(self)
+        try:
+            async with self._connection_lock:
+                await self._event_loop.run_in_executor(None, self._management.close)
+        except Exception as e:
+            logger.error(f"Error closing management: {e}")
+            raise
+        finally:
+            if self._remove_callback is not None:
+                self._remove_callback(self)
 
     async def request(
         self,
