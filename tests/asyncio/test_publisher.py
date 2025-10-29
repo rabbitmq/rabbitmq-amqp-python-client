@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 import pytest
 
@@ -7,9 +8,11 @@ from rabbitmq_amqp_python_client import (
     ArgumentOutOfRangeException,
     AsyncConnection,
     AsyncEnvironment,
+    ConnectionClosed,
     Message,
     OutcomeState,
     QuorumQueueSpecification,
+    RecoveryConfiguration,
     StreamSpecification,
     ValidationCodeException,
 )
@@ -18,6 +21,7 @@ from rabbitmq_amqp_python_client.asyncio.publisher import (
 )
 from rabbitmq_amqp_python_client.utils import Converter
 
+from ..http_requests import delete_all_connections
 from ..utils import create_binding
 from .fixtures import *  # noqa: F401, F403
 from .utils import async_publish_per_message
@@ -136,33 +140,31 @@ async def test_publish_per_message_async(async_connection: AsyncConnection) -> N
     assert raised is False
 
 
-# @pytest.mark.asyncio
-# async def test_publish_ssl(async_connection_ssl: AsyncConnection) -> None:
-#     queue_name = "test-queue"
-#     management = await async_connection_ssl.management()
+@pytest.mark.asyncio
+async def test_publish_ssl(async_connection_ssl: AsyncConnection) -> None:
+    queue_name = "test-queue"
+    management = await async_connection_ssl.management()
 
-#     await management.declare_queue(QuorumQueueSpecification(name=queue_name))
+    await management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
-#     raised = False
-#     publisher = None
+    raised = False
+    publisher = None
 
-#     try:
-#         publisher = await async_connection_ssl.publisher(
-#             destination=AddressHelper.queue_address(queue_name)
-#         )
-#         await publisher.publish(
-#             Message(body=Converter.string_to_bytes("test"))
-#         )
-#     except Exception:
-#         raised = True
+    try:
+        publisher = await async_connection_ssl.publisher(
+            destination=AddressHelper.queue_address(queue_name)
+        )
+        await publisher.publish(Message(body=Converter.string_to_bytes("test")))
+    except Exception:
+        raised = True
 
-#     if publisher is not None:
-#         await publisher.close()
+    if publisher is not None:
+        await publisher.close()
 
-#     await management.delete_queue(queue_name)
-#     await management.close()
+    await management.delete_queue(queue_name)
+    await management.close()
 
-#     assert raised is False
+    assert raised is False
 
 
 @pytest.mark.asyncio
@@ -319,62 +321,63 @@ async def test_publish_purge_async(async_connection: AsyncConnection) -> None:
     assert message_purged == 20
 
 
-# @pytest.mark.asyncio
-# async def test_disconnection_reconnection_async(async_connection: AsyncConnection) -> None:
-#     disconnected = False
-#     generic_exception_raised = False
+@pytest.mark.asyncio
+async def test_disconnection_reconnection_async(
+    async_connection: AsyncConnection,
+) -> None:
+    # disconnected = False
+    generic_exception_raised = False
 
-#     environment = AsyncEnvironment(
-#         uri="amqp://guest:guest@localhost:5672/",
-#         recovery_configuration=RecoveryConfiguration(active_recovery=True)
-#     )
+    environment = AsyncEnvironment(
+        uri="amqp://guest:guest@localhost:5672/",
+        recovery_configuration=RecoveryConfiguration(active_recovery=True),
+    )
 
-#     connection_test = await environment.connection()
+    connection_test = await environment.connection()
 
-#     await connection_test.dial()
-#     # delay
-#     time.sleep(5)
-#     messages_to_publish = 10000
-#     queue_name = "test-queue-reconnection"
-#     management = await connection_test.management()
+    await connection_test.dial()
+    # delay
+    time.sleep(5)
+    messages_to_publish = 10000
+    queue_name = "test-queue-reconnection"
+    management = await connection_test.management()
 
-#     await management.declare_queue(QuorumQueueSpecification(name=queue_name))
+    await management.declare_queue(QuorumQueueSpecification(name=queue_name))
 
-#     publisher = await connection_test.publisher(
-#         destination=AddressHelper.queue_address(queue_name)
-#     )
-#     while True:
-#         for i in range(messages_to_publish):
-#             if i == 5:
-#                 # simulate a disconnection
-#                 delete_all_connections()
-#             try:
-#                 await publisher.publish(
-#                     Message(body=Converter.string_to_bytes("test"))
-#                 )
-#             except ConnectionClosed:
-#                 disconnected = True
-#                 # TODO: check if this behavior is correct
-#                 # The underlying sync Connection handles all recovery automatically,
-#                 # hence the async wrapper transparently benefits from it.
-#                 # so the exception should is not raised
-#                 continue
-#             except Exception:
-#                 generic_exception_raised = True
+    publisher = await connection_test.publisher(
+        destination=AddressHelper.queue_address(queue_name)
+    )
+    while True:
+        for i in range(messages_to_publish):
+            if i == 5:
+                # simulate a disconnection
+                delete_all_connections()
+            try:
+                await publisher.publish(Message(body=Converter.string_to_bytes("test")))
+            except ConnectionClosed:
+                # disconnected = True
 
-#         break
+                # TODO: check if this behavior is correct
+                # The underlying sync Connection handles all recovery automatically,
+                # hence the async wrapper transparently benefits from it.
+                # so the exception should is not raised
+                continue
+            except Exception:
+                generic_exception_raised = True
 
-#     await publisher.close()
+        break
 
-#     # purge the queue and check number of published messages
-#     message_purged = await management.purge_queue(queue_name)
+    await publisher.close()
 
-#     await management.delete_queue(queue_name)
-#     await management.close()
+    # purge the queue and check number of published messages
+    message_purged = await management.purge_queue(queue_name)
 
-#     assert generic_exception_raised is False
-#     # assert disconnected is True
-#     assert message_purged == messages_to_publish - 1
+    await management.delete_queue(queue_name)
+    await management.close()
+
+    assert generic_exception_raised is False
+    # assert disconnected is True
+    assert message_purged == messages_to_publish - 1
 
 
 @pytest.mark.asyncio
