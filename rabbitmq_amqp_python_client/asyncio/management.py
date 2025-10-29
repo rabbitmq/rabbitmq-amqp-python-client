@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from typing import Any, Callable, Optional, Union
@@ -36,7 +38,7 @@ class AsyncManagement:
         self._connection_lock = connection_lock or asyncio.Lock()
 
     def _set_remove_callback(
-        self, callback: Optional[Callable[["AsyncManagement"], None]]
+        self, callback: Optional[Callable[[AsyncManagement], None]]
     ) -> None:
         self._remove_callback = callback
 
@@ -168,7 +170,7 @@ class AsyncManagement:
                 token,
             )
 
-    async def __aenter__(self) -> "AsyncManagement":
+    async def __aenter__(self) -> AsyncManagement:
         await self.open()
         return self
 

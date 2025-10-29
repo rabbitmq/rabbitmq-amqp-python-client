@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from types import TracebackType
@@ -31,7 +33,7 @@ class AsyncConsumer:
         self._connection_lock = connection_lock or asyncio.Lock()
 
     def _set_remove_callback(
-        self, callback: Optional[Callable[["AsyncConsumer"], None]]
+        self, callback: Optional[Callable[[AsyncConsumer], None]]
     ) -> None:
         self._remove_callback = callback
 
@@ -62,7 +64,7 @@ class AsyncConsumer:
         async with self._connection_lock:
             await self._event_loop.run_in_executor(None, self._consumer.stop)
 
-    async def __aenter__(self) -> "AsyncConsumer":
+    async def __aenter__(self) -> AsyncConsumer:
         return self
 
     async def __aexit__(

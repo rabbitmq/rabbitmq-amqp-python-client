@@ -25,7 +25,7 @@ class AsyncPublisher:
         self._publisher = Publisher(conn, addr)
         self._loop = loop
         self._connection_lock = connection_lock or asyncio.Lock()
-        self._remove_callback = None
+        self._remove_callback: Optional[Callable[["AsyncPublisher"], None]] = None
 
     def _set_remove_callback(
         self, callback: Optional[Callable[["AsyncPublisher"], None]]
@@ -41,7 +41,7 @@ class AsyncPublisher:
     async def close(self) -> None:
         if not self.is_open:
             return
-    
+
         try:
             async with self._connection_lock:
                 await self._event_loop.run_in_executor(None, self._publisher.close)
@@ -69,7 +69,6 @@ class AsyncPublisher:
 
     @property
     def is_open(self) -> bool:
-        print( self._publisher.is_open )
         return self._publisher.is_open
 
     @property

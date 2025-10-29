@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from typing import Callable, Optional, Union
@@ -52,14 +54,14 @@ class AsyncConnection:
         self._async_publishers: list[AsyncPublisher] = []
         self._async_consumers: list[AsyncConsumer] = []
         self._async_managements: list[AsyncManagement] = []
-        self._remove_callback = None
+        self._remove_callback: Optional[Callable[[AsyncConnection], None]] = None
 
     async def dial(self) -> None:
         async with self._connection_lock:
             await self._event_loop.run_in_executor(None, self._connection.dial)
 
     def _set_remove_callback(
-        self, callback: Optional[Callable[["AsyncConnection"], None]]
+        self, callback: Optional[Callable[[AsyncConnection], None]]
     ) -> None:
         self._remove_callback = callback
 
@@ -181,7 +183,7 @@ class AsyncConnection:
             async_consumer = AsyncConsumer(
                 self._connection._conn,
                 destination,
-                message_handler,  # type: ignore
+                message_handler,  # pyright: ignore[reportArgumentType]
                 consumer_options,
                 credit,
                 loop=self._event_loop,
@@ -202,7 +204,7 @@ class AsyncConnection:
                 token,
             )
 
-    async def __aenter__(self) -> "AsyncConnection":
+    async def __aenter__(self) -> AsyncConnection:
         await self.dial()
         return self
 

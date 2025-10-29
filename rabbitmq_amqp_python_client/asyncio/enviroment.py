@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from typing import Optional, Union
@@ -86,7 +88,7 @@ class AsyncEnvironment:
     async def connections(self) -> list[AsyncConnection]:
         return self._connections
 
-    async def __aenter__(self) -> "AsyncEnvironment":
+    async def __aenter__(self) -> AsyncEnvironment:
         return self
 
     async def __aexit__(
