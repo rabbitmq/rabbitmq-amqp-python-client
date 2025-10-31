@@ -10,6 +10,7 @@ from rabbitmq_amqp_python_client import (
     PosixSslConfigurationContext,
     RecoveryConfiguration,
     WinSslConfigurationContext,
+    AsyncManagement,
 )
 
 from ..utils import token
@@ -17,7 +18,6 @@ from ..utils import token
 
 @pytest_asyncio.fixture
 async def async_environment():
-    """Fixture for async environment."""
     environment = AsyncEnvironment(uri="amqp://guest:guest@localhost:5672/")
     yield environment
     await environment.close()
@@ -47,7 +47,6 @@ async def async_connection() -> AsyncGenerator[AsyncConnection, None]:
 
 @pytest_asyncio.fixture
 async def async_connection_with_reconnect() -> AsyncGenerator[AsyncConnection, None]:
-    """Fixture providing an async connection with recovery enabled."""
     environment = AsyncEnvironment(
         uri="amqp://guest:guest@localhost:5672/",
         recovery_configuration=RecoveryConfiguration(active_recovery=True),
@@ -70,3 +69,13 @@ async def async_connection_ssl(
     await connection.dial()
     yield connection
     await connection.close()
+
+
+@pytest_asyncio.fixture
+async def async_management() -> AsyncGenerator[AsyncManagement, None]:
+    environment = AsyncEnvironment(uri="amqp://guest:guest@localhost:5672/")
+    connection = await environment.connection()
+    await connection.dial()
+    management = await connection.management()
+    yield management
+    await management.close()
