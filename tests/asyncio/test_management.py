@@ -1,13 +1,15 @@
 from datetime import timedelta
+
 import pytest
+
 from rabbitmq_amqp_python_client import (
+    AsyncManagement,
     ClassicQueueSpecification,
     ExchangeCustomSpecification,
     ExchangeSpecification,
     ExchangeToExchangeBindingSpecification,
     ExchangeToQueueBindingSpecification,
     ExchangeType,
-    AsyncManagement,
     QueueType,
     QuorumQueueSpecification,
     StreamSpecification,
@@ -15,7 +17,9 @@ from rabbitmq_amqp_python_client import (
 from rabbitmq_amqp_python_client.exceptions import (
     ValidationCodeException,
 )
+
 from .fixtures import *  # noqa: F401, F403
+
 
 @pytest.mark.asyncio
 async def test_async_declare_delete_exchange(async_management: AsyncManagement) -> None:
@@ -28,8 +32,11 @@ async def test_async_declare_delete_exchange(async_management: AsyncManagement) 
 
     await async_management.delete_exchange(name=exchange_name)
 
+
 @pytest.mark.asyncio
-async def test_async_declare_delete_exchange_headers(async_management: AsyncManagement) -> None:
+async def test_async_declare_delete_exchange_headers(
+    async_management: AsyncManagement,
+) -> None:
     exchange_name = "test-exchange"
     exchange_info = await async_management.declare_exchange(
         ExchangeSpecification(name=exchange_name, exchange_type=ExchangeType.headers)
@@ -41,7 +48,9 @@ async def test_async_declare_delete_exchange_headers(async_management: AsyncMana
 
 
 @pytest.mark.asyncio
-async def test_async_declare_delete_exchange_custom(async_management: AsyncManagement) -> None:
+async def test_async_declare_delete_exchange_custom(
+    async_management: AsyncManagement,
+) -> None:
     exchange_name = "test-exchange-custom"
     exchange_arguments = {}
     exchange_arguments["x-delayed-type"] = "direct"
@@ -58,8 +67,11 @@ async def test_async_declare_delete_exchange_custom(async_management: AsyncManag
 
     await async_management.delete_exchange(name=exchange_name)
 
+
 @pytest.mark.asyncio
-async def test_async_declare_delete_exchange_with_args(async_management: AsyncManagement) -> None:
+async def test_async_declare_delete_exchange_with_args(
+    async_management: AsyncManagement,
+) -> None:
     exchange_name = "test-exchange-with-args"
     exchange_arguments = {}
     exchange_arguments["test"] = "test"
@@ -78,8 +90,11 @@ async def test_async_declare_delete_exchange_with_args(async_management: AsyncMa
 
     await async_management.delete_exchange(name=exchange_name)
 
+
 @pytest.mark.asyncio
-async def test_async_declare_purge_delete_queue(async_management: AsyncManagement) -> None:
+async def test_async_declare_purge_delete_queue(
+    async_management: AsyncManagement,
+) -> None:
     queue_name = "my_queue"
 
     queue_info = await async_management.declare_queue(
@@ -91,18 +106,15 @@ async def test_async_declare_purge_delete_queue(async_management: AsyncManagemen
     await async_management.purge_queue(name=queue_name)
     await async_management.delete_queue(name=queue_name)
 
+
 @pytest.mark.asyncio
 async def test_async_bind_exchange_to_queue(async_management: AsyncManagement) -> None:
     exchange_name = "test-bind-exchange-to-queue-exchange"
     queue_name = "test-bind-exchange-to-queue-queue"
     routing_key = "routing-key"
 
-    await async_management.declare_exchange(
-        ExchangeSpecification(name=exchange_name)
-    )
-    await async_management.declare_queue(
-        ClassicQueueSpecification(name=queue_name)
-    )
+    await async_management.declare_exchange(ExchangeSpecification(name=exchange_name))
+    await async_management.declare_queue(ClassicQueueSpecification(name=queue_name))
     binding_exchange_queue_path = await async_management.bind(
         ExchangeToQueueBindingSpecification(
             source_exchange=exchange_name,
@@ -128,16 +140,14 @@ async def test_async_bind_exchange_to_queue(async_management: AsyncManagement) -
 
 
 @pytest.mark.asyncio
-async def test_async_bind_exchange_to_queue_without_key(async_management: AsyncManagement) -> None:
+async def test_async_bind_exchange_to_queue_without_key(
+    async_management: AsyncManagement,
+) -> None:
     exchange_name = "test-bind-exchange-to-queue-no-key-exchange"
     queue_name = "test-bind-exchange-to-queue-no-key-queue"
 
-    await async_management.declare_exchange(
-        ExchangeSpecification(name=exchange_name)
-    )
-    await async_management.declare_queue(
-        ClassicQueueSpecification(name=queue_name)
-    )
+    await async_management.declare_exchange(ExchangeSpecification(name=exchange_name))
+    await async_management.declare_queue(ClassicQueueSpecification(name=queue_name))
     binding_exchange_queue_path = await async_management.bind(
         ExchangeToQueueBindingSpecification(
             source_exchange=exchange_name,
@@ -156,7 +166,9 @@ async def test_async_bind_exchange_to_queue_without_key(async_management: AsyncM
 
 
 @pytest.mark.asyncio
-async def test_async_bind_exchange_to_exchange_without_key(async_management: AsyncManagement) -> None:
+async def test_async_bind_exchange_to_exchange_without_key(
+    async_management: AsyncManagement,
+) -> None:
     source_exchange_name = "test-bind-exchange-to-queue-exchange"
     destination_exchange_name = "test-bind-exchange-to-queue-queue"
 
@@ -189,7 +201,9 @@ async def test_async_bind_exchange_to_exchange_without_key(async_management: Asy
 
 
 @pytest.mark.asyncio
-async def test_async_bind_unbind_by_binding_spec(async_management: AsyncManagement) -> None:
+async def test_async_bind_unbind_by_binding_spec(
+    async_management: AsyncManagement,
+) -> None:
     exchange_name = "test-bind-exchange-to-queue-exchange"
     queue_name = "test-bind-exchange-to-queue-queue"
 
@@ -212,8 +226,11 @@ async def test_async_bind_unbind_by_binding_spec(async_management: AsyncManageme
     await async_management.delete_exchange(name=exchange_name)
     await async_management.delete_queue(name=queue_name)
 
+
 @pytest.mark.asyncio
-async def test_async_bind_unbind_exchange_by_exchange_spec(async_management: AsyncManagement) -> None:
+async def test_async_bind_unbind_exchange_by_exchange_spec(
+    async_management: AsyncManagement,
+) -> None:
     source_exchange_name = "test-bind-exchange-to-queue-exchange"
     destination_exchange_name = "test-bind-exchange-to-queue-queue"
 
@@ -251,8 +268,11 @@ async def test_async_bind_unbind_exchange_by_exchange_spec(async_management: Asy
     await async_management.delete_exchange(name=source_exchange_name)
     await async_management.delete_exchange(name=destination_exchange_name)
 
+
 @pytest.mark.asyncio
-async def test_async_bind_exchange_to_exchange(async_management: AsyncManagement) -> None:
+async def test_async_bind_exchange_to_exchange(
+    async_management: AsyncManagement,
+) -> None:
     source_exchange_name = "source_exchange"
     destination_exchange_name = "destination_exchange"
     routing_key = "routing-key"
@@ -287,6 +307,7 @@ async def test_async_bind_exchange_to_exchange(async_management: AsyncManagement
     await async_management.delete_exchange(name=source_exchange_name)
     await async_management.delete_exchange(name=destination_exchange_name)
 
+
 @pytest.mark.asyncio
 async def test_queue_info_with_validations(async_management: AsyncManagement) -> None:
     queue_name = "test_queue_info_with_validation"
@@ -305,7 +326,9 @@ async def test_queue_info_with_validations(async_management: AsyncManagement) ->
 
 
 @pytest.mark.asyncio
-async def test_async_queue_info_for_stream_with_validations(async_management: AsyncManagement) -> None:
+async def test_async_queue_info_for_stream_with_validations(
+    async_management: AsyncManagement,
+) -> None:
     stream_name = "test_stream_info_with_validation"
     queue_specification = StreamSpecification(
         name=stream_name,
@@ -321,20 +344,19 @@ async def test_async_queue_info_for_stream_with_validations(async_management: As
     assert stream_info.queue_type == QueueType.stream
     assert stream_info.message_count == 0
 
+
 @pytest.mark.asyncio
-async def test_async_queue_precondition_failure(async_management: AsyncManagement) -> None:
+async def test_async_queue_precondition_failure(
+    async_management: AsyncManagement,
+) -> None:
     queue_name = "test-queue_precondition_fail"
 
-    queue_specification = QuorumQueueSpecification(
-        name=queue_name,
-        max_len_bytes=100
-    )
+    queue_specification = QuorumQueueSpecification(name=queue_name, max_len_bytes=100)
 
     await async_management.declare_queue(queue_specification)
 
     conflicting_queue_specification = QuorumQueueSpecification(
-        name=queue_name,
-        max_len_bytes=200
+        name=queue_name, max_len_bytes=200
     )
 
     with pytest.raises(ValidationCodeException):
@@ -348,8 +370,7 @@ async def test_async_declare_classic_queue(async_management: AsyncManagement) ->
     queue_name = "test-declare_classic_queue"
 
     queue_specification = ClassicQueueSpecification(
-        name=queue_name,
-        is_auto_delete=True
+        name=queue_name, is_auto_delete=True
     )
 
     queue_info = await async_management.declare_queue(queue_specification)
@@ -360,7 +381,9 @@ async def test_async_declare_classic_queue(async_management: AsyncManagement) ->
 
 
 @pytest.mark.asyncio
-async def test_async_declare_classic_queue_with_args(async_management: AsyncManagement) -> None:
+async def test_async_declare_classic_queue_with_args(
+    async_management: AsyncManagement,
+) -> None:
     queue_name = "test-queue_with_args-2"
     queue_specification = ClassicQueueSpecification(
         name=queue_name,
@@ -414,8 +437,11 @@ async def test_async_declare_classic_queue_with_args(async_management: AsyncMana
 
     await async_management.delete_queue(name=queue_name)
 
+
 @pytest.mark.asyncio
-async def test_async_declare_quorum_queue_with_args(async_management: AsyncManagement) -> None:
+async def test_async_declare_quorum_queue_with_args(
+    async_management: AsyncManagement,
+) -> None:
     queue_name = "test-queue_with_args"
     queue_specification = QuorumQueueSpecification(
         name=queue_name,
@@ -482,8 +508,11 @@ async def test_async_declare_quorum_queue_with_args(async_management: AsyncManag
 
     await async_management.delete_queue(name=queue_name)
 
+
 @pytest.mark.asyncio
-async def test_async_declare_stream_with_args(async_management: AsyncManagement) -> None:
+async def test_async_declare_stream_with_args(
+    async_management: AsyncManagement,
+) -> None:
     stream_name = "test-stream_with_args"
     stream_specification = StreamSpecification(
         name=stream_name,
@@ -524,8 +553,11 @@ async def test_async_declare_stream_with_args(async_management: AsyncManagement)
 
     await async_management.delete_queue(name=stream_name)
 
+
 @pytest.mark.asyncio
-async def test_async_declare_classic_queue_with_invalid_args(async_management: AsyncManagement) -> None:
+async def test_async_declare_classic_queue_with_invalid_args(
+    async_management: AsyncManagement,
+) -> None:
     queue_name = "test-queue_with_args"
     queue_specification = ClassicQueueSpecification(
         name=queue_name,

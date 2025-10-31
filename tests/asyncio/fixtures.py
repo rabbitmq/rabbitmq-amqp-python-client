@@ -6,11 +6,11 @@ import pytest_asyncio
 from rabbitmq_amqp_python_client import (
     AsyncConnection,
     AsyncEnvironment,
+    AsyncManagement,
     OAuth2Options,
     PosixSslConfigurationContext,
     RecoveryConfiguration,
     WinSslConfigurationContext,
-    AsyncManagement,
 )
 
 from ..utils import token
@@ -24,7 +24,7 @@ async def async_environment():
 
 
 @pytest_asyncio.fixture
-async def environment_auth() -> AsyncGenerator[AsyncEnvironment, None]:
+async def async_environment_auth() -> AsyncGenerator[AsyncEnvironment, None]:
     token_string = token(datetime.now() + timedelta(milliseconds=2500))
     environment = AsyncEnvironment(
         uri="amqp://localhost:5672",
