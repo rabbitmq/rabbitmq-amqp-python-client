@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Union
 
 import pytest_asyncio
 
@@ -59,7 +59,7 @@ async def async_connection_with_reconnect() -> AsyncGenerator[AsyncConnection, N
 
 @pytest_asyncio.fixture
 async def async_connection_ssl(
-    ssl_context: PosixSslConfigurationContext | WinSslConfigurationContext,
+    ssl_context: Union[PosixSslConfigurationContext, WinSslConfigurationContext],
 ) -> AsyncGenerator[AsyncConnection, None]:
     environment = AsyncEnvironment(
         uri="amqps://guest:guest@localhost:5671/",
