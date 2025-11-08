@@ -28,7 +28,25 @@ logger = logging.getLogger(__name__)
 
 
 class AsyncConnection:
-    """Asyncio-compatible facade around Connection."""
+    """
+    Asyncio-compatible facade around Connection.
+
+    This class manages the connection to RabbitMQ and provides factory methods for
+    creating publishers, consumers, and management interfaces. It supports both
+    single-node and multi-node configurations, as well as SSL/TLS connections.
+
+    Note:
+        The underlying Proton BlockingConnection is NOT thread-safe. A lock is used
+        to serialize all operations.
+
+    Attributes:
+        _connection (Connection): The underlying synchronous Connection
+        _connection_lock (asyncio.Lock): Lock for coordinating access to the shared connection
+        _async_publishers (list[AsyncPublisher]): List of active async publishers
+        _async_consumers (list[AsyncConsumer]): List of active async consumers
+        _async_managements (list[AsyncManagement]): List of active async management interfaces
+        _remove_callback (Optional[Callable[[AsyncConnection], None]]): Callback on close
+    """
 
     def __init__(
         self,
@@ -39,9 +57,20 @@ class AsyncConnection:
         ] = None,
         oauth2_options: Optional[OAuth2Options] = None,
         recovery_configuration: RecoveryConfiguration = RecoveryConfiguration(),
-        *,
-        loop: Optional[asyncio.AbstractEventLoop] = None,
     ):
+        """
+        Initialize AsyncConnection.
+
+        Args:
+            uri: Optional single-node connection URI
+            uris: Optional multi-node connection URIs
+            ssl_context: Optional SSL/TLS configuration
+            oauth2_options: Optional OAuth2 configuration
+            recovery_configuration: Configuration for automatic recovery
+
+        Raises:
+            ValidationCodeException: If recovery configuration is invalid
+        """
         self._connection = Connection(
             uri=uri,
             uris=uris,
@@ -49,7 +78,6 @@ class AsyncConnection:
             oauth2_options=oauth2_options,
             recovery_configuration=recovery_configuration,
         )
-        self._loop = loop
         self._connection_lock = asyncio.Lock()
         self._async_publishers: list[AsyncPublisher] = []
         self._async_consumers: list[AsyncConsumer] = []
@@ -57,27 +85,42 @@ class AsyncConnection:
         self._remove_callback: Optional[Callable[[AsyncConnection], None]] = None
 
     async def dial(self) -> None:
+        """
+        Establish a connection to the AMQP server.
+
+        Configures SSL if specified and establishes the connection using the
+        provided URI(s). Also initializes the management interface.
+        """
         async with self._connection_lock:
-            await self._event_loop.run_in_executor(None, self._connection.dial)
+            await asyncio.to_thread(self._connection.dial)
 
     def _set_remove_callback(
         self, callback: Optional[Callable[[AsyncConnection], None]]
     ) -> None:
+        """Set callback to be called when connection is closed."""
         self._remove_callback = callback
 
     def _remove_publisher(self, publisher: AsyncPublisher) -> None:
+        """Remove a publisher from the active list."""
         if publisher in self._async_publishers:
             self._async_publishers.remove(publisher)
 
     def _remove_consumer(self, consumer: AsyncConsumer) -> None:
+        """Remove a consumer from the active list."""
         if consumer in self._async_consumers:
             self._async_consumers.remove(consumer)
 
     def _remove_management(self, management: AsyncManagement) -> None:
+        """Remove a management interface from the active list."""
         if management in self._async_managements:
             self._async_managements.remove(management)
 
     async def close(self) -> None:
+        """
+        Close the connection to the AMQP 1.0 server.
+
+        Closes the underlying connection and removes it from the connection list.
+        """
         logger.debug("Closing async connection")
         try:
             for async_publisher in self._async_publishers[:]:
@@ -88,7 +131,7 @@ class AsyncConnection:
                 await async_management.close()
 
             async with self._connection_lock:
-                await self._event_loop.run_in_executor(None, self._connection.close)
+                await asyncio.to_thread(self._connection.close)
         except Exception as e:
             logger.error(f"Error closing async connections: {e}")
             raise e
@@ -103,6 +146,12 @@ class AsyncConnection:
     async def management(
         self,
     ) -> AsyncManagement:
+        """
+        Get the management interface for this connection.
+
+        Returns:
+            AsyncManagement: The management interface for performing administrative tasks
+        """
         if len(self._async_managements) > 0:
             return self._async_managements[0]
 
@@ -111,7 +160,6 @@ class AsyncConnection:
             if len(self._async_managements) == 0:
                 async_management = AsyncManagement(
                     self._connection._conn,
-                    loop=self._event_loop,
                     connection_lock=self._connection_lock,
                 )
 
@@ -128,12 +176,26 @@ class AsyncConnection:
         return self._async_managements[0]
 
     def _set_connection_publishers(self, publisher: Publisher) -> None:
+        """Set the list of publishers in the underlying connection."""
         publisher._set_publishers_list(
             [async_publisher._publisher for async_publisher in self._async_publishers]
         )
         self._connection._publishers.append(publisher)
 
     async def publisher(self, destination: str = "") -> AsyncPublisher:
+        """
+        Create a new publisher instance.
+
+        Args:
+            destination: Optional default destination for published messages
+
+        Returns:
+            AsyncPublisher: A new publisher instance
+
+        Raises:
+            RuntimeError: If publisher creation fails
+            ArgumentOutOfRangeException: If destination address format is invalid
+        """
         if destination != "":
             if not validate_address(destination):
                 raise ArgumentOutOfRangeException(
@@ -144,9 +206,11 @@ class AsyncConnection:
             async_publisher = AsyncPublisher(
                 self._connection._conn,
                 destination,
-                loop=self._event_loop,
                 connection_lock=self._connection_lock,
             )
+            await async_publisher.open()
+            if async_publisher._publisher is None:
+                raise RuntimeError("Failed to create publisher")
             self._set_connection_publishers(
                 async_publisher._publisher
             )  # TODO: check this
@@ -157,6 +221,7 @@ class AsyncConnection:
             return async_publisher
 
     def _set_connection_consumers(self, consumer: Consumer) -> None:
+        """Set the list of consumers in the underlying connection."""
         self._connection._consumers.append(consumer)
 
     async def consumer(
@@ -166,6 +231,22 @@ class AsyncConnection:
         consumer_options: Optional[ConsumerOptions] = None,
         credit: Optional[int] = None,
     ) -> AsyncConsumer:
+        """
+        Create a new consumer instance.
+
+        Args:
+            destination: The address to consume from
+            message_handler: Optional handler for processing messages
+            consumer_options: Optional configuration for queue consumption. Each queue has its own consumer options.
+            credit: Optional credit value for flow control
+
+        Returns:
+            AsyncConsumer: A new consumer instance
+
+        Raises:
+            RuntimeError: If consumer creation fails
+            ArgumentOutOfRangeException: If destination address format is invalid
+        """
         if not validate_address(destination):
             raise ArgumentOutOfRangeException(
                 "destination address must start with /queues or /exchanges"
@@ -186,9 +267,11 @@ class AsyncConnection:
                 message_handler,  # pyright: ignore[reportArgumentType]
                 consumer_options,
                 credit,
-                loop=self._event_loop,
                 connection_lock=self._connection_lock,
             )
+            await async_consumer.open()
+            if async_consumer._consumer is None:
+                raise RuntimeError("Failed to create consumer")
             self._set_connection_consumers(async_consumer._consumer)  # TODO: check this
             self._async_consumers.append(async_consumer)
 
@@ -197,14 +280,20 @@ class AsyncConnection:
             return async_consumer
 
     async def refresh_token(self, token: str) -> None:
+        """
+        Refresh the oauth token
+
+        Args:
+            token: the oauth token to refresh
+
+        Raises:
+            ValidationCodeException: If oauth is not enabled
+        """
         async with self._connection_lock:
-            await self._event_loop.run_in_executor(
-                None,
-                self._connection.refresh_token,
-                token,
-            )
+            await asyncio.to_thread(self._connection.refresh_token, token)
 
     async def __aenter__(self) -> AsyncConnection:
+        """ "Async context manager entry."""
         await self.dial()
         return self
 
@@ -214,16 +303,15 @@ class AsyncConnection:
         exc: Optional[BaseException],
         tb: Optional[object],
     ) -> None:
+        """Async context manager exit."""
         await self.close()
 
     @property
-    def _event_loop(self) -> asyncio.AbstractEventLoop:
-        return self._loop or asyncio.get_running_loop()
-
-    @property
     def active_producers(self) -> int:
+        """Get the number of active producers of the connection."""
         return len(self._async_publishers)
 
     @property
     def active_consumers(self) -> int:
+        """Get the number of active consumers of the connection."""
         return len(self._async_consumers)
