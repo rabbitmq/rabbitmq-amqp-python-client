@@ -203,9 +203,9 @@ class AsyncConsumer:
     @property
     def address(self) -> str:
         """Get the current consumer address."""
-        return self.address
+        return self._addr
 
     @property
     def handler(self) -> Optional[AMQPMessagingHandler]:
         """Get the current message handler."""
-        return self.handler
+        return self._handler
