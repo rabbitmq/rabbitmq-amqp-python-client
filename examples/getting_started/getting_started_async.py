@@ -1,3 +1,5 @@
+# type: ignore
+
 import asyncio
 
 from rabbitmq_amqp_python_client import (
