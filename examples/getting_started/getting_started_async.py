@@ -1,6 +1,7 @@
 # type: ignore
 
 import asyncio
+import signal
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
@@ -20,11 +21,11 @@ MESSAGES_TO_PUBLISH = 100
 
 class StopConsumerException(Exception):
     """Exception to signal consumer should stop"""
+
     pass
 
 
 class MyMessageHandler(AMQPMessagingHandler):
-
     def __init__(self):
         super().__init__()
         self._count = 0
@@ -39,11 +40,6 @@ class MyMessageHandler(AMQPMessagingHandler):
         self.delivery_context.accept(event)
         self._count = self._count + 1
         print("count " + str(self._count))
-
-        if self._count == MESSAGES_TO_PUBLISH:
-            print("received all messages")
-            # Stop the consumer by raising an exception
-            raise StopConsumerException("All messages consumed")
 
     def on_connection_closed(self, event: Event):
         print("connection closed")
@@ -64,7 +60,9 @@ async def main():
         async with await environment.connection() as connection:
             async with await connection.management() as management:
                 print("declaring exchange and queue")
-                await management.declare_exchange(ExchangeSpecification(name=exchange_name))
+                await management.declare_exchange(
+                    ExchangeSpecification(name=exchange_name)
+                )
                 await management.declare_queue(
                     QuorumQueueSpecification(name=queue_name)
                 )
@@ -90,25 +88,52 @@ async def main():
                     # publish messages
                     for i in range(MESSAGES_TO_PUBLISH):
                         status = await publisher.publish(
-                            Message(body=Converter.string_to_bytes("test message {} ".format(i)))
+                            Message(
+                                body=Converter.string_to_bytes(
+                                    "test message {} ".format(i)
+                                )
+                            )
                         )
                         if status.remote_state == OutcomeState.ACCEPTED:
                             print("message accepted")
 
-                print("create a consumer and consume the test message - press control + c to terminate to consume")
+                print(
+                    "create a consumer and consume the test message - press control + c to terminate"
+                )
                 handler = MyMessageHandler()
-                async with await connection.consumer(addr_queue, message_handler=handler) as consumer:
-                    # Run the consumer in a background task
-                    consumer_task = asyncio.create_task(consumer.run())
+                async with await connection.consumer(
+                    addr_queue, message_handler=handler
+                ) as consumer:
+                    # Create stop event and signal handler
+                    stop_event = asyncio.Event()
+
+                    def handle_sigint():
+                        print("\nCtrl+C detected, stopping consumer gracefully...")
+                        stop_event.set()
+
+                    # Register signal handler
+                    loop = asyncio.get_running_loop()
+                    loop.add_signal_handler(signal.SIGINT, handle_sigint)
 
                     try:
-                        # Wait for the consumer to finish (e.g., by raising the exception)
-                        await consumer_task
-                    except StopConsumerException as e:
-                        print(f"Consumer stopped: {e}")
-                    except KeyboardInterrupt:
-                        print("consumption interrupted by user, stopping consumer...")
-                        await consumer.stop()
+                        # Run consumer in background
+                        consumer_task = asyncio.create_task(consumer.run())
+
+                        # Wait for stop signal
+                        await stop_event.wait()
+
+                        # Stop consumer gracefully
+                        print("Stopping consumer...")
+                        await consumer.stop_processing()
+
+                        # Wait for task to complete
+                        try:
+                            await asyncio.wait_for(consumer_task, timeout=3.0)
+                        except asyncio.TimeoutError:
+                            print("Consumer task timed out")
+
+                    finally:
+                        loop.remove_signal_handler(signal.SIGINT)
 
                 print("unbind")
                 await management.unbind(bind_name)
@@ -118,6 +143,7 @@ async def main():
 
                 print("delete exchange")
                 await management.delete_exchange(exchange_name)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
