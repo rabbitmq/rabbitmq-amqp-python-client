@@ -20,7 +20,6 @@ MESSAGES_TO_PUBLISH = 50000
 
 
 class MyMessageHandler(AMQPMessagingHandler):
-
     def __init__(self):
         super().__init__()
         self._count = 0
@@ -112,9 +111,7 @@ async def main() -> None:
 
                                 try:
                                     await publisher.publish(
-                                        Message(
-                                            body=Converter.string_to_bytes("test")
-                                        )
+                                        Message(body=Converter.string_to_bytes("test"))
                                     )
                                 except ConnectionClosed:
                                     print("publisher connection closed, retrying...")

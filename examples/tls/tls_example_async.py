@@ -33,7 +33,6 @@ messages_to_publish = 100
 
 
 class MyMessageHandler(AMQPMessagingHandler):
-
     def __init__(self):
         super().__init__()
         self._count = 0
