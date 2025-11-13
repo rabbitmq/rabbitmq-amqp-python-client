@@ -35,9 +35,48 @@ To run TLS you need to:
 
 Read more about the issue [here](https://stackoverflow.com/questions/44979947/python-qpid-proton-for-mac-using-amqps)
 
+### SSL Problems in local environment
 
+If when running tests, this exceptions is raised by the proton library: `SSLUnavailable`:
+``` bash
+pip uninstall python-qpid-proton -y
 
+sudo apt-get update
+sudo apt-get install -y swig cmake build-essential libssl-dev pkg-config
 
+export PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig
+export CFLAGS="-I/usr/include/openssl"
+export LDFLAGS="-L/usr/lib/x86_64-linux-gnu"
 
+pip install "python-qpid-proton>=0.39.0,<0.40.0" --no-binary python-qpid-proton --verbose --no-cache-dir
+```
+
+### Async Interface (Experimental)
+
+The client provides an async interface via the `rabbitmq_amqp_python_client.asyncio` module. The async classes act as facades that:
+
+- Wrap the corresponding synchronous classes
+- Execute blocking operations in a thread pool executor using `run_in_executor`
+- Coordinate concurrent access using `asyncio.Lock`
+- Implement proper async context managers (`async with`) for resource management
+- Maintain API compatibility with the synchronous version
+
+**Key differences from the synchronous interface:**
+
+1. Use `AsyncEnvironment` instead of `Environment`
+2. All operations must be awaited with `await`
+3. Use `async with` for resource management (connections, publishers, consumers, management)
+4. Consumer signal handling uses `asyncio.Event` and `loop.add_signal_handler`
+
+For a complete example showing proper consumer termination and signal handling, refer to:
+
+- [examples/getting_started/getting_started_async.py](./examples/getting_started/getting_started_async.py)
+
+Additional async examples are available in the [examples](./examples) folder:
+
+- OAuth2: [examples/oauth/oAuth2_async.py](./examples/oauth/oAuth2_async.py)
+- Reconnection: [examples/reconnection/reconnection_example_async.py](./examples/reconnection/reconnection_example_async.py)
+- Streams: [examples/streams/example_with_streams_async.py](./examples/streams/example_with_streams_async.py)
+- TLS: [examples/tls/tls_example_async.py](./examples/tls/tls_example_async.py)
 
 

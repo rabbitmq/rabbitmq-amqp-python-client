@@ -2,6 +2,13 @@ from importlib import metadata
 
 from .address_helper import AddressHelper
 from .amqp_consumer_handler import AMQPMessagingHandler
+from .asyncio import (
+    AsyncConnection,
+    AsyncConsumer,
+    AsyncEnvironment,
+    AsyncManagement,
+    AsyncPublisher,
+)
 from .common import ExchangeType, QueueType
 from .connection import Connection
 from .consumer import Consumer
@@ -99,4 +106,9 @@ __all__ = [
     "RecoveryConfiguration",
     "OAuth2Options",
     "Converter",
+    "AsyncConnection",
+    "AsyncConsumer",
+    "AsyncPublisher",
+    "AsyncManagement",
+    "AsyncEnvironment",
 ]

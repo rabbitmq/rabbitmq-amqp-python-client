@@ -23,7 +23,11 @@ pytest = "^8.3.4"
 black = "^24.3.0"
 python-qpid-proton = "^0.39.0"
 requests = "^2.31.0"
+pytest-asyncio = "^1.2.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

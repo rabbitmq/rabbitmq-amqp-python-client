@@ -18,6 +18,7 @@ from .qpid.proton.utils import (
     BlockingConnection,
     BlockingReceiver,
     BlockingSender,
+    LinkDetached,
 )
 from .queues import (
     ClassicQueueSpecification,
@@ -92,10 +93,21 @@ class Management:
         Closes both sender and receiver if they exist.
         """
         logger.debug("Closing Sender and Receiver")
-        if self._sender is not None:
-            self._sender.close()
-        if self._receiver is not None:
-            self._receiver.close()
+
+        if self._sender:
+            try:
+                self._sender.close()
+            except LinkDetached as e:
+                # avoid raising exception if the queue is deleted before closing the link
+                if e.condition and e.condition != "amqp:resource-deleted":
+                    raise
+
+        if self._receiver:
+            try:
+                self._receiver.close()
+            except LinkDetached as e:
+                if e.condition and e.condition != "amqp:resource-deleted":
+                    raise
 
     def request(
         self,
