@@ -108,7 +108,6 @@ class Management:
             except LinkDetached as e:
                 if e.condition and e.condition != "amqp:resource-deleted":
                     raise
-                pass
 
     def request(
         self,

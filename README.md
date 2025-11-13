@@ -35,7 +35,7 @@ To run TLS you need to:
 
 Read more about the issue [here](https://stackoverflow.com/questions/44979947/python-qpid-proton-for-mac-using-amqps)
 
-### SSL Problems in local enviroment
+### SSL Problems in local environment
 
 If when running tests, this exceptions is raised by the proton library: `SSLUnavailable`:
 ``` bash

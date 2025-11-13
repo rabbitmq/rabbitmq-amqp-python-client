@@ -128,7 +128,9 @@ class Publisher:
     @property
     def is_open(self) -> bool:
         """Check if publisher is open and ready to send messages."""
-        return self._sender is not None and not self._is_sender_closed()
+        if self._sender is not None:
+            return not self._is_sender_closed()
+        return False
 
     @property
     def address(self) -> str:
