@@ -44,6 +44,7 @@ from ._handlers import (
 )
 from ._reactor import Container
 from ._url import Url
+from ...options import DynamicReceiverOption
 
 try:
     from typing import Literal
@@ -505,6 +506,11 @@ class BlockingConnection(Handler):
             ),
         )
 
+    def create_dynamic_receiver(self, credit: Optional[int] = None):
+        return self.create_receiver(
+            credit=credit, dynamic=True, options=DynamicReceiverOption(), name="dynamic-receiver"
+        )
+
     def create_receiver(
         self,
         address: Optional[str] = None,
@@ -514,6 +520,8 @@ class BlockingConnection(Handler):
         name: Optional[str] = None,
         options: Optional[
             Union[
+                "DynamicReceiverOption",
+                List["DynamicReceiverOption"],
                 "ReceiverOption",
                 List["ReceiverOption"],
                 "LinkOption",

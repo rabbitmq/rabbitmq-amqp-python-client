@@ -34,12 +34,13 @@ class Consumer:
     """
 
     def __init__(
-        self,
-        conn: BlockingConnection,
-        addr: str,
-        handler: Optional[AMQPMessagingHandler] = None,
-        stream_options: Optional[ConsumerOptions] = None,
-        credit: Optional[int] = None,
+            self,
+            conn: BlockingConnection,
+            addr: str,
+            handler: Optional[AMQPMessagingHandler] = None,
+            stream_options: Optional[ConsumerOptions] = None,
+            credit: Optional[int] = None,
+            direct_reply_to: Optional[bool] = None,
     ):
         """
         Initialize a new Consumer instance.
@@ -58,6 +59,7 @@ class Consumer:
         self._stream_options = stream_options
         self._credit = credit
         self._consumers: list[Consumer] = []
+        self._direct_reply_to = direct_reply_to
         self._open()
 
     def _open(self) -> None:
@@ -144,16 +146,27 @@ class Consumer:
 
     def _create_receiver(self, addr: str) -> BlockingReceiver:
         logger.debug("Creating the receiver")
+        if self._direct_reply_to is None:
+            self._direct_reply_to = True
+
+        if self._direct_reply_to:
+            x = self._conn.create_dynamic_receiver()
+            # print(x.link.remote_source.address)
+            return x
+
         if self._stream_options is None:
             receiver = self._conn.create_receiver(
-                addr, options=ReceiverOptionUnsettled(addr), handler=self._handler
+                addr,
+                options=ReceiverOptionUnsettled(addr),
+                handler=self._handler,
+                dynamic=self._direct_reply_to,
             )
-
         else:
             receiver = self._conn.create_receiver(
                 addr,
                 options=ReceiverOptionUnsettledWithFilters(addr, self._stream_options),
                 handler=self._handler,
+                dynamic=self._direct_reply_to,
             )
 
         if self._credit is not None:
