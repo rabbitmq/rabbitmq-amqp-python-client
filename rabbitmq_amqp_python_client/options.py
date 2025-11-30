@@ -1,9 +1,13 @@
 from .entities import ConsumerOptions
 from .qpid.proton._data import (  # noqa: E402
+    Data,
     PropertyDict,
-    symbol, Data,
+    symbol,
 )
-from .qpid.proton._endpoints import Link, Terminus  # noqa: E402
+from .qpid.proton._endpoints import (  # noqa: E402
+    Link,
+    Terminus,
+)
 from .qpid.proton.reactor import (  # noqa: E402
     Filter,
     LinkOption,
@@ -53,12 +57,10 @@ class ReceiverOption(LinkOption):  # type: ignore
 
 
 class DynamicReceiverOption(LinkOption):  # type: ignore
-    def __init__(self):
-        pass
 
     def apply(self, link: Link) -> None:
         link.snd_settle_mode = Link.SND_SETTLED
-        link.rcv_settle_mode = Link.RCV_FIRST
+        # link.rcv_settle_mode = Link.RCV_FIRST
         link.source.expiry_policy = Terminus.EXPIRE_WITH_LINK
         link.properties = PropertyDict({symbol("paired"): True})
         link.source.dynamic = True

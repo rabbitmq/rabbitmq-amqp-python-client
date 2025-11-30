@@ -506,9 +506,15 @@ class BlockingConnection(Handler):
             ),
         )
 
-    def create_dynamic_receiver(self, credit: Optional[int] = None):
+    def create_dynamic_receiver(
+        self, credit: Optional[int] = None, handler: Optional[Handler] = None
+    ):
         return self.create_receiver(
-            credit=credit, dynamic=True, options=DynamicReceiverOption(), name="dynamic-receiver"
+            credit=credit,
+            dynamic=True,
+            options=DynamicReceiverOption(),
+            handler=handler,
+            name="dynamic-receiver_" + str(id(self)),
         )
 
     def create_receiver(

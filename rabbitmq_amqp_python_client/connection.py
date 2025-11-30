@@ -17,6 +17,7 @@ from .address_helper import validate_address
 from .consumer import Consumer
 from .entities import (
     ConsumerOptions,
+    DirectReplyToConsumerOptions,
     OAuth2Options,
     RecoveryConfiguration,
 )
@@ -397,9 +398,13 @@ class Connection:
             Consumer: A new consumer instance
 
         Raises:
-            ArgumentOutOfRangeException: If destination address format is invalid
+            ArgumentOutOfRangeException: If destination address format is invalid.
+            Only applies if not using Direct Reply-to.
+            The server will provide the queue name in that case.
         """
-        if not validate_address(destination):
+        if not validate_address(destination) and not isinstance(
+            consumer_options, DirectReplyToConsumerOptions
+        ):
             raise ArgumentOutOfRangeException(
                 "destination address must start with /queues or /exchanges"
             )
@@ -438,9 +443,7 @@ class Connection:
             time.sleep(delay.total_seconds())
 
             try:
-
                 self._open_connections(reconnect_handlers=True)
-
                 self._connections.append(self)
 
             except ConnectionException as e:

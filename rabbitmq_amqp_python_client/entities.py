@@ -160,6 +160,9 @@ class ConsumerOptions:
     def filter_set(self) -> Dict[symbol, Described]:
         raise NotImplementedError("Subclasses should implement this method")
 
+    def direct_reply_to(self) -> bool:
+        return False
+
 
 @dataclass
 class MessageProperties:
@@ -398,6 +401,21 @@ class StreamConsumerOptions(ConsumerOptions):
             raise ValidationCodeException(
                 "Stream filter by application_properties requires RabbitMQ 4.1.0 or higher"
             )
+
+
+class DirectReplyToConsumerOptions(ConsumerOptions):
+
+    def validate(self, versions: Dict[str, bool]) -> None:
+        if not versions.get("4.2.0", False):
+            raise ValidationCodeException(
+                "Direct Reply-To requires RabbitMQ 4.2.0 or higher"
+            )
+
+    def filter_set(self) -> Dict[symbol, Described]:
+        return {}
+
+    def direct_reply_to(self) -> bool:
+        return True
 
 
 @dataclass
