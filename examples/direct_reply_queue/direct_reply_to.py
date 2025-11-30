@@ -56,15 +56,16 @@ def main() -> None:
     print("connection to amqp server")
     environment = Environment(uri="amqp://guest:guest@localhost:5672/")
     connection = create_connection(environment)
-    consumer = connection.consumer(message_handler=MyMessageHandler(),
-                                   consumer_options=DirectReplyToConsumerOptions())
+    consumer = connection.consumer(
+        message_handler=MyMessageHandler(),
+        consumer_options=DirectReplyToConsumerOptions(),
+    )
     addr = consumer.get_queue_address()
     print("connecting to address: {}".format(addr))
     publisher = create_connection(environment).publisher(addr)
 
     for i in range(MESSAGES_TO_PUBLISH):
-        msg = Message(
-            body=Converter.string_to_bytes("test message {} ".format(i)))
+        msg = Message(body=Converter.string_to_bytes("test message {} ".format(i)))
         status = publisher.publish(msg)
         if status.remote_state == OutcomeState.ACCEPTED:
             print("message accepted")
