@@ -183,9 +183,9 @@ class Consumer:
 
         if isinstance(self._consumer_options, DirectReplyToConsumerOptions):
             print("Creating dynamic receiver for direct reply-to")
-            x = self._conn.create_dynamic_receiver(100, handler=self._handler)
-            x.credit = credit
-            return x
+            dynamic_receiver = self._conn.create_dynamic_receiver(100, handler=self._handler)
+            dynamic_receiver.credit = credit
+            return dynamic_receiver
 
         if isinstance(self._consumer_options, StreamConsumerOptions):
             return self._conn.create_receiver(
