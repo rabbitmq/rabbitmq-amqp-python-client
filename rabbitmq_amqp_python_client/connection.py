@@ -17,7 +17,6 @@ from .address_helper import validate_address
 from .consumer import Consumer
 from .entities import (
     ConsumerOptions,
-    DirectReplyToConsumerOptions,
     OAuth2Options,
     RecoveryConfiguration,
 )
@@ -380,7 +379,7 @@ class Connection:
 
     def consumer(
         self,
-        destination: str,
+        destination: Optional[str] = None,
         message_handler: Optional[MessagingHandler] = None,
         consumer_options: Optional[ConsumerOptions] = None,
         credit: Optional[int] = None,
@@ -389,7 +388,7 @@ class Connection:
         Create a new consumer instance.
 
         Args:
-            destination: The address to consume from
+            destination: Optional The address to consume from
             message_handler: Optional handler for processing messages
             consumer_options: Optional configuration for queue consumption. Each queue has its own consumer options.
             credit: Optional credit value for flow control
@@ -402,9 +401,7 @@ class Connection:
             Only applies if not using Direct Reply-to.
             The server will provide the queue name in that case.
         """
-        if not validate_address(destination) and not isinstance(
-            consumer_options, DirectReplyToConsumerOptions
-        ):
+        if destination is not None and not validate_address(destination):
             raise ArgumentOutOfRangeException(
                 "destination address must start with /queues or /exchanges"
             )

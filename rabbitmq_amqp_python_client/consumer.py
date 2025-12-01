@@ -1,7 +1,6 @@
 import logging
 from typing import Literal, Optional, Union, cast
 
-
 from .amqp_consumer_handler import AMQPMessagingHandler
 from .entities import (
     ConsumerOptions,
@@ -41,7 +40,7 @@ class Consumer:
     def __init__(
         self,
         conn: BlockingConnection,
-        addr: str,
+        addr: Optional[str] = None,
         handler: Optional[AMQPMessagingHandler] = None,
         consumer_options: Optional[ConsumerOptions] = None,
         credit: Optional[int] = None,
@@ -70,34 +69,26 @@ class Consumer:
             logger.debug("Creating Receiver")
             self._receiver = self._create_receiver(self._addr)
 
-    def get_queue_address(self) -> Optional[str]:
-        """
-        Get the name of the queue from the address.
-
-        Returns:
-            str: The name of the queue.
-        """
-        if self._receiver is not None:
-            return cast(Optional[str], self._receiver.link.remote_source.address)
-        else:
-            raise Exception("Receiver is not initialized")
-
     def _update_connection(self, conn: BlockingConnection) -> None:
+        addr = ""
+        if self._addr is not None:
+            addr = self._addr
+
         self._conn = conn
         if self._consumer_options is None:
             logger.debug("creating new receiver without stream")
             self._receiver = self._conn.create_receiver(
-                self._addr,
-                options=ReceiverOptionUnsettled(self._addr),
+                addr,
+                options=ReceiverOptionUnsettled(addr),
                 handler=self._handler,
             )
         else:
             logger.debug("creating new stream receiver")
             self._consumer_options.offset(self._handler.offset - 1)  # type: ignore
             self._receiver = self._conn.create_receiver(
-                self._addr,
+                addr,
                 options=ReceiverOptionUnsettledWithFilters(
-                    self._addr, self._consumer_options
+                    addr, self._consumer_options
                 ),
                 handler=self._handler,
             )
@@ -159,7 +150,7 @@ class Consumer:
             self._receiver.container.stop_events()
             self._receiver.container.stop()
 
-    def _create_receiver(self, addr: str) -> BlockingReceiver:
+    def _create_receiver(self, addr: Optional[str] = None) -> BlockingReceiver:
         credit = 100
         if self._credit is not None:
             credit = self._credit
@@ -182,7 +173,9 @@ class Consumer:
 
         if isinstance(self._consumer_options, DirectReplyToConsumerOptions):
             logger.debug("Creating dynamic receiver for direct reply-to")
-            dynamic_receiver = self._conn.create_dynamic_receiver(100, handler=self._handler)
+            dynamic_receiver = self._conn.create_dynamic_receiver(
+                100, handler=self._handler
+            )
             dynamic_receiver.credit = credit
             return dynamic_receiver
 
@@ -195,14 +188,16 @@ class Consumer:
                 handler=self._handler,
             )
 
-        raise AMQPError(
+        raise Exception(
             "Receiver is not initialized. No valid consumer options provided."
         )
 
     @property
-    def address(self) -> str:
-        """Get the current publisher address."""
-        return self._addr
+    def address(self) -> Optional[str]:
+        if self._receiver is not None:
+            return cast(Optional[str], self._receiver.link.remote_source.address)
+        else:
+            raise Exception("Receiver is not initialized")
 
     @property
     def handler(self) -> Optional[AMQPMessagingHandler]:

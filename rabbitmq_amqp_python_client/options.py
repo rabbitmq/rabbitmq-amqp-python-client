@@ -1,3 +1,5 @@
+from typing import Optional
+
 from .entities import ConsumerOptions
 from .qpid.proton._data import (  # noqa: E402
     Data,
@@ -72,7 +74,7 @@ class DynamicReceiverOption(LinkOption):  # type: ignore
 
 
 class ReceiverOptionUnsettled(LinkOption):  # type: ignore
-    def __init__(self, addr: str):
+    def __init__(self, addr: Optional[str]):
         self._addr = addr
 
     def apply(self, link: Link) -> None:
@@ -87,7 +89,7 @@ class ReceiverOptionUnsettled(LinkOption):  # type: ignore
 
 
 class ReceiverOptionUnsettledWithFilters(Filter):  # type: ignore
-    def __init__(self, addr: str, consumer_options: ConsumerOptions):
+    def __init__(self, addr: Optional[str], consumer_options: ConsumerOptions):
         super().__init__(consumer_options.filter_set())
         self._addr = addr
 
