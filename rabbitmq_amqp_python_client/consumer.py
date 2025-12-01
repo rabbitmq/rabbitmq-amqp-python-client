@@ -2,7 +2,11 @@ import logging
 from typing import Literal, Optional, Union, cast
 
 from .amqp_consumer_handler import AMQPMessagingHandler
-from .entities import ConsumerOptions
+from .entities import (
+    ConsumerOptions,
+    DirectReplyToConsumerOptions,
+    StreamConsumerOptions,
+)
 from .options import (
     ReceiverOptionUnsettled,
     ReceiverOptionUnsettledWithFilters,
@@ -29,16 +33,16 @@ class Consumer:
         _conn (BlockingConnection): The underlying connection to RabbitMQ
         _addr (str): The address to consume from
         _handler (Optional[MessagingHandler]): Optional message handling callback
-        _stream_options (Optional[StreamConsumerOptions]): Configuration for stream consumption
+        _consumer_options (Optional[StreamConsumerOptions]): Configuration for stream consumption
         _credit (Optional[int]): Flow control credit value
     """
 
     def __init__(
         self,
         conn: BlockingConnection,
-        addr: str,
+        addr: Optional[str] = None,
         handler: Optional[AMQPMessagingHandler] = None,
-        stream_options: Optional[ConsumerOptions] = None,
+        consumer_options: Optional[ConsumerOptions] = None,
         credit: Optional[int] = None,
     ):
         """
@@ -48,14 +52,14 @@ class Consumer:
             conn: The blocking connection to use for consuming
             addr: The address to consume from
             handler: Optional message handler for processing received messages
-            stream_options: Optional configuration for stream-based consumption
+            consumer_options: Optional configuration for stream-based consumption
             credit: Optional credit value for flow control
         """
         self._receiver: Optional[BlockingReceiver] = None
         self._conn = conn
         self._addr = addr
         self._handler = handler
-        self._stream_options = stream_options
+        self._consumer_options = consumer_options
         self._credit = credit
         self._consumers: list[Consumer] = []
         self._open()
@@ -66,21 +70,25 @@ class Consumer:
             self._receiver = self._create_receiver(self._addr)
 
     def _update_connection(self, conn: BlockingConnection) -> None:
+        addr = ""
+        if self._addr is not None:
+            addr = self._addr
+
         self._conn = conn
-        if self._stream_options is None:
+        if self._consumer_options is None:
             logger.debug("creating new receiver without stream")
             self._receiver = self._conn.create_receiver(
-                self._addr,
-                options=ReceiverOptionUnsettled(self._addr),
+                addr,
+                options=ReceiverOptionUnsettled(addr),
                 handler=self._handler,
             )
         else:
             logger.debug("creating new stream receiver")
-            self._stream_options.offset(self._handler.offset - 1)  # type: ignore
+            self._consumer_options.offset(self._handler.offset - 1)  # type: ignore
             self._receiver = self._conn.create_receiver(
-                self._addr,
+                addr,
                 options=ReceiverOptionUnsettledWithFilters(
-                    self._addr, self._stream_options
+                    addr, self._consumer_options
                 ),
                 handler=self._handler,
             )
@@ -142,29 +150,54 @@ class Consumer:
             self._receiver.container.stop_events()
             self._receiver.container.stop()
 
-    def _create_receiver(self, addr: str) -> BlockingReceiver:
-        logger.debug("Creating the receiver")
-        if self._stream_options is None:
-            receiver = self._conn.create_receiver(
-                addr, options=ReceiverOptionUnsettled(addr), handler=self._handler
+    def _create_receiver(self, addr: Optional[str] = None) -> BlockingReceiver:
+        credit = 10
+        if self._credit is not None:
+            credit = self._credit
+
+        if self._consumer_options is not None:
+            logger.debug(
+                "Creating the receiver, with options: %s",
+                type(self._consumer_options).__name__,
+            )
+        else:
+            logger.debug("Creating the receiver, without options")
+
+        if self._consumer_options is None:
+            return self._conn.create_receiver(
+                addr,
+                options=ReceiverOptionUnsettled(addr),
+                handler=self._handler,
+                credit=credit,
             )
 
-        else:
-            receiver = self._conn.create_receiver(
+        if isinstance(self._consumer_options, DirectReplyToConsumerOptions):
+            logger.debug("Creating dynamic receiver for direct reply-to")
+            dynamic_receiver = self._conn.create_dynamic_receiver(
+                credit, handler=self._handler
+            )
+            dynamic_receiver.credit = credit
+            return dynamic_receiver
+
+        if isinstance(self._consumer_options, StreamConsumerOptions):
+            return self._conn.create_receiver(
                 addr,
-                options=ReceiverOptionUnsettledWithFilters(addr, self._stream_options),
+                options=ReceiverOptionUnsettledWithFilters(
+                    addr, self._consumer_options
+                ),
                 handler=self._handler,
             )
 
-        if self._credit is not None:
-            receiver.credit = self._credit
-
-        return receiver
+        raise Exception(
+            "Receiver is not initialized. No valid consumer options provided."
+        )
 
     @property
-    def address(self) -> str:
-        """Get the current publisher address."""
-        return self._addr
+    def address(self) -> Optional[str]:
+        if self._receiver is not None:
+            return cast(Optional[str], self._receiver.link.remote_source.address)
+        else:
+            raise Exception("Receiver is not initialized")
 
     @property
     def handler(self) -> Optional[AMQPMessagingHandler]:

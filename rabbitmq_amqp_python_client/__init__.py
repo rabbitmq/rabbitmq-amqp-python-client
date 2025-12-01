@@ -14,6 +14,7 @@ from .connection import Connection
 from .consumer import Consumer
 from .entities import (
     ConsumerOptions,
+    DirectReplyToConsumerOptions,
     ExchangeCustomSpecification,
     ExchangeSpecification,
     ExchangeToExchangeBindingSpecification,
@@ -72,6 +73,7 @@ __all__ = [
     "QuorumQueueSpecification",
     "ClassicQueueSpecification",
     "StreamSpecification",
+    "DirectReplyToConsumerOptions",
     "ExchangeToQueueBindingSpecification",
     "ExchangeToExchangeBindingSpecification",
     "QueueType",

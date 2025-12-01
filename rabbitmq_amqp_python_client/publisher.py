@@ -94,7 +94,7 @@ class Publisher:
                 return self._sender.send(message)
         else:
             if message.address != "":
-                if validate_address(message.address) is False:
+                if not validate_address(message.address):
                     raise ArgumentOutOfRangeException(
                         "destination address must start with /queues or /exchanges"
                     )

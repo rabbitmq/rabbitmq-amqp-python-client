@@ -379,7 +379,7 @@ class Connection:
 
     def consumer(
         self,
-        destination: str,
+        destination: Optional[str] = None,
         message_handler: Optional[MessagingHandler] = None,
         consumer_options: Optional[ConsumerOptions] = None,
         credit: Optional[int] = None,
@@ -388,7 +388,7 @@ class Connection:
         Create a new consumer instance.
 
         Args:
-            destination: The address to consume from
+            destination: Optional The address to consume from
             message_handler: Optional handler for processing messages
             consumer_options: Optional configuration for queue consumption. Each queue has its own consumer options.
             credit: Optional credit value for flow control
@@ -397,9 +397,11 @@ class Connection:
             Consumer: A new consumer instance
 
         Raises:
-            ArgumentOutOfRangeException: If destination address format is invalid
+            ArgumentOutOfRangeException: If destination address format is invalid.
+            Only applies if not using Direct Reply-to.
+            The server will provide the queue name in that case.
         """
-        if not validate_address(destination):
+        if destination is not None and not validate_address(destination):
             raise ArgumentOutOfRangeException(
                 "destination address must start with /queues or /exchanges"
             )
@@ -438,9 +440,7 @@ class Connection:
             time.sleep(delay.total_seconds())
 
             try:
-
                 self._open_connections(reconnect_handlers=True)
-
                 self._connections.append(self)
 
             except ConnectionException as e:
