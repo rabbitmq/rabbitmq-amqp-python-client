@@ -1,7 +1,7 @@
 # type: ignore
 
 
-from rabbitmq_amqp_python_client import (  # PosixSSlConfigurationContext,; PosixClientCert,
+from rabbitmq_amqp_python_client import (
     AMQPMessagingHandler,
     Connection,
     Converter,
@@ -72,7 +72,7 @@ def main() -> None:
         elif status.remote_state == OutcomeState.RELEASED:
             print("message not routed")
         elif status.remote_state == OutcomeState.REJECTED:
-            print("message not rejected")
+            print("message rejected")
 
     try:
         consumer.run()
