@@ -1,7 +1,7 @@
 # type: ignore
 
 
-from rabbitmq_amqp_python_client import (  # PosixSSlConfigurationContext,; PosixClientCert,
+from rabbitmq_amqp_python_client import (
     AMQPMessagingHandler,
     Connection,
     Converter,
