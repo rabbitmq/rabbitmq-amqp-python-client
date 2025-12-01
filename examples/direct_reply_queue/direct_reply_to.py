@@ -60,7 +60,7 @@ def main() -> None:
         message_handler=MyMessageHandler(),
         consumer_options=DirectReplyToConsumerOptions(),
     )
-    addr = consumer.get_queue_address()
+    addr = consumer.address
     print("connecting to address: {}".format(addr))
     publisher = create_connection(environment).publisher(addr)
 
