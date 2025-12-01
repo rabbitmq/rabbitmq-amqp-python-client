@@ -1,7 +1,6 @@
 import logging
 from typing import Literal, Optional, Union, cast
 
-from pika.exceptions import AMQPError
 
 from .amqp_consumer_handler import AMQPMessagingHandler
 from .entities import (
@@ -81,7 +80,7 @@ class Consumer:
         if self._receiver is not None:
             return cast(Optional[str], self._receiver.link.remote_source.address)
         else:
-            raise AMQPError("Receiver is not initialized")
+            raise Exception("Receiver is not initialized")
 
     def _update_connection(self, conn: BlockingConnection) -> None:
         self._conn = conn
