@@ -21,11 +21,11 @@ def create_connection(environment: Environment) -> Connection:
 
 def test_direct_reply_to_send_and_receive(environment: Environment) -> None:
     """Test that messages can be published to and consumed from a direct reply-to queue."""
-    messages_to_send = 10
+    messages_to_send = 100
 
     # Create a consumer using DirectReplyToConsumerOptions
     consumer = create_connection(environment).consumer(
-        consumer_options=DirectReplyToConsumerOptions()
+        credit=100, consumer_options=DirectReplyToConsumerOptions()
     )
 
     # Get the queue address from the consumer

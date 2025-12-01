@@ -151,7 +151,7 @@ class Consumer:
             self._receiver.container.stop()
 
     def _create_receiver(self, addr: Optional[str] = None) -> BlockingReceiver:
-        credit = 2
+        credit = 10
         if self._credit is not None:
             credit = self._credit
 
