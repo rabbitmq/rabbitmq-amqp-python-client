@@ -151,7 +151,7 @@ class Consumer:
             self._receiver.container.stop()
 
     def _create_receiver(self, addr: Optional[str] = None) -> BlockingReceiver:
-        credit = 100
+        credit = 2
         if self._credit is not None:
             credit = self._credit
 
@@ -174,7 +174,7 @@ class Consumer:
         if isinstance(self._consumer_options, DirectReplyToConsumerOptions):
             logger.debug("Creating dynamic receiver for direct reply-to")
             dynamic_receiver = self._conn.create_dynamic_receiver(
-                100, handler=self._handler
+                credit, handler=self._handler
             )
             dynamic_receiver.credit = credit
             return dynamic_receiver

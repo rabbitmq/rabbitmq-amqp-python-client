@@ -53,16 +53,17 @@ def create_connection(environment: Environment) -> Connection:
 
 
 def main() -> None:
-    print("connection to amqp server")
+    print("connection_consumer to amqp server")
     environment = Environment(uri="amqp://guest:guest@localhost:5672/")
-    connection = create_connection(environment)
-    consumer = connection.consumer(
+    connection_consumer = create_connection(environment)
+    consumer = connection_consumer.consumer(
         message_handler=MyMessageHandler(),
         consumer_options=DirectReplyToConsumerOptions(),
     )
     addr = consumer.address
     print("connecting to address: {}".format(addr))
-    publisher = create_connection(environment).publisher(addr)
+    connection_publisher = create_connection(environment)
+    publisher = connection_publisher.publisher(addr)
 
     for i in range(MESSAGES_TO_PUBLISH):
         msg = Message(body=Converter.string_to_bytes("test message {} ".format(i)))
@@ -80,9 +81,9 @@ def main() -> None:
         pass
 
     consumer.close()
-
-    connection.close()
-    print("after connection closing")
+    publisher.close()
+    connection_consumer.close()
+    connection_publisher.close()
 
 
 if __name__ == "__main__":
