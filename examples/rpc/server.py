@@ -13,9 +13,6 @@ from rabbitmq_amqp_python_client import (
     QuorumQueueSpecification,
 )
 
-MESSAGES_TO_PUBLISH = 200
-
-
 # create a responder
 
 
