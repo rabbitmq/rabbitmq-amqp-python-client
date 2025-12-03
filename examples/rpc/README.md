@@ -23,4 +23,14 @@ The `amq.rabbitmq.reply-to.g1h2AA...` is a special direct-reply-to queue used by
 Use standard queues for reply 
 ===
 
-If you want to use standard queues for replies instead of the direct-reply-to feature.
+If you want to use standard queues for replies instead of the direct-reply-to feature is enough change the consumer declaration:
+
+```python
+queue_name = "rpc_reply_queue"
+management.declare_queue(QuorumQueueSpecification(name=queue_name))
+
+consumer = await connection_consumer.consumer(
+        destination=AddressHelper.queue_address(queue_name))
+```
+
+You should use [Classic Queues](https://www.rabbitmq.com/docs/classic-queues) or [Quorum Queues](https://www.rabbitmq.com/docs/quorum-queues).
