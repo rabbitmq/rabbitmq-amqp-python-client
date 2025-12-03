@@ -13,8 +13,12 @@ class Requester:
     def __init__(self, request_queue_name: str, environment: Environment):
         self.connection = environment.connection()
         self.connection.dial()
-        self.publisher = self.connection.publisher(AddressHelper.queue_address(request_queue_name))
-        self.consumer = self.connection.consumer(consumer_options=DirectReplyToConsumerOptions())
+        self.publisher = self.connection.publisher(
+            AddressHelper.queue_address(request_queue_name)
+        )
+        self.consumer = self.connection.consumer(
+            consumer_options=DirectReplyToConsumerOptions()
+        )
         print("connected both publisher and consumer")
         print("consumer reply address is {}".format(self.consumer.address))
 
@@ -35,9 +39,15 @@ def main() -> None:
         request_body = "hello {}".format(i)
         print("******************************************************")
         print("Sending request: {}".format(request_body))
-        response_message = responder.send_request(request_body=request_body, correlation_id=correlation_id)
+        response_message = responder.send_request(
+            request_body=request_body, correlation_id=correlation_id
+        )
         response_body = Converter.bytes_to_string(response_message.body)
-        print("Received response: {} - correlation_id: {}".format(response_body, response_message.correlation_id))
+        print(
+            "Received response: {} - correlation_id: {}".format(
+                response_body, response_message.correlation_id
+            )
+        )
         print("------------------------------------------------------")
         time.sleep(1)
 

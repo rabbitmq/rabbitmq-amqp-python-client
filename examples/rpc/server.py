@@ -18,6 +18,7 @@ MESSAGES_TO_PUBLISH = 200
 
 # create a responder
 
+
 class Responder:
     class ResponderMessageHandler(AMQPMessagingHandler):
 
@@ -31,18 +32,20 @@ class Responder:
         def on_amqp_message(self, event: Event):
             # process the message and create a response
             print("******************************************************")
-            print("received message: {} ".format(Converter.bytes_to_string(event.message.body)))
-            response_body = Converter.bytes_to_string(
-                event.message.body) + "-from the server"
-            response_message = Message(
-                body=Converter.string_to_bytes(response_body))
+            print(
+                "received message: {} ".format(
+                    Converter.bytes_to_string(event.message.body)
+                )
+            )
+            response_body = (
+                Converter.bytes_to_string(event.message.body) + "-from the server"
+            )
+            response_message = Message(body=Converter.string_to_bytes(response_body))
             # publish response to the reply_to address with the same correlation_id
             response_message.correlation_id = event.message.correlation_id
             response_message.address = event.message.reply_to
             print("sending back: {} ".format(response_body))
-            status = self._publisher.publish(
-                message=response_message
-            )
+            status = self._publisher.publish(message=response_message)
             if status.remote_state == OutcomeState.ACCEPTED:
                 print("message accepted to {}".format(response_message.address))
             elif status.remote_state == OutcomeState.RELEASED:
@@ -65,14 +68,16 @@ class Responder:
         self.connection.dial()
         self.connection.management().delete_queue(self.request_queue_name)
         self.connection.management().declare_queue(
-            queue_specification=QuorumQueueSpecification(self.request_queue_name))
+            queue_specification=QuorumQueueSpecification(self.request_queue_name)
+        )
         self.publisher = self.connection.publisher()
         handler = self.ResponderMessageHandler()
         handler.set_publisher(self.publisher)
 
-        self.consumer = self.connection.consumer(destination=AddressHelper.queue_address(self.request_queue_name),
-                                                 message_handler=handler
-                                                 )
+        self.consumer = self.connection.consumer(
+            destination=AddressHelper.queue_address(self.request_queue_name),
+            message_handler=handler,
+        )
         addr = self.consumer.address
         print("Responder listening on address: {}".format(addr))
         try:
