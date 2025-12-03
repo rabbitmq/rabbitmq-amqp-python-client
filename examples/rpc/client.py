@@ -33,13 +33,13 @@ class Requester:
 def main() -> None:
     print("connection_consumer to amqp server")
     environment = Environment(uri="amqp://guest:guest@localhost:5672/")
-    responder = Requester(request_queue_name="rpc_queue", environment=environment)
+    requester = Requester(request_queue_name="rpc_queue", environment=environment)
     for i in range(10):
         correlation_id = str(i)
         request_body = "hello {}".format(i)
         print("******************************************************")
         print("Sending request: {}".format(request_body))
-        response_message = responder.send_request(
+        response_message = requester.send_request(
             request_body=request_body, correlation_id=correlation_id
         )
         response_body = Converter.bytes_to_string(response_message.body)
