@@ -93,7 +93,7 @@ def create_connection(environment: Environment) -> Connection:
 
 
 def main() -> None:
-    print("connection_consumer to amqp server")
+    print("Connecting consumer to AMQP server")
     environment = Environment(uri="amqp://guest:guest@localhost:5672/")
     responder = Responder(request_queue_name="rpc_queue", environment=environment)
     responder.start()
