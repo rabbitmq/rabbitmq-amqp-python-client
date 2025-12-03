@@ -7,3 +7,5 @@ Client examples
  - [Oauth](./oauth/oAuth2.py) - Connection through Oauth token
  - [Streams with filters](./streams_with_filters/example_streams_with_filters.py) - Example supporting stream capabilities with filters
  - [Streams With Sql filters](./streams_with_sql_filters) - Example supporting stream capabilities with SQL filters
+ - [Direct Reply To](./direct_reply_queue) - How to use [Direct Reply](https://www.rabbitmq.com/docs/direct-reply-to) feature
+ - [RPC](./rpc) - Basic RPC example 
