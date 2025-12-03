@@ -51,7 +51,7 @@ class Responder:
             elif status.remote_state == OutcomeState.RELEASED:
                 print("message not routed")
             elif status.remote_state == OutcomeState.REJECTED:
-                print("message not rejected")
+                print("message rejected")
 
             self.delivery_context.accept(event)
             print("------------------------------------------------------")
