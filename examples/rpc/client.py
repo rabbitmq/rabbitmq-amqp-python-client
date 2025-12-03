@@ -31,7 +31,7 @@ class Requester:
 
 
 def main() -> None:
-    print("connection_consumer to amqp server")
+    print("Connecting to AMQP server")
     environment = Environment(uri="amqp://guest:guest@localhost:5672/")
     requester = Requester(request_queue_name="rpc_queue", environment=environment)
     for i in range(10):
