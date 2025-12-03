@@ -11,14 +11,8 @@ To run this example, you need to have RabbitMQ >=4.2 server running locally.
 Then run the python scripts in separate terminal windows.
 ```bash
 $ python3 server.py
-connection_consumer to amqp server
+Connecting consumer to AMQP server
 Responder listening on address: /queues/rpc_queue
-```
-
-Then in another terminal window run:
-```bash
-$ python3 client.py
-connection_consumer to amqp server
 connected both publisher and consumer
 consumer reply address is /queues/amq.rabbitmq.reply-to.g1h2AA5yZXBseUA2ODc4MTMzNAAAcEoAAAAAaS8eQg%3D%
 ```
