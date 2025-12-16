@@ -18,4 +18,5 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Implement Direct Reply To Feature in [#87](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/87)
 - Add and RPC example using direct reply queue in [#89](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/89)
+- Bump urllib3 from 2.5.0 to 2.6.0 in [#90](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/90)
 
