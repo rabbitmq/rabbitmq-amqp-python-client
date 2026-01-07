@@ -1,6 +1,7 @@
 .idea/
 .vscode/
 .vim/
+.DS_Store
 
 venv/
 dist/

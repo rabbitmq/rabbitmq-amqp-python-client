@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional, Union
 
 from .common import ExchangeType, QueueType
 from .exceptions import ValidationCodeException
-from .qpid.proton._data import Described, symbol
+from .qpid.proton._data import Described, symbol, timestamp
 
 SQL_FILTER = "sql-filter"
 AMQP_SQL_FILTER = "amqp:sql-filter"
@@ -109,11 +109,13 @@ class OffsetSpecification(Enum):
         first: Start from the first message in the stream
         next: Start from the next message to arrive
         last: Start from the last message in the stream
+        timestamp: Start from a specific timestamp
     """
 
     first = ("first",)
     next = ("next",)
     last = ("last",)
+    timestamp = ("timestamp",)
 
 
 @dataclass
@@ -243,7 +245,9 @@ class StreamConsumerOptions(ConsumerOptions):
 
     def __init__(
         self,
-        offset_specification: Optional[Union[OffsetSpecification, int]] = None,
+        offset_specification: Optional[
+            Union[OffsetSpecification, int, datetime]
+        ] = None,
         filter_options: Optional[StreamFilterOptions] = None,
     ):
 
@@ -275,7 +279,9 @@ class StreamConsumerOptions(ConsumerOptions):
         if filter_options.sql is not None and filter_options.sql != "":
             self._filter_sql(filter_options.sql)
 
-    def _offset(self, offset_specification: Union[OffsetSpecification, int]) -> None:
+    def _offset(
+        self, offset_specification: Union[OffsetSpecification, int, datetime]
+    ) -> None:
         """
         Set the offset specification for the stream.
 
@@ -287,9 +293,18 @@ class StreamConsumerOptions(ConsumerOptions):
             self._filter_set[symbol(STREAM_OFFSET_SPEC)] = Described(
                 symbol(STREAM_OFFSET_SPEC), offset_specification
             )
-        else:
+        if isinstance(offset_specification, OffsetSpecification):
             self._filter_set[symbol(STREAM_OFFSET_SPEC)] = Described(
                 symbol(STREAM_OFFSET_SPEC), offset_specification.name
+            )
+
+        if isinstance(offset_specification, datetime):
+            # convert datetime to milliseconds since epoch
+            milliseconds_since_epoch = int(offset_specification.timestamp() * 1000)
+            # Create a timestamp instance
+            ts = timestamp(milliseconds_since_epoch)
+            self._filter_set[symbol(STREAM_OFFSET_SPEC)] = Described(
+                symbol(STREAM_OFFSET_SPEC), ts
             )
 
     def _filter_values(self, filters: list[str]) -> None:

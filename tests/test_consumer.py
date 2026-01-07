@@ -1,9 +1,17 @@
+import time
+from datetime import datetime
+
 from rabbitmq_amqp_python_client import (
     AddressHelper,
+    AMQPMessagingHandler,
     ArgumentOutOfRangeException,
     Connection,
     Environment,
+    Event,
+    Message,
     QuorumQueueSpecification,
+    StreamConsumerOptions,
+    StreamSpecification,
 )
 from rabbitmq_amqp_python_client.utils import Converter
 
@@ -399,3 +407,231 @@ def test_consumer_async_queue_with_requeue_with_invalid_annotations(
     management.close()
 
     assert test_failure is False
+
+
+class MyMessageHandlerDatetimeOffset(AMQPMessagingHandler):
+    def __init__(self, expected_prefix: str, expected_count: int):
+        super().__init__()
+        self._received = 0
+        self._expected_prefix = expected_prefix
+        self._expected_count = expected_count
+
+    def on_message(self, event: Event):
+        message_body = Converter.bytes_to_string(event.message.body)
+        # Verify that we only receive messages with the expected prefix
+        assert message_body.startswith(self._expected_prefix), (
+            f"Expected message to start with '{self._expected_prefix}', "
+            f"but got '{message_body}'"
+        )
+        self.delivery_context.accept(event)
+        self._received = self._received + 1
+        if self._received == self._expected_count:
+            raise ConsumerTestException("consumed")
+
+
+def test_stream_consumer_offset_datetime(
+    connection: Connection, environment: Environment
+) -> None:
+    """
+    Test that StreamConsumerOptions with offset_specification=datetime.now()
+    only consumes messages published after the specified datetime.
+    """
+    consumer = None
+    stream_name = "test-stream-consumer-datetime-offset"
+    messages_before = 10
+    messages_after = 10
+
+    queue_specification = StreamSpecification(name=stream_name)
+    management = connection.management()
+    management.declare_queue(queue_specification)
+
+    addr_queue = AddressHelper.queue_address(stream_name)
+
+    # Publish first set of messages
+    publisher = connection.publisher(addr_queue)
+    for i in range(messages_before):
+        publisher.publish(
+            Message(
+                body=Converter.string_to_bytes(f"Before datetime: {i}"),
+            )
+        )
+    publisher.close()
+
+    # Wait a bit to ensure timestamp difference
+    time.sleep(2)
+
+    # Capture the datetime - consumer should only receive messages after this
+    starting_from_here = datetime.now()
+
+    # Wait a tiny bit to ensure messages are published after the datetime
+    time.sleep(0.1)
+
+    # Publish second set of messages after the datetime
+    publisher = connection.publisher(addr_queue)
+    for i in range(messages_after):
+        publisher.publish(
+            Message(
+                body=Converter.string_to_bytes(f"After datetime: {i}"),
+            )
+        )
+    publisher.close()
+
+    try:
+        connection_consumer = environment.connection()
+        connection_consumer.dial()
+        consumer = connection_consumer.consumer(
+            addr_queue,
+            message_handler=MyMessageHandlerDatetimeOffset(
+                expected_prefix="After datetime:", expected_count=messages_after
+            ),
+            consumer_options=StreamConsumerOptions(
+                offset_specification=starting_from_here
+            ),
+        )
+
+        consumer.run()
+    except ConsumerTestException:
+        pass
+    finally:
+        if consumer is not None:
+            consumer.close()
+        management.delete_queue(stream_name)
+        management.close()
+
+
+def test_stream_consumer_offset_datetime_no_messages_before(
+    connection: Connection, environment: Environment
+) -> None:
+    """
+    Test that StreamConsumerOptions with offset_specification=datetime.now()
+    does not consume any messages when all messages were published before the datetime.
+    """
+    consumer = None
+    stream_name = "test-stream-consumer-datetime-offset-no-before"
+    messages_to_send = 10
+
+    queue_specification = StreamSpecification(name=stream_name)
+    management = connection.management()
+    management.declare_queue(queue_specification)
+
+    addr_queue = AddressHelper.queue_address(stream_name)
+
+    # Publish messages
+    publisher = connection.publisher(addr_queue)
+    for i in range(messages_to_send):
+        publisher.publish(
+            Message(
+                body=Converter.string_to_bytes(f"Message: {i}"),
+            )
+        )
+    publisher.close()
+
+    # Wait a bit
+    time.sleep(2)
+
+    # Capture a datetime after all messages were published
+    starting_from_here = datetime.now()
+
+    # Wait a bit more to ensure the datetime is definitely after all messages
+    time.sleep(0.5)
+
+    try:
+        connection_consumer = environment.connection()
+        connection_consumer.dial()
+        consumer = connection_consumer.consumer(
+            addr_queue,
+            consumer_options=StreamConsumerOptions(
+                offset_specification=starting_from_here
+            ),
+        )
+
+        # Try to consume with a short timeout - should not receive any messages
+        try:
+            consumer.consume(timeout=1)
+            # If we get here, we received a message which is unexpected
+            assert False, "Expected no messages to be consumed"
+        except Exception:
+            # Expected - no messages should be available
+            pass
+    finally:
+        if consumer is not None:
+            consumer.close()
+        management.delete_queue(stream_name)
+        management.close()
+
+
+def test_stream_consumer_offset_datetime_mixed_messages(
+    connection: Connection, environment: Environment
+) -> None:
+    """
+    Test that StreamConsumerOptions with offset_specification=datetime.now()
+    correctly filters messages when messages are published both before and after.
+    """
+    consumer = None
+    stream_name = "test-stream-consumer-datetime-offset-mixed"
+    messages_before = 5
+    messages_after = 5
+
+    queue_specification = StreamSpecification(name=stream_name)
+    management = connection.management()
+    management.declare_queue(queue_specification)
+
+    addr_queue = AddressHelper.queue_address(stream_name)
+
+    # Publish first batch
+    publisher = connection.publisher(addr_queue)
+    for i in range(messages_before):
+        publisher.publish(
+            Message(
+                body=Converter.string_to_bytes(f"Batch1: {i}"),
+            )
+        )
+    publisher.close()
+
+    # Wait and capture datetime
+    time.sleep(2)
+    starting_from_here = datetime.now()
+    time.sleep(0.1)
+
+    # Publish second batch after datetime
+    publisher = connection.publisher(addr_queue)
+    for i in range(messages_after):
+        publisher.publish(
+            Message(
+                body=Converter.string_to_bytes(f"Batch2: {i}"),
+            )
+        )
+    publisher.close()
+
+    # Publish a third batch after the datetime (should be consumed)
+    time.sleep(0.1)
+    publisher = connection.publisher(addr_queue)
+    for i in range(3):
+        publisher.publish(
+            Message(
+                body=Converter.string_to_bytes(f"Batch3: {i}"),
+            )
+        )
+    publisher.close()
+
+    try:
+        connection_consumer = environment.connection()
+        connection_consumer.dial()
+        consumer = connection_consumer.consumer(
+            addr_queue,
+            message_handler=MyMessageHandlerDatetimeOffset(
+                expected_prefix="Batch", expected_count=messages_after + 3
+            ),
+            consumer_options=StreamConsumerOptions(
+                offset_specification=starting_from_here
+            ),
+        )
+
+        consumer.run()
+    except ConsumerTestException:
+        pass
+    finally:
+        if consumer is not None:
+            consumer.close()
+        management.delete_queue(stream_name)
+        management.close()
