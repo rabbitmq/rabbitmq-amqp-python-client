@@ -81,37 +81,33 @@ def main() -> None:
     # print("create a publisher and publish a test message")
     publisher = connection.publisher(addr_queue)
     logger.info("Publishing first set of messages...")
-    # publish with a filter of apple
     for i in range(MESSAGES_TO_PUBLISH):
         publisher.publish(
             Message(
-                Converter.string_to_bytes(body="First send: " + str(i)),
+                Converter.string_to_bytes("First send: " + str(i)),
             )
         )
 
     logger.info("Publishing done. Waiting before publishing next set of messages...")
     time.sleep(3)  # wait 3 seconds before publishing next set of messages
-    starting_form_here = datetime.datetime.now()
+    starting_from_here = datetime.datetime.now()
     # consumer should only receive messages published after this timestamp
     logger.info("Publishing second set of messages...")
     for i in range(MESSAGES_TO_PUBLISH):
         publisher.publish(
             Message(
-                body=Converter.string_to_bytes("second send " + str(i)),
+                body=Converter.string_to_bytes("Second send: " + str(i)),
             )
         )
 
     publisher.close()
-    logger.info("starting consumer from datetime: " + str(starting_form_here))
+    logger.info("starting consumer from datetime: " + str(starting_from_here))
     consumer_connection = create_connection(environment)
     consumer = consumer_connection.consumer(
         addr_queue,
         message_handler=MyMessageHandler(),
-        # the consumer will only receive messages starting
-        consumer_options=StreamConsumerOptions(
-            offset_specification=starting_form_here
-
-        ),
+        # the consumer will only receive messages starting from the time stored in: starting_from_here
+        consumer_options=StreamConsumerOptions(offset_specification=starting_from_here),
     )
     print(
         "create a consumer and consume the test message - press control + c to terminate to consume"
