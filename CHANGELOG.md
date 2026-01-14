@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [[0.4.1](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v0.4.1)]
+
+## 0.4.1 - 2025-01-14
+- [Release 0.4.1](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v0.4.1)
+
+### Added
+- Implement consumer offset datetime by @Gsantomaggio in [#92](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/92)
+
 ## [[0.3.0](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v0.3.0)]
 
 ## 0.3.0 - 2025-18-11
