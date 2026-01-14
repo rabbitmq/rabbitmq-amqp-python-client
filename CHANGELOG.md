@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Implement consumer offset datetime by @Gsantomaggio in [#92](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/92)
+- Bump urllib3 from 2.6.0 to 2.6.3 in [#93](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/93)
 
 ## [[0.3.0](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v0.3.0)]
 
