@@ -13,7 +13,7 @@ It is an helper to set the default values needed for manually accepting and sett
 """
 
 
-class IDeliveryContext(ABC):
+class AbsDeliveryContext(ABC):
     """
     Abstract interface for delivery context operations.
     Provides methods to accept, reject, requeue or requeue with annotations a message.
@@ -88,7 +88,7 @@ class IDeliveryContext(ABC):
         pass
 
 
-class DeliveryContext(IDeliveryContext):
+class DeliveryContext(AbsDeliveryContext):
     """
     Default implementation of IDeliveryContext.
     Used to accept, reject, requeue or requeue with annotations a message.
