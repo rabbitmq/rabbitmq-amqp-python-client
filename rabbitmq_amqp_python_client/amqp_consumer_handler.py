@@ -1,11 +1,14 @@
-from .delivery_context import DeliveryContext
+from .delivery_context import (
+    DeliveryContext,
+    IDeliveryContext,
+)
 from .qpid.proton._events import Event
 from .qpid.proton.handlers import MessagingHandler
 
 """
 AMQPMessagingHandler extends the QPID MessagingHandler.
 It is an helper to set the default values needed for manually accepting and settling messages.
-self.delivery_context is an instance of DeliveryContext, which is used to accept, reject,
+self.delivery_context is an instance of IDeliveryContext (defaults to DeliveryContext), which is used to accept, reject,
 requeue or requeue with annotations a message.
 It is not mandatory to use this class, but it is a good practice to use it.
 """
@@ -20,7 +23,7 @@ class AMQPMessagingHandler(MessagingHandler):  # type: ignore
         different methods of the delivery_context what to do with the message
         """
         super().__init__(auto_accept=auto_accept, auto_settle=auto_settle)
-        self.delivery_context: DeliveryContext = DeliveryContext()
+        self.delivery_context: IDeliveryContext = DeliveryContext()
         self._offset = 0
 
     def on_amqp_message(self, event: Event) -> None:
