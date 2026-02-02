@@ -8,7 +8,7 @@ from ..address_helper import validate_address
 from ..connection import Connection
 from ..consumer import Consumer
 from ..entities import (
-    ConsumerOptions,
+    AbcConsumerOptions,
     OAuth2Options,
     RecoveryConfiguration,
 )
@@ -228,7 +228,7 @@ class AsyncConnection:
         self,
         destination: str,
         message_handler: Optional[MessagingHandler] = None,
-        consumer_options: Optional[ConsumerOptions] = None,
+        consumer_options: Optional[AbcConsumerOptions] = None,
         credit: Optional[int] = None,
     ) -> AsyncConsumer:
         """

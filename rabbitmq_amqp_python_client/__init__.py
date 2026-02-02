@@ -13,8 +13,9 @@ from .common import ExchangeType, QueueType
 from .connection import Connection
 from .consumer import Consumer
 from .entities import (
+    AbcConsumerOptions,
+    ConsumerFeature,
     ConsumerOptions,
-    DirectReplyToConsumerOptions,
     ExchangeCustomSpecification,
     ExchangeSpecification,
     ExchangeToExchangeBindingSpecification,
@@ -72,8 +73,8 @@ __all__ = [
     "ExchangeSpecification",
     "QuorumQueueSpecification",
     "ClassicQueueSpecification",
+    "ConsumerFeature",
     "StreamSpecification",
-    "DirectReplyToConsumerOptions",
     "ExchangeToQueueBindingSpecification",
     "ExchangeToExchangeBindingSpecification",
     "QueueType",
@@ -99,6 +100,7 @@ __all__ = [
     "ConnectionClosed",
     "StreamConsumerOptions",
     "StreamFilterOptions",
+    "AbcConsumerOptions",
     "ConsumerOptions",
     "MessageProperties",
     "OffsetSpecification",

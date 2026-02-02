@@ -1,6 +1,6 @@
 from .delivery_context import (
+    AbcDeliveryContext,
     DeliveryContext,
-    AbsDeliveryContext,
 )
 from .qpid.proton._events import Event
 from .qpid.proton.handlers import MessagingHandler
@@ -23,7 +23,7 @@ class AMQPMessagingHandler(MessagingHandler):  # type: ignore
         different methods of the delivery_context what to do with the message
         """
         super().__init__(auto_accept=auto_accept, auto_settle=auto_settle)
-        self.delivery_context: AbsDeliveryContext = DeliveryContext()
+        self.delivery_context: AbcDeliveryContext = DeliveryContext()
         self._offset = 0
 
     def on_amqp_message(self, event: Event) -> None:

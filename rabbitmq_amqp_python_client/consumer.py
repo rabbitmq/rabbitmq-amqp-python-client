@@ -3,11 +3,13 @@ from typing import Literal, Optional, Union, cast
 
 from .amqp_consumer_handler import AMQPMessagingHandler
 from .entities import (
+    AbcConsumerOptions,
     ConsumerOptions,
-    DirectReplyToConsumerOptions,
     StreamConsumerOptions,
 )
 from .options import (
+    DynamicReceiverOption,
+    ReceiverOptionPreSettled,
     ReceiverOptionUnsettled,
     ReceiverOptionUnsettledWithFilters,
 )
@@ -42,7 +44,7 @@ class Consumer:
         conn: BlockingConnection,
         addr: Optional[str] = None,
         handler: Optional[AMQPMessagingHandler] = None,
-        consumer_options: Optional[ConsumerOptions] = None,
+        consumer_options: Optional[AbcConsumerOptions] = None,
         credit: Optional[int] = None,
     ):
         """
@@ -82,7 +84,7 @@ class Consumer:
                 options=ReceiverOptionUnsettled(addr),
                 handler=self._handler,
             )
-        else:
+        elif isinstance(self._consumer_options, StreamConsumerOptions):
             logger.debug("creating new stream receiver")
             self._consumer_options.offset(self._handler.offset - 1)  # type: ignore
             self._receiver = self._conn.create_receiver(
@@ -90,6 +92,28 @@ class Consumer:
                 options=ReceiverOptionUnsettledWithFilters(
                     addr, self._consumer_options
                 ),
+                handler=self._handler,
+            )
+        elif isinstance(self._consumer_options, ConsumerOptions):
+            if self._consumer_options.pre_settled():
+                logger.debug("creating new receiver with pre-settled deliveries")
+                self._receiver = self._conn.create_receiver(
+                    addr,
+                    options=ReceiverOptionPreSettled(addr),
+                    handler=self._handler,
+                )
+            else:
+                logger.debug("creating new receiver for FIFO queue without pre-settled")
+                self._receiver = self._conn.create_receiver(
+                    addr,
+                    options=ReceiverOptionUnsettled(addr),
+                    handler=self._handler,
+                )
+        else:
+            logger.debug("creating new receiver with consumer options")
+            self._receiver = self._conn.create_receiver(
+                addr,
+                options=ReceiverOptionUnsettled(addr),
                 handler=self._handler,
             )
 
@@ -163,6 +187,8 @@ class Consumer:
         else:
             logger.debug("Creating the receiver, without options")
 
+        # we assume the default is for quorum and classic queues with
+        # Unsettled mode
         if self._consumer_options is None:
             return self._conn.create_receiver(
                 addr,
@@ -171,14 +197,6 @@ class Consumer:
                 credit=credit,
             )
 
-        if isinstance(self._consumer_options, DirectReplyToConsumerOptions):
-            logger.debug("Creating dynamic receiver for direct reply-to")
-            dynamic_receiver = self._conn.create_dynamic_receiver(
-                credit, handler=self._handler
-            )
-            dynamic_receiver.credit = credit
-            return dynamic_receiver
-
         if isinstance(self._consumer_options, StreamConsumerOptions):
             return self._conn.create_receiver(
                 addr,
@@ -186,6 +204,35 @@ class Consumer:
                     addr, self._consumer_options
                 ),
                 handler=self._handler,
+            )
+
+        if isinstance(self._consumer_options, ConsumerOptions):
+            if self._consumer_options.pre_settled():
+                logger.debug("Creating receiver with pre-settled deliveries")
+                return self._conn.create_receiver(
+                    addr,
+                    options=ReceiverOptionPreSettled(addr),
+                    handler=self._handler,
+                    credit=credit,
+                )
+
+            if self._consumer_options.direct_reply_to():
+                logger.debug("Creating receiver for direct-reply-to queue")
+                return self._conn.create_receiver(
+                    addr,
+                    options=DynamicReceiverOption(),
+                    handler=self._handler,
+                    credit=credit,
+                )
+
+            logger.debug(
+                "Creating receiver for CQ queue with default unsettled deliveries"
+            )
+            return self._conn.create_receiver(
+                addr,
+                options=ReceiverOptionUnsettled(addr),
+                handler=self._handler,
+                credit=credit,
             )
 
         raise Exception(
