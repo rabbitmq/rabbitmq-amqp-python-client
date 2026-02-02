@@ -25,7 +25,7 @@ def create_connection(environment: Environment) -> Connection:
 def test_direct_reply_to_send_and_receive(environment: Environment) -> None:
     """Test that messages can be published to and consumed from a direct reply-to queue."""
     messages_to_send = 100
-    # Create a consumer using DirectReplyToConsumerOptions
+    # Create a consumer using DirectReplyTo feature
     consumer = create_connection(environment).consumer(
         credit=100,
         consumer_options=ConsumerOptions(feature=ConsumerFeature.DirectReplyTo),

@@ -1,4 +1,4 @@
-"""Tests for FIFOConsumerOptions with pre_settled functionality."""
+"""Tests for (classic and Quorum) with pre_settled functionality."""
 
 from rabbitmq_amqp_python_client import (  # Environment,
     AddressHelper,

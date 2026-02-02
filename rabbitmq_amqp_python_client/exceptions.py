@@ -16,7 +16,7 @@ class ArgumentOutOfRangeException(BaseException):
         return repr(self.msg)
 
 
-class InvalidOperationException(BaseException):
+class InvalidOperationException(Exception):
     # Constructor or Initializer
     def __init__(self, msg: str):
         self.msg = msg

@@ -1,16 +1,19 @@
 """
-Example demonstrating FIFO consumer with pre-settled deliveries.
-
-This example shows how to use FIFOConsumerOptions with pre_settled=True
+RabbitMQ AMQP Python Client
+===============================================================================
+RabbitMQ AMQP 1.0 documentation: https://www.rabbitmq.com/docs/amqp
+# Example path: https://github.com/rabbitmq/rabbitmq-amqp-python-client/tree/main/
+examples/pre_settled_consumer/example_pre_settled_consumer.py
+This example shows how to use ConsumerOptions with pre-settled
 to enable at-most-once delivery semantics for FIFO (Classic and Quorum) queues.
 
-When pre_settled=True:
+When ConsumerFeature.Presettled:
 - Messages are automatically settled when received
 - Messages cannot be redelivered if processing fails
 - Suitable for use cases where message loss is acceptable
   (e.g., metrics, logs, sensor data)
 
-When pre_settled=False (default):
+When ConsumerFeature.Default:
 - Messages require explicit acknowledgment
 - Messages can be redelivered if not acknowledged
 - Provides at-least-once delivery semantics
