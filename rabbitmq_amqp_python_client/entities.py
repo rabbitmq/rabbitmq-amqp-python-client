@@ -429,7 +429,6 @@ class StreamConsumerOptions(AbcConsumerOptions):
             )
 
 
-@dataclass
 class ConsumerFeature(Enum):
     """
     ConsumerFeature defines the features available for Classic and Quorum queue consumers.
