@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Dict
 
-from .exceptions import ArgumentOutOfRangeException
+from .exceptions import (
+    ArgumentOutOfRangeException,
+    InvalidOperationException,
+)
 from .qpid.proton._data import PythonAMQPData
 from .qpid.proton._delivery import Delivery
 from .qpid.proton._events import Event
@@ -102,6 +105,11 @@ class DeliveryContext(AbcDeliveryContext):
         This means the message has been processed and the broker can delete it.
         """
         dlv = event.delivery
+        if dlv.settled:
+            # like the other clients, it has to raise an exception if trying to accept an already settled delivery
+            raise InvalidOperationException(
+                "auto-settle on, message is already disposed"
+            )
         dlv.update(Delivery.ACCEPTED)
         dlv.settle()
 
@@ -112,6 +120,11 @@ class DeliveryContext(AbcDeliveryContext):
         or dead-letter it if it is configured.
         """
         dlv = event.delivery
+        if dlv.settled:
+            # like the other clients, it has to raise an exception if trying to discard an already settled delivery
+            raise InvalidOperationException(
+                "auto-settle on, message is already disposed"
+            )
         dlv.update(Delivery.REJECTED)
         dlv.settle()
 
@@ -133,6 +146,11 @@ class DeliveryContext(AbcDeliveryContext):
          The annotations can be used only with Quorum queues, see https://www.rabbitmq.com/docs/amqp#modified-outcome
         """
         dlv = event.delivery
+        if dlv.settled:
+            # like the other clients, it has to raise an exception if trying to discard an already settled delivery
+            raise InvalidOperationException(
+                "auto-settle on, message is already disposed"
+            )
         dlv.local.annotations = annotations
         dlv.local.failed = True
         dlv.local.undeliverable = True
@@ -154,6 +172,11 @@ class DeliveryContext(AbcDeliveryContext):
         to the same or a different consumer.
         """
         dlv = event.delivery
+        if dlv.settled:
+            # like the other clients, it has to raise an exception if trying to requeue an already settled delivery
+            raise InvalidOperationException(
+                "auto-settle on, message is already disposed"
+            )
         dlv.update(Delivery.RELEASED)
         dlv.settle()
 
@@ -176,6 +199,11 @@ class DeliveryContext(AbcDeliveryContext):
         The annotations can be used only with Quorum queues, see https://www.rabbitmq.com/docs/amqp#modified-outcome
         """
         dlv = event.delivery
+        if dlv.settled:
+            # like the other clients, it has to raise an exception if trying to requeue an already settled delivery
+            raise InvalidOperationException(
+                "auto-settle on, message is already disposed"
+            )
         dlv.local.annotations = annotations
         dlv.local.failed = False
         dlv.local.undeliverable = False

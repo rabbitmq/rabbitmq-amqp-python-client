@@ -48,8 +48,7 @@ class MyMessageHandler(AMQPMessagingHandler):
         print(f"Received message: {message_body}")
 
         # With pre_settled=True, messages are automatically settled
-        # but we can still explicitly accept them for clarity
-        self.delivery_context.accept(event)
+        # calling self.delivery_context.accept(event) will raise an error
 
         self._count = self._count + 1
         print(f"Processed {self._count} messages")
@@ -111,7 +110,7 @@ def main() -> None:
     consumer = connection.consumer(
         destination=addr_queue,
         message_handler=MyMessageHandler(),
-        consumer_options=ConsumerOptions(ConsumerFeature.Default),
+        consumer_options=ConsumerOptions(ConsumerFeature.Presettled),
     )
 
     print("\nStarting consumer - press Ctrl+C to stop...")

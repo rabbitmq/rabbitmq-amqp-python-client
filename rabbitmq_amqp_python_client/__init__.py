@@ -30,6 +30,7 @@ from .entities import (
 from .environment import Environment
 from .exceptions import (
     ArgumentOutOfRangeException,
+    InvalidOperationException,
     ValidationCodeException,
 )
 from .management import Management
@@ -115,4 +116,5 @@ __all__ = [
     "AsyncPublisher",
     "AsyncManagement",
     "AsyncEnvironment",
+    "InvalidOperationException",
 ]
