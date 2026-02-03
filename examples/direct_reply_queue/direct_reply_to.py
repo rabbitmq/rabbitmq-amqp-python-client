@@ -4,8 +4,9 @@
 from rabbitmq_amqp_python_client import (
     AMQPMessagingHandler,
     Connection,
+    ConsumerFeature,
+    ConsumerOptions,
     Converter,
-    DirectReplyToConsumerOptions,
     Environment,
     Event,
     Message,
@@ -58,7 +59,7 @@ def main() -> None:
     connection_consumer = create_connection(environment)
     consumer = connection_consumer.consumer(
         message_handler=MyMessageHandler(),
-        consumer_options=DirectReplyToConsumerOptions(),
+        consumer_options=ConsumerOptions(ConsumerFeature.DirectReplyTo),
     )
     addr = consumer.address
     print("connecting to address: {}".format(addr))

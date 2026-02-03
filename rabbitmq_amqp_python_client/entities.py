@@ -1,6 +1,7 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import Enum, auto
 from typing import Any, Dict, Optional, Union
 
 from .common import ExchangeType, QueueType
@@ -155,14 +156,25 @@ class ExchangeToExchangeBindingSpecification:
     binding_key: Optional[str] = None
 
 
-class ConsumerOptions:
+class AbcConsumerOptions(ABC):
+    """
+    Abstract base class for consumer configuration options.
+    This class defines the interface for consumer options, including validation
+    and filter set retrieval.
+    """
+
+    @abstractmethod
     def validate(self, versions: Dict[str, bool]) -> None:
         raise NotImplementedError("Subclasses should implement this method")
 
+    @abstractmethod
     def filter_set(self) -> Dict[symbol, Described]:
         raise NotImplementedError("Subclasses should implement this method")
 
     def direct_reply_to(self) -> bool:
+        return False
+
+    def pre_settled(self) -> bool:
         return False
 
 
@@ -200,13 +212,12 @@ class MessageProperties:
     reply_to_group_id: Optional[str] = None
 
 
-"""
-  StreamFilterOptions defines the filtering options for a stream consumer.
-  for values and match_unfiltered see: https://www.rabbitmq.com/blog/2023/10/16/stream-filtering
-"""
-
-
 class StreamFilterOptions:
+    """
+    StreamFilterOptions defines the filtering options for a stream consumer.
+    for values and match_unfiltered see: https://www.rabbitmq.com/blog/2023/10/16/stream-filtering
+    """
+
     values: Optional[list[str]] = None
     match_unfiltered: bool = False
     application_properties: Optional[dict[str, Any]] = None
@@ -228,7 +239,7 @@ class StreamFilterOptions:
         self.sql = sql
 
 
-class StreamConsumerOptions(ConsumerOptions):
+class StreamConsumerOptions(AbcConsumerOptions):
     """
     Configuration options for stream queues.
 
@@ -418,19 +429,85 @@ class StreamConsumerOptions(ConsumerOptions):
             )
 
 
-class DirectReplyToConsumerOptions(ConsumerOptions):
+class ConsumerFeature(Enum):
+    """
+    ConsumerFeature defines the features available for Classic and Quorum queue consumers.
+    Attributes:
+        Default: Default consumer behavior.
+        DirectReplyTo: Enables Direct Reply-To consumer behavior.
+                       Feature in RabbitMQ, allowing for simplified request-reply messaging patterns.
+                       Docs: https://www.rabbitmq.com/docs/direct-reply-to#usage-amqp
+        Presettled: Deliveries are pre-settled (at-most-once semantics).
+                    When enabled, messages are automatically settled when received,
+                    meaning they cannot be redelivered if processing fails.
+    """
+
+    Default = auto()
+    DirectReplyTo = auto()
+    Presettled = auto()
+
+
+@dataclass
+class ConsumerOptions(AbcConsumerOptions):
+    """
+    Configuration options for FIFO (Classic and Quorum) queue consumers.
+    Not valid for Stream queues.
+
+    This class provides options for consuming from FIFO queues, including
+    support for pre-settled deliveries.
+
+    Attributes:
+        see ConsumerFeature enum for available features.
+    """
+
+    def __init__(self, feature: ConsumerFeature = ConsumerFeature.Default):
+        super().__init__()
+        self._feature = feature
 
     def validate(self, versions: Dict[str, bool]) -> None:
-        if not versions.get("4.2.0", False):
-            raise ValidationCodeException(
-                "Direct Reply-To requires RabbitMQ 4.2.0 or higher"
-            )
+        """
+        Validates Classic/Quorum consumer options against supported RabbitMQ server versions.
+
+        Args:
+            versions: Dictionary mapping version strings to boolean indicating support.
+
+        Raises:
+            ValidationCodeException: If a feature requires a higher RabbitMQ version.
+        """
+        # Classic/Quorum queues and pre-settled deliveries are supported in RabbitMQ 4.x
+        # No specific version validation needed at this time
+        if self._feature == ConsumerFeature.DirectReplyTo:
+            if not versions.get("4.2.0", False):
+                raise ValidationCodeException(
+                    "Direct Reply-To requires RabbitMQ 4.2.0 or higher"
+                )
 
     def filter_set(self) -> Dict[symbol, Described]:
+        """
+        Get the filter set configuration (empty for FIFO consumers).
+
+        Returns:
+            Dict[symbol, Described]: Empty dictionary as FIFO consumers don't use filters.
+        """
         return {}
 
     def direct_reply_to(self) -> bool:
-        return True
+        """
+        Indicates if this is a direct reply-to consumer.
+
+        Returns:
+            bool: False, as this is not a direct reply-to consumer.
+        """
+        return self._feature is ConsumerFeature.DirectReplyTo
+
+    def pre_settled(self) -> bool:
+        """
+        Indicates if deliveries are pre-settled.
+
+        Returns:
+            bool: True if deliveries are pre-settled, False otherwise.
+        """
+        return self._feature is ConsumerFeature.Presettled
 
 
 @dataclass

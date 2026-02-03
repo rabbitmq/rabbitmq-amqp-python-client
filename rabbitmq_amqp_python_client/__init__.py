@@ -13,8 +13,9 @@ from .common import ExchangeType, QueueType
 from .connection import Connection
 from .consumer import Consumer
 from .entities import (
+    AbcConsumerOptions,
+    ConsumerFeature,
     ConsumerOptions,
-    DirectReplyToConsumerOptions,
     ExchangeCustomSpecification,
     ExchangeSpecification,
     ExchangeToExchangeBindingSpecification,
@@ -29,6 +30,7 @@ from .entities import (
 from .environment import Environment
 from .exceptions import (
     ArgumentOutOfRangeException,
+    InvalidOperationException,
     ValidationCodeException,
 )
 from .management import Management
@@ -72,8 +74,8 @@ __all__ = [
     "ExchangeSpecification",
     "QuorumQueueSpecification",
     "ClassicQueueSpecification",
+    "ConsumerFeature",
     "StreamSpecification",
-    "DirectReplyToConsumerOptions",
     "ExchangeToQueueBindingSpecification",
     "ExchangeToExchangeBindingSpecification",
     "QueueType",
@@ -99,6 +101,7 @@ __all__ = [
     "ConnectionClosed",
     "StreamConsumerOptions",
     "StreamFilterOptions",
+    "AbcConsumerOptions",
     "ConsumerOptions",
     "MessageProperties",
     "OffsetSpecification",
@@ -113,4 +116,5 @@ __all__ = [
     "AsyncPublisher",
     "AsyncManagement",
     "AsyncEnvironment",
+    "InvalidOperationException",
 ]

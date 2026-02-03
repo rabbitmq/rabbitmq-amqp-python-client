@@ -15,7 +15,7 @@ from typing import (
 
 from ..amqp_consumer_handler import AMQPMessagingHandler
 from ..consumer import Consumer
-from ..entities import ConsumerOptions
+from ..entities import AbcConsumerOptions
 from ..qpid.proton._exceptions import Timeout
 from ..qpid.proton._message import Message
 from ..qpid.proton.utils import BlockingConnection
@@ -39,7 +39,7 @@ class AsyncConsumer:
         _conn (BlockingConnection): The shared blocking connection
         _addr (str): The address to consume from
         _handler (Optional[AMQPMessagingHandler]): Optional message handling callback
-        _stream_options (Optional[ConsumerOptions]): Configuration for stream consumption
+        _stream_options (Optional[AbcConsumerOptions]): Configuration for stream consumption
         _credit (Optional[int]): Flow control credit value
         _connection_lock (asyncio.Lock): Lock for coordinating access to the shared connection
         _remove_callback (Optional[Callable[[AsyncConsumer], None]]): Callback on close
@@ -56,7 +56,7 @@ class AsyncConsumer:
         conn: BlockingConnection,
         addr: str,
         handler: Optional[AMQPMessagingHandler] = None,
-        stream_options: Optional[ConsumerOptions] = None,
+        stream_options: Optional[AbcConsumerOptions] = None,
         credit: Optional[int] = None,
         *,
         connection_lock: asyncio.Lock,
@@ -69,7 +69,7 @@ class AsyncConsumer:
             conn (BlockingConnection): The blocking connection to use
             addr (str): The address to consume from
             handler (Optional[AMQPMessagingHandler]): Optional message handler for processing received messages
-            stream_options (Optional[ConsumerOptions]): Optional configuration for stream-based consumption
+            stream_options (Optional[AbcConsumerOptions]): Optional configuration for stream-based consumption
             credit (Optional[int]): Optional credit value for flow control
             connection_lock (asyncio.Lock): Lock for coordinating access to the shared connection.
                             Must be created by the caller (AsyncConnection).

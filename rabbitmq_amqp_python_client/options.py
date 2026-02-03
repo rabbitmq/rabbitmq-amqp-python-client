@@ -1,6 +1,6 @@
 from typing import Optional
 
-from .entities import ConsumerOptions
+from .entities import AbcConsumerOptions
 from .qpid.proton._data import (  # noqa: E402
     Data,
     PropertyDict,
@@ -89,7 +89,7 @@ class ReceiverOptionUnsettled(LinkOption):  # type: ignore
 
 
 class ReceiverOptionUnsettledWithFilters(Filter):  # type: ignore
-    def __init__(self, addr: Optional[str], consumer_options: ConsumerOptions):
+    def __init__(self, addr: Optional[str], consumer_options: AbcConsumerOptions):
         super().__init__(consumer_options.filter_set())
         self._addr = addr
 
@@ -100,6 +100,29 @@ class ReceiverOptionUnsettledWithFilters(Filter):  # type: ignore
         link.properties = PropertyDict({symbol("paired"): True})
         link.source.dynamic = False
         link.source.filter.put_dict(self.filter_set)
+
+    def test(self, link: Link) -> bool:
+        return bool(link.is_receiver)
+
+
+class ReceiverOptionPreSettled(LinkOption):  # type: ignore
+    """
+    Receiver option for pre-settled deliveries (at-most-once semantics).
+
+    When pre-settled is enabled, deliveries are automatically settled when received,
+    meaning they cannot be redelivered if processing fails. This uses RCV_FIRST
+    which causes the receiver to settle deliveries immediately upon receiving them.
+    """
+
+    def __init__(self, addr: Optional[str]):
+        self._addr = addr
+
+    def apply(self, link: Link) -> None:
+        link.target.address = self._addr
+        link.snd_settle_mode = Link.SND_SETTLED
+        link.rcv_settle_mode = Link.RCV_FIRST
+        link.properties = PropertyDict({symbol("paired"): True})
+        link.source.dynamic = False
 
     def test(self, link: Link) -> bool:
         return bool(link.is_receiver)

@@ -1039,7 +1039,7 @@ class Backoff(object):
 
 
 def make_backoff_wrapper(
-    backoff: Optional[Union[List[Union[float, int]], bool, Backoff]]
+    backoff: Optional[Union[List[Union[float, int]], bool, Backoff]],
 ) -> Optional[Union[List[Union[float, int]], bool, Backoff]]:
     """
     Make a wrapper for a backoff object:

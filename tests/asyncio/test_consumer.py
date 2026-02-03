@@ -5,6 +5,8 @@ from rabbitmq_amqp_python_client import (
     ArgumentOutOfRangeException,
     AsyncConnection,
     AsyncEnvironment,
+    ConsumerFeature,
+    ConsumerOptions,
     QuorumQueueSpecification,
 )
 from rabbitmq_amqp_python_client.utils import Converter
@@ -381,3 +383,61 @@ async def test_async_consumer_async_queue_with_requeue_with_invalid_annotations(
     await management.close()
 
     assert test_failure is False
+
+
+@pytest.mark.asyncio
+async def test_async_CQ_consumer_without_presettled(async_connection: AsyncConnection):
+    messages_to_send = 1000
+    queue_name = "test_async_CQ_consumer_without_presettled"
+
+    management = await async_connection.management()
+    await management.declare_queue(QuorumQueueSpecification(name=queue_name))
+
+    addr_queue = AddressHelper.queue_address(queue_name)
+    await async_publish_messages(async_connection, messages_to_send, queue_name)
+    consumer = await async_connection.consumer(
+        destination=addr_queue,
+        consumer_options=ConsumerOptions(feature=ConsumerFeature.Default),
+    )
+    consumed = 0
+    for i in range(messages_to_send):
+        message = await consumer.consume()
+        if Converter.bytes_to_string(message.body) == "test{}".format(i):  # type: ignore
+            consumed += 1
+
+    await consumer.close()
+    info = await management.queue_info(queue_name)
+    # since don't ack the messages, they should remain in the queue
+    assert info.message_count == messages_to_send
+    await management.delete_queue(queue_name)
+    await management.close()
+    assert consumed == messages_to_send
+
+
+@pytest.mark.asyncio
+async def test_async_CQ_consumer_with_presettled(async_connection: AsyncConnection):
+    messages_to_send = 1000
+    queue_name = "test_async_CQ_consumer_with_presettled"
+
+    management = await async_connection.management()
+    await management.declare_queue(QuorumQueueSpecification(name=queue_name))
+
+    addr_queue = AddressHelper.queue_address(queue_name)
+    await async_publish_messages(async_connection, messages_to_send, queue_name)
+    consumer = await async_connection.consumer(
+        destination=addr_queue,
+        consumer_options=ConsumerOptions(feature=ConsumerFeature.Presettled),
+    )
+    consumed = 0
+    for i in range(messages_to_send):
+        message = await consumer.consume()
+        if Converter.bytes_to_string(message.body) == "test{}".format(i):  # type: ignore
+            consumed += 1
+
+    await consumer.close()
+    info = await management.queue_info(queue_name)
+    # since presettled is True, the messages should be removed from the queue
+    assert info.message_count == 0
+    await management.delete_queue(queue_name)
+    await management.close()
+    assert consumed == messages_to_send

@@ -1,7 +1,8 @@
 from rabbitmq_amqp_python_client import (
     Connection,
+    ConsumerFeature,
+    ConsumerOptions,
     Converter,
-    DirectReplyToConsumerOptions,
     Environment,
     OutcomeState,
 )
@@ -9,7 +10,9 @@ from rabbitmq_amqp_python_client.qpid.proton import Message
 
 
 def test_consumer_create_reply_name(connection: Connection) -> None:
-    consumer = connection.consumer(consumer_options=DirectReplyToConsumerOptions())
+    consumer = connection.consumer(
+        consumer_options=ConsumerOptions(feature=ConsumerFeature.DirectReplyTo)
+    )
     assert "/queues/amq.rabbitmq.reply-to." in consumer.address
 
 
@@ -22,10 +25,10 @@ def create_connection(environment: Environment) -> Connection:
 def test_direct_reply_to_send_and_receive(environment: Environment) -> None:
     """Test that messages can be published to and consumed from a direct reply-to queue."""
     messages_to_send = 100
-
-    # Create a consumer using DirectReplyToConsumerOptions
+    # Create a consumer using DirectReplyTo feature
     consumer = create_connection(environment).consumer(
-        credit=100, consumer_options=DirectReplyToConsumerOptions()
+        credit=100,
+        consumer_options=ConsumerOptions(feature=ConsumerFeature.DirectReplyTo),
     )
 
     # Get the queue address from the consumer
