@@ -125,8 +125,10 @@ class Consumer:
             but this is handled by the cast to Message.
         """
         if self._receiver is not None:
-            message = self._receiver.receive(timeout=timeout)
-            return cast(Message, message)
+            message_original = self._receiver.receive(timeout=timeout)
+            message = cast(Message, message_original)
+            return message
+        raise Exception("Receiver is not initialized")
 
     def close(self) -> None:
         """
