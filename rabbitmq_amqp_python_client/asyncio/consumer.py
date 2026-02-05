@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
+import warnings
 from types import TracebackType
 from typing import (
     Any,
@@ -124,6 +125,11 @@ class AsyncConsumer:
         """
         Consume a message from the queue.
 
+        .. deprecated::
+            Use the ``message_handler`` parameter when creating the consumer via
+            :meth:`AsyncConnection.consumer` instead. The message handler processes
+            messages as they arrive without polling.
+
         Args:
             timeout: The time to wait for a message.
                     None: Defaults to 60s
@@ -139,6 +145,12 @@ class AsyncConsumer:
             The return type might be None if no message is available and timeout occurs,
             but this is handled by the cast to Message.
         """
+        warnings.warn(
+            "consume() is deprecated; pass message_handler when creating the consumer "
+            "via connection.consumer() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not self._opened or self._consumer is None:
             raise RuntimeError(
                 "Consumer is not opened. Call open() or use async context manager."
