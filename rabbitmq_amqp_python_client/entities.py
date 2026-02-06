@@ -433,7 +433,8 @@ class ConsumerFeature(Enum):
     """
     ConsumerFeature defines the features available for Classic and Quorum queue consumers.
     Attributes:
-        Default: Default consumer behavior.
+        DefaultSettle: means that the consumer will be created with the default settings.
+	                   message settle mode will be the default one (explicit settle)
         DirectReplyTo: Enables Direct Reply-To consumer behavior.
                        Feature in RabbitMQ, allowing for simplified request-reply messaging patterns.
                        Docs: https://www.rabbitmq.com/docs/direct-reply-to#usage-amqp
@@ -442,7 +443,7 @@ class ConsumerFeature(Enum):
                     meaning they cannot be redelivered if processing fails.
     """
 
-    Default = auto()
+    DefaultSettle = auto()
     DirectReplyTo = auto()
     Presettled = auto()
 
@@ -460,7 +461,7 @@ class ConsumerOptions(AbcConsumerOptions):
         see ConsumerFeature enum for available features.
     """
 
-    def __init__(self, feature: ConsumerFeature = ConsumerFeature.Default):
+    def __init__(self, feature: ConsumerFeature = ConsumerFeature.DefaultSettle):
         super().__init__()
         self._feature = feature
 

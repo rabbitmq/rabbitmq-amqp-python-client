@@ -24,7 +24,7 @@ def test_fifo_consumer_without_presettled(connection: Connection) -> None:
 
     addr_queue = AddressHelper.queue_address(queue_name)
     consumer = connection.consumer(
-        addr_queue, consumer_options=ConsumerOptions(feature=ConsumerFeature.Default)
+        addr_queue, consumer_options=ConsumerOptions(feature=ConsumerFeature.DefaultSettle)
     )
 
     consumed = 0

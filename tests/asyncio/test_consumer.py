@@ -397,7 +397,7 @@ async def test_async_CQ_consumer_without_presettled(async_connection: AsyncConne
     await async_publish_messages(async_connection, messages_to_send, queue_name)
     consumer = await async_connection.consumer(
         destination=addr_queue,
-        consumer_options=ConsumerOptions(feature=ConsumerFeature.Default),
+        consumer_options=ConsumerOptions(feature=ConsumerFeature.DefaultSettle),
     )
     consumed = 0
     for i in range(messages_to_send):
