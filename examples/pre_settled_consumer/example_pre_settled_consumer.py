@@ -7,13 +7,13 @@ examples/pre_settled_consumer/example_pre_settled_consumer.py
 This example shows how to use ConsumerOptions with pre-settled
 to enable at-most-once delivery semantics for FIFO (Classic and Quorum) queues.
 
-When ConsumerFeature.Presettled:
+When ConsumerSettleStrategy.PreSettled:
 - Messages are automatically settled when received
 - Messages cannot be redelivered if processing fails
 - Suitable for use cases where message loss is acceptable
   (e.g., metrics, logs, sensor data)
 
-When ConsumerFeature.Default:
+When ConsumerSettleStrategy.ExplicitSettle:
 - Messages require explicit acknowledgment
 - Messages can be redelivered if not acknowledged
 - Provides at-least-once delivery semantics
@@ -24,15 +24,13 @@ from rabbitmq_amqp_python_client import (
     AMQPMessagingHandler,
     Connection,
     ConsumerOptions,
+    ConsumerSettleStrategy,
     Converter,
     Environment,
     Event,
     Message,
     OutcomeState,
     QuorumQueueSpecification,
-)
-from rabbitmq_amqp_python_client.entities import (
-    ConsumerFeature,
 )
 
 MESSAGES_TO_PUBLISH = 50
@@ -105,15 +103,17 @@ def main() -> None:
     publisher.close()
 
     print("\n" + "=" * 60)
-    print("Creating FIFO consumer with pre_settled=True")
+    print("Creating FIFO consumer with PreSettled strategy")
     print("(at-most-once delivery semantics)")
     print("=" * 60)
 
-    # Create consumer with pre_settled=True
+    # Create consumer with PreSettled settle strategy
     consumer = connection.consumer(
         destination=addr_queue,
         message_handler=MyMessageHandler(),
-        consumer_options=ConsumerOptions(ConsumerFeature.Presettled),
+        consumer_options=ConsumerOptions(
+            settle_strategy=ConsumerSettleStrategy.PreSettled
+        ),
     )
 
     print("\nStarting consumer - press Ctrl+C to stop...")

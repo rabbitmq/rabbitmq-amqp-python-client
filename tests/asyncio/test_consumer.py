@@ -5,8 +5,8 @@ from rabbitmq_amqp_python_client import (
     ArgumentOutOfRangeException,
     AsyncConnection,
     AsyncEnvironment,
-    ConsumerFeature,
     ConsumerOptions,
+    ConsumerSettleStrategy,
     QuorumQueueSpecification,
 )
 from rabbitmq_amqp_python_client.utils import Converter
@@ -397,7 +397,9 @@ async def test_async_CQ_consumer_without_presettled(async_connection: AsyncConne
     await async_publish_messages(async_connection, messages_to_send, queue_name)
     consumer = await async_connection.consumer(
         destination=addr_queue,
-        consumer_options=ConsumerOptions(feature=ConsumerFeature.DefaultSettle),
+        consumer_options=ConsumerOptions(
+            settle_strategy=ConsumerSettleStrategy.ExplicitSettle
+        ),
     )
     consumed = 0
     for i in range(messages_to_send):
@@ -426,7 +428,9 @@ async def test_async_CQ_consumer_with_presettled(async_connection: AsyncConnecti
     await async_publish_messages(async_connection, messages_to_send, queue_name)
     consumer = await async_connection.consumer(
         destination=addr_queue,
-        consumer_options=ConsumerOptions(feature=ConsumerFeature.Presettled),
+        consumer_options=ConsumerOptions(
+            settle_strategy=ConsumerSettleStrategy.PreSettled
+        ),
     )
     consumed = 0
     for i in range(messages_to_send):

@@ -4,8 +4,8 @@ from rabbitmq_amqp_python_client import (  # Environment,
     AddressHelper,
     AMQPMessagingHandler,
     Connection,
-    ConsumerFeature,
     ConsumerOptions,
+    ConsumerSettleStrategy,
     QuorumQueueSpecification,
 )
 from rabbitmq_amqp_python_client.utils import Converter
@@ -24,7 +24,10 @@ def test_fifo_consumer_without_presettled(connection: Connection) -> None:
 
     addr_queue = AddressHelper.queue_address(queue_name)
     consumer = connection.consumer(
-        addr_queue, consumer_options=ConsumerOptions(feature=ConsumerFeature.DefaultSettle)
+        addr_queue,
+        consumer_options=ConsumerOptions(
+            settle_strategy=ConsumerSettleStrategy.ExplicitSettle
+        ),
     )
 
     consumed = 0
@@ -92,7 +95,9 @@ def test_fifo_consumer_with_presettled(connection: Connection) -> None:
     try:
         consumer = connection.consumer(
             addr_queue,
-            consumer_options=ConsumerOptions(feature=ConsumerFeature.Presettled),
+            consumer_options=ConsumerOptions(
+                settle_strategy=ConsumerSettleStrategy.PreSettled
+            ),
             message_handler=MyMessagePresettledHandler(),
         )
         consumer.run()

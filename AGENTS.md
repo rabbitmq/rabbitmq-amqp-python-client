@@ -37,8 +37,8 @@ Located in `rabbitmq_amqp_python_client/entities.py`:
 - **`StreamConsumerOptions`**: Configuration for stream consumers (supports `offset_specification` as `OffsetSpecification`, `int`, or `datetime`)
 - **`StreamFilterOptions`**: Filter options for stream consumers
 - **`OffsetSpecification`**: Enum for stream offset positions (first, next, last, timestamp)
-- **`ConsumerOptions`**: Base class for consumer options
-- **`DirectReplyToConsumerOptions`**: Options for direct reply-to consumers
+- **`ConsumerOptions`**: Configuration for FIFO (Classic/Quorum) consumers; uses `settle_strategy` (ConsumerSettleStrategy) for uniform AMQP 1.0 client interface
+- **`ConsumerSettleStrategy`**: Enum for settle strategy: ExplicitSettle, DirectReplyTo, PreSettled
 - Queue/Exchange specifications: `QuorumQueueSpecification`, `StreamSpecification`, `ExchangeSpecification`, etc.
 
 ## Project Structure
