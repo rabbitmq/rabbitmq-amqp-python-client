@@ -429,23 +429,25 @@ class StreamConsumerOptions(AbcConsumerOptions):
             )
 
 
-class ConsumerFeature(Enum):
+class ConsumerSettleStrategy(Enum):
     """
-    ConsumerFeature defines the features available for Classic and Quorum queue consumers.
+    ConsumerSettleStrategy defines the settle strategy for Classic and Quorum queue consumers.
+    Uniform with the AMQP 1.0 clients interface (e.g. .NET client SettleStrategy).
+
     Attributes:
-        DefaultSettle: means that the consumer will be created with the default settings.
-	                   message settle mode will be the default one (explicit settle)
+        ExplicitSettle: Consumer uses explicit settle (default). Message settle mode
+                        is the default one (explicit settle).
         DirectReplyTo: Enables Direct Reply-To consumer behavior.
                        Feature in RabbitMQ, allowing for simplified request-reply messaging patterns.
                        Docs: https://www.rabbitmq.com/docs/direct-reply-to#usage-amqp
-        Presettled: Deliveries are pre-settled (at-most-once semantics).
+        PreSettled: Deliveries are pre-settled (at-most-once semantics).
                     When enabled, messages are automatically settled when received,
                     meaning they cannot be redelivered if processing fails.
     """
 
-    DefaultSettle = auto()
+    ExplicitSettle = auto()
     DirectReplyTo = auto()
-    Presettled = auto()
+    PreSettled = auto()
 
 
 @dataclass
@@ -455,15 +457,19 @@ class ConsumerOptions(AbcConsumerOptions):
     Not valid for Stream queues.
 
     This class provides options for consuming from FIFO queues, including
-    support for pre-settled deliveries.
+    support for pre-settled deliveries. Uses a single settle_strategy to
+    align with the uniform AMQP 1.0 clients interface.
 
     Attributes:
-        see ConsumerFeature enum for available features.
+        see ConsumerSettleStrategy enum for available strategies.
     """
 
-    def __init__(self, feature: ConsumerFeature = ConsumerFeature.DefaultSettle):
+    def __init__(
+        self,
+        settle_strategy: ConsumerSettleStrategy = ConsumerSettleStrategy.ExplicitSettle,
+    ):
         super().__init__()
-        self._feature = feature
+        self._settle_strategy = settle_strategy
 
     def validate(self, versions: Dict[str, bool]) -> None:
         """
@@ -477,7 +483,7 @@ class ConsumerOptions(AbcConsumerOptions):
         """
         # Classic/Quorum queues and pre-settled deliveries are supported in RabbitMQ 4.x
         # No specific version validation needed at this time
-        if self._feature == ConsumerFeature.DirectReplyTo:
+        if self._settle_strategy == ConsumerSettleStrategy.DirectReplyTo:
             if not versions.get("4.2.0", False):
                 raise ValidationCodeException(
                     "Direct Reply-To requires RabbitMQ 4.2.0 or higher"
@@ -497,9 +503,9 @@ class ConsumerOptions(AbcConsumerOptions):
         Indicates if this is a direct reply-to consumer.
 
         Returns:
-            bool: False, as this is not a direct reply-to consumer.
+            bool: True if DirectReplyTo settle strategy is used, False otherwise.
         """
-        return self._feature is ConsumerFeature.DirectReplyTo
+        return self._settle_strategy is ConsumerSettleStrategy.DirectReplyTo
 
     def pre_settled(self) -> bool:
         """
@@ -508,7 +514,7 @@ class ConsumerOptions(AbcConsumerOptions):
         Returns:
             bool: True if deliveries are pre-settled, False otherwise.
         """
-        return self._feature is ConsumerFeature.Presettled
+        return self._settle_strategy is ConsumerSettleStrategy.PreSettled
 
 
 @dataclass

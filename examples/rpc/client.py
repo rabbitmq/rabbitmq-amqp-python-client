@@ -2,8 +2,8 @@ import time
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
-    ConsumerFeature,
     ConsumerOptions,
+    ConsumerSettleStrategy,
     Converter,
     Environment,
     Message,
@@ -18,7 +18,9 @@ class Requester:
             AddressHelper.queue_address(request_queue_name)
         )
         self.consumer = self.connection.consumer(
-            consumer_options=ConsumerOptions(feature=ConsumerFeature.DirectReplyTo)
+            consumer_options=ConsumerOptions(
+                settle_strategy=ConsumerSettleStrategy.DirectReplyTo
+            )
         )
         print("connected both publisher and consumer")
         print("consumer reply address is {}".format(self.consumer.address))

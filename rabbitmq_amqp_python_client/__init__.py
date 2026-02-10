@@ -14,8 +14,8 @@ from .connection import Connection
 from .consumer import Consumer
 from .entities import (
     AbcConsumerOptions,
-    ConsumerFeature,
     ConsumerOptions,
+    ConsumerSettleStrategy,
     ExchangeCustomSpecification,
     ExchangeSpecification,
     ExchangeToExchangeBindingSpecification,
@@ -74,7 +74,7 @@ __all__ = [
     "ExchangeSpecification",
     "QuorumQueueSpecification",
     "ClassicQueueSpecification",
-    "ConsumerFeature",
+    "ConsumerSettleStrategy",
     "StreamSpecification",
     "ExchangeToQueueBindingSpecification",
     "ExchangeToExchangeBindingSpecification",

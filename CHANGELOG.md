@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Changed (breaking)
+- **Consumer options aligned with uniform AMQP 1.0 clients interface** (cf. rabbitmq-amqp-dotnet-client [#144](https://github.com/rabbitmq/rabbitmq-amqp-dotnet-client/pull/144)):
+  - Renamed `ConsumerFeature` to `ConsumerSettleStrategy`.
+  - Renamed enum values: `DefaultSettle` → `ExplicitSettle`, `Presettled` → `PreSettled` (DirectReplyTo unchanged).
+  - `ConsumerOptions` now takes `settle_strategy: ConsumerSettleStrategy` instead of `feature: ConsumerFeature`. Use `ConsumerOptions(settle_strategy=ConsumerSettleStrategy.ExplicitSettle)` (default), `ConsumerSettleStrategy.DirectReplyTo`, or `ConsumerSettleStrategy.PreSettled`.
+
 ## [[0.4.1](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v0.4.1)]
 
 ## 0.4.1 - 2025-01-14
