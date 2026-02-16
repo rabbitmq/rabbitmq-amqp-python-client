@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rabbitmq-amqp-python-client"
-version = "0.4.1"
+version = "0.5.0"
 description = "Python RabbitMQ client for AMQP 1.0 protocol"
 authors = ["RabbitMQ team"]
 license = "Apache-2.0 license"
