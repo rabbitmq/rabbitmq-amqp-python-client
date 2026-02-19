@@ -10,7 +10,7 @@ readme = "README.md"
 python = "^3.9"
 python-qpid-proton = "^0.40.0"
 typing-extensions = "^4.13.0"
-packaging = "^23.0"
+packaging = "^24.0"
 
 
 [tool.poetry.group.dev.dependencies]
