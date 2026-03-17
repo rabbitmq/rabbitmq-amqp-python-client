@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 
 
+## [[0.6.0](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v0.6.0)]
+
+## 0.6.0 - 2026-03-17
+- [Release 0.6.0](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v0.6.0)
+
+### Changed
+- Update packaging version to 24.2 by @TR0NZ0D in [#100](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/100)
+
 ## [[0.5.0](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v0.5.0)]
 
 ## 0.5.0 - 2025-02-16
