@@ -490,31 +490,6 @@ async def test_multiple_publishers_async(async_environment: AsyncEnvironment) ->
 
 
 @pytest.mark.asyncio
-async def test_durable_message_async(async_connection: AsyncConnection) -> None:
-    queue_name = "test_durable_message_async"
-
-    management = await async_connection.management()
-    await management.declare_queue(QuorumQueueSpecification(name=queue_name))
-
-    destination = AddressHelper.queue_address(queue_name)
-    publisher = await async_connection.publisher(destination)
-
-    # Message should be durable by default
-    status = await publisher.publish(Message(body=Converter.string_to_bytes("durable")))
-    assert status.remote_state == OutcomeState.ACCEPTED
-
-    consumer = await async_connection.consumer(destination)
-    should_be_durable = await consumer.consume()
-    assert should_be_durable.durable is True
-
-    await consumer.close()
-    await publisher.close()
-    await management.purge_queue(queue_name)
-    await management.delete_queue(queue_name)
-    await management.close()
-
-
-@pytest.mark.asyncio
 async def test_concurrent_publishing_async(async_connection: AsyncConnection) -> None:
     queue_name = "test-concurrent-async"
     messages_to_publish = 100

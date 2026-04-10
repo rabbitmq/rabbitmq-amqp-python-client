@@ -446,30 +446,3 @@ def test_multiple_publishers(environment: Environment) -> None:
     management.delete_queue(stream_name_2)
 
     management.close()
-
-
-def test_durable_message(connection: Connection) -> None:
-    queue_name = "test_durable_message"
-
-    management = connection.management()
-    management.declare_queue(QuorumQueueSpecification(name=queue_name))
-    destination = AddressHelper.queue_address(queue_name)
-    publisher = connection.publisher(destination)
-    # message should be durable by default
-    status = publisher.publish(
-        Message(
-            body=Converter.string_to_bytes("durable"),
-        )
-    )
-
-    assert status.remote_state == OutcomeState.ACCEPTED
-    # message should be not durable by setting the durable to False by the user
-
-    assert status.remote_state == OutcomeState.ACCEPTED
-
-    consumer = connection.consumer(destination)
-    should_be_durable = consumer.consume()
-    assert should_be_durable.durable is True
-    consumer.close()
-    management.purge_queue(queue_name)
-    management.delete_queue(queue_name)

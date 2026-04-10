@@ -304,45 +304,6 @@ async def test_stream_filtering_mixed_async(
 
 
 @pytest.mark.asyncio
-async def test_stream_filtering_not_present_async(
-    async_connection: AsyncConnection, async_environment: AsyncEnvironment
-) -> None:
-    stream_name = "test_stream_filtering_not_present_async"
-    messages_to_send = 10
-
-    queue_specification = StreamSpecification(name=stream_name)
-    management = await async_connection.management()
-    await management.declare_queue(queue_specification)
-
-    addr_queue = AddressHelper.queue_address(stream_name)
-
-    connection_consumer = await async_environment.connection()
-    await connection_consumer.dial()
-
-    consumer = await connection_consumer.consumer(
-        addr_queue,
-        consumer_options=StreamConsumerOptions(
-            filter_options=StreamFilterOptions(values=["apple"])
-        ),
-    )
-
-    # send with annotations filter banana
-    await async_publish_messages(
-        async_connection,
-        messages_to_send,
-        stream_name,
-        ["banana"],
-    )
-
-    with pytest.raises(Exception):
-        await consumer.consume(timeout=1)
-
-    await consumer.close()
-    await management.delete_queue(stream_name)
-    await management.close()
-
-
-@pytest.mark.asyncio
 async def test_stream_match_unfiltered_async(
     async_connection: AsyncConnection, async_environment: AsyncEnvironment
 ) -> None:

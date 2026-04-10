@@ -281,47 +281,6 @@ def test_stream_filtering_mixed(
         management.delete_queue(stream_name)
 
 
-def test_stream_filtering_not_present(
-    connection: Connection, environment: Environment
-) -> None:
-    raised = False
-    stream_name = "test_stream_info_with_filtering"
-    messages_to_send = 10
-
-    queue_specification = StreamSpecification(
-        name=stream_name,
-    )
-    management = connection.management()
-    management.declare_queue(queue_specification)
-
-    addr_queue = AddressHelper.queue_address(stream_name)
-
-    # consume and then publish
-    connection_consumer = environment.connection()
-    connection_consumer.dial()
-
-    consumer = connection_consumer.consumer(
-        addr_queue,
-        consumer_options=StreamConsumerOptions(
-            filter_options=StreamFilterOptions(values=["apple"])
-        ),
-    )
-    # send with annotations filter banana
-    publish_messages(connection, messages_to_send, stream_name, ["banana"])
-
-    try:
-        consumer.consume(timeout=1)
-    except Exception:
-        # valid no message should arrive with filter banana so a timeout exception is raised
-        raised = True
-
-    consumer.close()
-
-    management.delete_queue(stream_name)
-
-    assert raised is True
-
-
 def test_stream_match_unfiltered(
     connection: Connection, environment: Environment
 ) -> None:

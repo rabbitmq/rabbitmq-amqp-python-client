@@ -1,6 +1,5 @@
 import logging
-import warnings
-from typing import Literal, Optional, Union, cast
+from typing import Optional, cast
 
 from .amqp_consumer_handler import AMQPMessagingHandler
 from .entities import (
@@ -14,7 +13,6 @@ from .options import (
     ReceiverOptionUnsettled,
     ReceiverOptionUnsettledWithFilters,
 )
-from .qpid.proton._message import Message
 from .qpid.proton.utils import (
     BlockingConnection,
     BlockingReceiver,
@@ -108,39 +106,6 @@ class Consumer:
 
     def _set_consumers_list(self, consumers: []) -> None:  # type: ignore
         self._consumers = consumers
-
-    def consume(self, timeout: Union[None, Literal[False], float] = False) -> Message:
-        """
-        Consume a message from the queue.
-
-        .. deprecated::
-            Use the ``message_handler`` parameter when creating the consumer via
-            :meth:`Connection.consumer` instead. The message handler processes
-            messages as they arrive without polling.
-
-        Args:
-            timeout: The time to wait for a message.
-                    None: Defaults to 60s
-                    float: Wait for specified number of seconds
-
-        Returns:
-            Message: The received message
-
-        Note:
-            The return type might be None if no message is available and timeout occurs,
-            but this is handled by the cast to Message.
-        """
-        warnings.warn(
-            "consume() is deprecated; pass message_handler when creating the consumer "
-            "via connection.consumer() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if self._receiver is not None:
-            message_original = self._receiver.receive(timeout=timeout)
-            message = cast(Message, message_original)
-            return message
-        raise Exception("Receiver is not initialized")
 
     def close(self) -> None:
         """

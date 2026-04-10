@@ -1,17 +1,47 @@
+import threading
 import time
+from typing import Optional
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
+    AMQPMessagingHandler,
     ConsumerOptions,
     ConsumerSettleStrategy,
     Converter,
     Environment,
+    Event,
     Message,
 )
 
 
+class _ReplyWaiter(AMQPMessagingHandler):
+    """Collects a single reply delivered to the direct reply-to consumer."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._event = threading.Event()
+        self._reply: Optional[Message] = None
+
+    def on_amqp_message(self, event: Event) -> None:
+        self._reply = event.message
+        self.delivery_context.accept(event)
+        self._event.set()
+
+    def begin_wait(self) -> None:
+        self._event.clear()
+        self._reply = None
+
+    def wait_reply(self, timeout: float = 60.0) -> Message:
+        if not self._event.wait(timeout):
+            raise TimeoutError("Timed out waiting for RPC reply")
+        if self._reply is None:
+            raise RuntimeError("Reply was not captured")
+        return self._reply
+
+
 class Requester:
     def __init__(self, request_queue_name: str, environment: Environment):
+        self._reply_handler = _ReplyWaiter()
         self.connection = environment.connection()
         self.connection.dial()
         self.publisher = self.connection.publisher(
@@ -20,17 +50,21 @@ class Requester:
         self.consumer = self.connection.consumer(
             consumer_options=ConsumerOptions(
                 settle_strategy=ConsumerSettleStrategy.DirectReplyTo
-            )
+            ),
+            message_handler=self._reply_handler,
         )
+        self._run_thread = threading.Thread(target=self.consumer.run, daemon=True)
+        self._run_thread.start()
         print("connected both publisher and consumer")
         print("consumer reply address is {}".format(self.consumer.address))
 
     def send_request(self, request_body: str, correlation_id: str) -> Message:
+        self._reply_handler.begin_wait()
         message = Message(body=Converter.string_to_bytes(request_body))
         message.reply_to = self.consumer.address
         message.correlation_id = correlation_id
         self.publisher.publish(message=message)
-        return self.consumer.consume()
+        return self._reply_handler.wait_reply()
 
 
 def main() -> None:
