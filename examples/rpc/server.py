@@ -30,25 +30,25 @@ class Responder:
             # process the message and create a response
             print("******************************************************")
             print(
-                "received message: {} ".format(
+                "[Responder] Received message: {} ".format(
                     Converter.bytes_to_string(event.message.body)
                 )
             )
             response_body = (
-                Converter.bytes_to_string(event.message.body) + "-from the server"
+                Converter.bytes_to_string(event.message.body) + "-from the Responder"
             )
             response_message = Message(body=Converter.string_to_bytes(response_body))
             # publish response to the reply_to address with the same correlation_id
             response_message.correlation_id = event.message.correlation_id
             response_message.address = event.message.reply_to
-            print("sending back: {} ".format(response_body))
+            print("[Responder] Sending back: {} ".format(response_body))
             status = self._publisher.publish(message=response_message)
             if status.remote_state == OutcomeState.ACCEPTED:
-                print("message accepted to {}".format(response_message.address))
+                print("[Responder] message accepted to {}".format(response_message.address))
             elif status.remote_state == OutcomeState.RELEASED:
-                print("message not routed")
+                print("[Responder] message not routed")
             elif status.remote_state == OutcomeState.REJECTED:
-                print("message rejected")
+                print("[Responder] message rejected")
 
             self.delivery_context.accept(event)
             print("------------------------------------------------------")
@@ -76,7 +76,7 @@ class Responder:
             message_handler=handler,
         )
         addr = self.consumer.address
-        print("Responder listening on address: {}".format(addr))
+        print("[Responder] Responder listening on address: {}".format(addr))
         try:
             self.consumer.run()
         except KeyboardInterrupt:
@@ -90,7 +90,7 @@ def create_connection(environment: Environment) -> Connection:
 
 
 def main() -> None:
-    print("Connecting consumer to AMQP server")
+    print("[Responder] Connecting consumer to AMQP Responder")
     environment = Environment(uri="amqp://guest:guest@localhost:5672/")
     responder = Responder(request_queue_name="rpc_queue", environment=environment)
     responder.start()

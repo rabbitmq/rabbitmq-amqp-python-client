@@ -24,7 +24,6 @@ class _ReplyWaiter(AMQPMessagingHandler):
 
     def on_amqp_message(self, event: Event) -> None:
         self._reply = event.message
-        self.delivery_context.accept(event)
         self._event.set()
 
     def begin_wait(self) -> None:
@@ -47,7 +46,12 @@ class Requester:
         self.publisher = self.connection.publisher(
             AddressHelper.queue_address(request_queue_name)
         )
-        self.consumer = self.connection.consumer(
+        # connection is not thread safe.
+        # You need another connection to run the consumer in a different thread.
+        self.connectionConsumer = environment.connection()
+        self.connectionConsumer.dial()
+
+        self.consumer = self.connectionConsumer.consumer(
             consumer_options=ConsumerOptions(
                 settle_strategy=ConsumerSettleStrategy.DirectReplyTo
             ),
@@ -55,8 +59,8 @@ class Requester:
         )
         self._run_thread = threading.Thread(target=self.consumer.run, daemon=True)
         self._run_thread.start()
-        print("connected both publisher and consumer")
-        print("consumer reply address is {}".format(self.consumer.address))
+        print("[Requester] Connected both publisher and consumer")
+        print("[Requester] Consumer reply address is {}".format(self.consumer.address))
 
     def send_request(self, request_body: str, correlation_id: str) -> Message:
         self._reply_handler.begin_wait()
@@ -64,29 +68,31 @@ class Requester:
         message.reply_to = self.consumer.address
         message.correlation_id = correlation_id
         self.publisher.publish(message=message)
-        return self._reply_handler.wait_reply()
+        r = self._reply_handler.wait_reply()
+        return r
 
 
 def main() -> None:
     print("Connecting to AMQP server")
     environment = Environment(uri="amqp://guest:guest@localhost:5672/")
     requester = Requester(request_queue_name="rpc_queue", environment=environment)
-    for i in range(10):
+    time.sleep(1)
+    for i in range(500):
         correlation_id = str(i)
         request_body = "hello {}".format(i)
         print("******************************************************")
-        print("Sending request: {}".format(request_body))
+        print("[Requester] Sending request: {}".format(request_body))
         response_message = requester.send_request(
             request_body=request_body, correlation_id=correlation_id
         )
         response_body = Converter.bytes_to_string(response_message.body)
         print(
-            "Received response: {} - correlation_id: {}".format(
+            "[Requester] Received response: {} - correlation_id: {}".format(
                 response_body, response_message.correlation_id
             )
         )
         print("------------------------------------------------------")
-        time.sleep(1)
+        time.sleep(0.1)
 
 
 if __name__ == "__main__":

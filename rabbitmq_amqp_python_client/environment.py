@@ -78,6 +78,10 @@ class Environment:
         This method supports both single-node and multi-node configurations, with optional
         SSL/TLS security and disconnection handling.
 
+        Connection is not thread-safe. Create a connection per thread
+        to run consumer or producer in different threads
+
+
         Returns:
             Connection: A new connection instance
 

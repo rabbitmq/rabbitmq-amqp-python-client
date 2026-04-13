@@ -226,7 +226,7 @@ class AsyncConnection:
 
     async def consumer(
         self,
-        destination: str,
+        destination: Optional[str] = None,
         message_handler: Optional[MessagingHandler] = None,
         consumer_options: Optional[AbcConsumerOptions] = None,
         credit: Optional[int] = None,
@@ -235,7 +235,8 @@ class AsyncConnection:
         Create a new consumer instance.
 
         Args:
-            destination: The address to consume from
+            destination: The address to consume from. Use ``None`` only with
+                options such as Direct Reply-To where the broker supplies the address.
             message_handler: Optional handler for processing messages
             consumer_options: Optional configuration for queue consumption. Each queue has its own consumer options.
             credit: Optional credit value for flow control
@@ -247,7 +248,7 @@ class AsyncConnection:
             RuntimeError: If consumer creation fails
             ArgumentOutOfRangeException: If destination address format is invalid
         """
-        if not validate_address(destination):
+        if destination is not None and not validate_address(destination):
             raise ArgumentOutOfRangeException(
                 "destination address must start with /queues or /exchanges"
             )

@@ -29,7 +29,7 @@ class AsyncConsumer:
     Attributes:
         _consumer (Optional[Consumer]): The underlying synchronous Consumer
         _conn (BlockingConnection): The shared blocking connection
-        _addr (str): The address to consume from
+        _addr (Optional[str]): The address to consume from
         _handler (Optional[AMQPMessagingHandler]): Optional message handling callback
         _stream_options (Optional[AbcConsumerOptions]): Configuration for stream consumption
         _credit (Optional[int]): Flow control credit value
@@ -46,7 +46,7 @@ class AsyncConsumer:
     def __init__(
         self,
         conn: BlockingConnection,
-        addr: str,
+        addr: Optional[str] = None,
         handler: Optional[AMQPMessagingHandler] = None,
         stream_options: Optional[AbcConsumerOptions] = None,
         credit: Optional[int] = None,
@@ -59,7 +59,7 @@ class AsyncConsumer:
 
         Args:
             conn (BlockingConnection): The blocking connection to use
-            addr (str): The address to consume from
+            addr (Optional[str]): The address to consume from; ``None`` for Direct Reply-To
             handler (Optional[AMQPMessagingHandler]): Optional message handler for processing received messages
             stream_options (Optional[AbcConsumerOptions]): Optional configuration for stream-based consumption
             credit (Optional[int]): Optional credit value for flow control
@@ -287,8 +287,10 @@ class AsyncConsumer:
         await self.close()
 
     @property
-    def address(self) -> str:
-        """Get the current consumer address."""
+    def address(self) -> Optional[str]:
+        """Get the current consumer address (from the link when the receiver is open)."""
+        if self._opened and self._consumer is not None:
+            return self._consumer.address
         return self._addr
 
     @property

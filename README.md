@@ -51,7 +51,7 @@ export LDFLAGS="-L/usr/lib/x86_64-linux-gnu"
 pip install "python-qpid-proton>=0.39.0,<0.40.0" --no-binary python-qpid-proton --verbose --no-cache-dir
 ```
 
-### Async Interface (Experimental)
+### Async Interface
 
 The client provides an async interface via the `rabbitmq_amqp_python_client.asyncio` module. The async classes act as facades that:
 
@@ -78,5 +78,11 @@ Additional async examples are available in the [examples](./examples) folder:
 - Reconnection: [examples/reconnection/reconnection_example_async.py](./examples/reconnection/reconnection_example_async.py)
 - Streams: [examples/streams/example_with_streams_async.py](./examples/streams/example_with_streams_async.py)
 - TLS: [examples/tls/tls_example_async.py](./examples/tls/tls_example_async.py)
+
+
+### Thread Safety
+
+The TCP connection is not thread safe. 
+If you want to use the client in a multithreaded environment, you should create a connection per thread. 
 
 

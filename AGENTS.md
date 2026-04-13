@@ -31,6 +31,13 @@ The async classes are facades that:
 - Use `asyncio.Lock` for thread safety
 - Implement async context managers
 
+
+### Thread Safety
+
+The TCP connection is not thread safe. 
+If you want to use the client in a multithreaded environment, you should create a connection per thread. 
+
+
 ### Entities and Options
 
 Located in `rabbitmq_amqp_python_client/entities.py`:
