@@ -2,6 +2,7 @@ import time
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
+    AMQPMessagingHandler,
     ArgumentOutOfRangeException,
     Connection,
     ConnectionClosed,
@@ -13,8 +14,10 @@ from rabbitmq_amqp_python_client import (
     StreamSpecification,
     ValidationCodeException,
 )
+from rabbitmq_amqp_python_client.qpid.proton import Event
 from rabbitmq_amqp_python_client.utils import Converter
 
+from .conftest import ConsumerTestException
 from .http_requests import delete_all_connections
 from .utils import create_binding, publish_per_message
 
@@ -448,6 +451,21 @@ def test_multiple_publishers(environment: Environment) -> None:
     management.close()
 
 
+class MyMessageHandlerDurable(AMQPMessagingHandler):
+
+    def __init__(self):
+        super().__init__(auto_settle=False)
+        self.message = None
+
+    def on_message(self, event: Event):
+        self.message = event.message
+        self.delivery_context.accept(event)
+        raise ConsumerTestException("consumed")
+
+    def message(self):
+        return self.message
+
+
 def test_publish_default_message_is_consumed_with_durable_flag(
     connection: Connection,
 ) -> None:
@@ -458,24 +476,20 @@ def test_publish_default_message_is_consumed_with_durable_flag(
     publisher = connection.publisher(AddressHelper.queue_address(queue_name))
     status = publisher.publish(Message(b"default-durable-message"))
 
-    received_messages = []
-    consumer_holder = {}
-
-    def message_handler(context, message) -> None:
-        received_messages.append(message)
-        consumer_holder["consumer"].close()
+    msg_handler = MyMessageHandlerDurable()
 
     consumer = connection.consumer(
-        AddressHelper.queue_address(queue_name), message_handler=message_handler
+        AddressHelper.queue_address(queue_name), message_handler=msg_handler
     )
-    consumer_holder["consumer"] = consumer
 
-    consumer.run()
+    try:
+        consumer.run()
+    except ConsumerTestException:
+        pass
 
     publisher.close()
     management.delete_queue(queue_name)
     management.close()
 
     assert status.remote_state == OutcomeState.ACCEPTED
-    assert len(received_messages) == 1
-    assert received_messages[0].durable is True
+    assert msg_handler.message.durable is True
