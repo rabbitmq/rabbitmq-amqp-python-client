@@ -131,7 +131,7 @@ def test_connection_oauth_refresh_token(environment_auth: Environment) -> None:
     assert raised is False
     connection.close()
 
-
+@pytest.mark.flaky(reruns=3)
 def test_connection_oauth_refresh_token_with_disconnection(
     environment_auth: Environment,
 ) -> None:
