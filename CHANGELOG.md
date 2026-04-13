@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Refresh declared dependency ranges (including dev tools) to current releases.
+
 ### Removed
 - Remove `consume()` API from `Consumer` and `AsyncConsumer` in [#96](https://github.com/rabbitmq/rabbitmq-amqp-python-client/issues/96). Use `message_handler` parameter with `connection.consumer()` instead.
 
