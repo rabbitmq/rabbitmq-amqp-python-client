@@ -44,7 +44,11 @@ class Responder:
             print("[Responder] Sending back: {} ".format(response_body))
             status = self._publisher.publish(message=response_message)
             if status.remote_state == OutcomeState.ACCEPTED:
-                print("[Responder] message accepted to {}".format(response_message.address))
+                print(
+                    "[Responder] message accepted to {}".format(
+                        response_message.address
+                    )
+                )
             elif status.remote_state == OutcomeState.RELEASED:
                 print("[Responder] message not routed")
             elif status.remote_state == OutcomeState.REJECTED:
