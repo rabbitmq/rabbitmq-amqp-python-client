@@ -46,4 +46,6 @@ jobs:
         run: | 
           poetry run mypy --exclude=rabbitmq_amqp_python_client/qpid .
       - name: poetry run pytest
+        env:
+          PYTHONUNBUFFERED: "1"
         run: poetry run pytest

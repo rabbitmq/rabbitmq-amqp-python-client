@@ -29,6 +29,16 @@ from .utils import token
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_setup(item: pytest.Item) -> None:
+    """Emit the current test name; helps CI pinpoint hangs."""
+    terminal = item.config.pluginmanager.getplugin("terminalreporter")
+    if terminal is not None:
+        terminal.write_line(f"RUNNING {item.nodeid}")
+    else:
+        print(f"RUNNING {item.nodeid}", flush=True)
+
+
 @pytest.fixture()
 def environment(pytestconfig):
     environment = Environment(uri="amqp://guest:guest@localhost:5672/")
