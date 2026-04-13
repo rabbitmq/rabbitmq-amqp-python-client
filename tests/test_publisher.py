@@ -446,3 +446,36 @@ def test_multiple_publishers(environment: Environment) -> None:
     management.delete_queue(stream_name_2)
 
     management.close()
+
+
+def test_publish_default_message_is_consumed_with_durable_flag(
+    connection: Connection,
+) -> None:
+    queue_name = "test-default-message-durable-consume"
+    management = connection.management()
+    management.declare_queue(QuorumQueueSpecification(name=queue_name))
+
+    publisher = connection.publisher(AddressHelper.queue_address(queue_name))
+    status = publisher.publish(Message(b"default-durable-message"))
+
+    received_messages = []
+    consumer_holder = {}
+
+    def message_handler(context, message) -> None:
+        received_messages.append(message)
+        consumer_holder["consumer"].close()
+
+    consumer = connection.consumer(
+        AddressHelper.queue_address(queue_name), message_handler=message_handler
+    )
+    consumer_holder["consumer"] = consumer
+
+    consumer.run()
+
+    publisher.close()
+    management.delete_queue(queue_name)
+    management.close()
+
+    assert status.remote_state == OutcomeState.ACCEPTED
+    assert len(received_messages) == 1
+    assert received_messages[0].durable is True

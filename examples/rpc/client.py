@@ -48,10 +48,10 @@ class Requester:
         )
         # connection is not thread safe.
         # You need another connection to run the consumer in a different thread.
-        self.connectionConsumer = environment.connection()
-        self.connectionConsumer.dial()
+        self.consumer_connection = environment.connection()
+        self.consumer_connection.dial()
 
-        self.consumer = self.connectionConsumer.consumer(
+        self.consumer = self.consumer_connection.consumer(
             consumer_options=ConsumerOptions(
                 settle_strategy=ConsumerSettleStrategy.DirectReplyTo
             ),
