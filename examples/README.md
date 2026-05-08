@@ -9,4 +9,5 @@ Client examples
  - [Streams With Sql filters](./streams_with_sql_filters) - Example supporting stream capabilities with SQL filters
  - [Direct Reply To](./direct_reply_queue) - How to use [Direct Reply](https://www.rabbitmq.com/docs/direct-reply-to) feature
  - [Stream Consumer Offset Datetime](./stream_consumer_offset_datetime) - Example of stream consumer starting from a specific datetime
- - [RPC](./rpc) - Basic RPC example 
+ - [RPC](./rpc) - Basic RPC example
+ - [Rejected Messages](./rejected_messages/example_rejected_messages.py) - How to handle [rejected messages](https://www.rabbitmq.com/blog/2026/04/23/rabbitmq-4.3-release#amqp-rejection-reason) with `AmqpMessageRejectedException` (RabbitMQ 4.3+)

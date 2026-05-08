@@ -3,6 +3,7 @@ from typing import Optional
 
 from .address_helper import validate_address
 from .exceptions import (
+    AmqpMessageRejectedException,
     ArgumentOutOfRangeException,
     ValidationCodeException,
 )
@@ -13,6 +14,7 @@ from .qpid.proton._message import Message
 from .qpid.proton.utils import (
     BlockingConnection,
     BlockingSender,
+    SendException,
 )
 
 logger = logging.getLogger(__name__)
@@ -75,6 +77,10 @@ class Publisher:
         Raises:
             ValidationCodeException: If address is specified in both message and publisher
             ArgumentOutOfRangeException: If message address format is invalid
+            AmqpMessageRejectedException: If the broker rejects the message (e.g. queue
+                is full with reject-publish overflow strategy). The exception message
+                contains the rejection reason provided by the broker (RabbitMQ 4.3+).
+            SendException: If the message is released by the broker
         """
         if (self._addr != "") and (message.address is not None):
             raise ValidationCodeException(
@@ -92,20 +98,34 @@ class Publisher:
         if self._addr != "":
             if self._sender is None:
                 raise ValidationCodeException("Publisher sender is not initialized")
-            return self._sender.send(message)
+        else:
+            if not message.address:
+                raise ValidationCodeException(
+                    "destination address must be specified in the message when "
+                    "the publisher has no default address"
+                )
+            if not validate_address(message.address):
+                raise ArgumentOutOfRangeException(
+                    "destination address must start with /queues or /exchanges"
+                )
+            if not self.is_open or self._sender is None:
+                raise ValidationCodeException("Publisher sender is not open")
 
-        if not message.address:
-            raise ValidationCodeException(
-                "destination address must be specified in the message when "
-                "the publisher has no default address"
+        delivery = self._sender.send(message, error_states=[])
+
+        if delivery.remote_state == Delivery.REJECTED:
+            condition = delivery.remote.condition
+            rejection_msg = (
+                condition.description
+                if condition is not None and condition.description
+                else "Message has been rejected"
             )
-        if not validate_address(message.address):
-            raise ArgumentOutOfRangeException(
-                "destination address must start with /queues or /exchanges"
-            )
-        if not self.is_open or self._sender is None:
-            raise ValidationCodeException("Publisher sender is not open")
-        return self._sender.send(message)
+            raise AmqpMessageRejectedException(rejection_msg)
+
+        if delivery.remote_state == Delivery.RELEASED:
+            raise SendException(delivery.remote_state)
+
+        return delivery
 
     def close(self) -> None:
         """

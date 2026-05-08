@@ -2,6 +2,7 @@ import time
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
+    AmqpMessageRejectedException,
     AMQPMessagingHandler,
     ArgumentOutOfRangeException,
     Connection,
@@ -493,3 +494,38 @@ def test_publish_default_message_is_consumed_with_durable_flag(
 
     assert status.remote_state == OutcomeState.ACCEPTED
     assert msg_handler.message.durable is True
+
+
+def test_publish_rejected_message_raises_amqp_message_rejected_exception(
+    connection: Connection,
+) -> None:
+    queue_name = "test-publish-reject-overflow"
+    max_length = 1
+    management = connection.management()
+    management.declare_queue(
+        QuorumQueueSpecification(
+            name=queue_name,
+            max_len=max_length,
+            overflow_behaviour="reject-publish",
+        )
+    )
+
+    publisher = connection.publisher(AddressHelper.queue_address(queue_name))
+
+    rejected = False
+    rejection_msg = ""
+
+    try:
+        for _ in range(max_length + 5):
+            publisher.publish(Message(body=Converter.string_to_bytes("test")))
+    except AmqpMessageRejectedException as e:
+        rejected = True
+        rejection_msg = e.msg
+
+    publisher.close()
+    management.purge_queue(queue_name)
+    management.delete_queue(queue_name)
+    management.close()
+
+    assert rejected is True
+    assert len(rejection_msg) > 0

@@ -30,6 +30,7 @@ from .entities import (
 )
 from .environment import Environment
 from .exceptions import (
+    AmqpMessageRejectedException,
     ArgumentOutOfRangeException,
     InvalidOperationException,
     ValidationCodeException,
@@ -93,6 +94,7 @@ __all__ = [
     "AMQPMessagingHandler",
     "ArgumentOutOfRangeException",
     "ValidationCodeException",
+    "AmqpMessageRejectedException",
     "PosixSslConfigurationContext",
     "WinSslConfigurationContext",
     "PosixClientCert",
