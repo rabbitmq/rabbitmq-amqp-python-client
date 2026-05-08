@@ -4,16 +4,20 @@ import time
 from datetime import timedelta
 from typing import (
     Annotated,
+    Any,
     Callable,
+    Mapping,
     Optional,
     TypeVar,
     Union,
+    cast,
 )
 
 import typing_extensions
 from packaging import version
 
 from .address_helper import validate_address
+from .amqp_consumer_handler import AMQPMessagingHandler
 from .consumer import Consumer
 from .entities import (
     AbcConsumerOptions,
@@ -27,7 +31,6 @@ from .exceptions import (
 from .management import Management
 from .publisher import Publisher
 from .qpid.proton._exceptions import ConnectionException
-from .qpid.proton._handlers import MessagingHandler
 from .qpid.proton._transport import SSLDomain
 from .qpid.proton.utils import BlockingConnection
 from .ssl_configuration import (
@@ -94,7 +97,7 @@ class Connection:
         ] = ssl_context
         self._managements: list[Management] = []
         self._recovery_configuration: RecoveryConfiguration = recovery_configuration
-        self._ssl_domain = None
+        self._ssl_domain: Optional[SSLDomain] = None
         self._connections = []  # type: ignore
         self._index: int = -1
         self._publishers: list[Publisher] = []
@@ -185,8 +188,9 @@ class Connection:
         if remote_props is None:
             raise ValidationCodeException("No remote properties received from server")
 
+        props = cast(Mapping[str, Any], remote_props)
         # Check if server is RabbitMQ
-        product = remote_props.get("product")
+        product = props.get("product")
         if product != "RabbitMQ":
             raise ValidationCodeException(
                 f"Connection to non-RabbitMQ server detected. "
@@ -194,7 +198,7 @@ class Connection:
             )
 
         # Check server version is >= 4.0.0
-        server_version = remote_props.get("version")
+        server_version = props.get("version")
         if server_version is None:
             raise ValidationCodeException("Server version not provided")
 
@@ -232,7 +236,8 @@ class Connection:
         if remote_props is None:
             raise ValidationCodeException("No remote properties received from server")
 
-        server_version = remote_props.get("version")
+        props = cast(Mapping[str, Any], remote_props)
+        server_version = props.get("version")
         if server_version is None:
             raise ValidationCodeException("Server version not provided")
 
@@ -298,7 +303,7 @@ class Connection:
 
                 self._ssl_domain.set_credentials(
                     client_cert,
-                    client_key,
+                    client_key or "",
                     password,
                 )
 
@@ -380,7 +385,7 @@ class Connection:
     def consumer(
         self,
         destination: Optional[str] = None,
-        message_handler: Optional[MessagingHandler] = None,
+        message_handler: Optional[AMQPMessagingHandler] = None,
         consumer_options: Optional[AbcConsumerOptions] = None,
         credit: Optional[int] = None,
     ) -> Consumer:
@@ -419,7 +424,7 @@ class Connection:
         self._consumers.append(consumer)
         return consumer
 
-    def _on_disconnection(self) -> None:
+    def _on_disconnection(self, *_args: Any) -> None:
 
         logger.debug("_on_disconnection: disconnection detected")
         if self in self._connections:

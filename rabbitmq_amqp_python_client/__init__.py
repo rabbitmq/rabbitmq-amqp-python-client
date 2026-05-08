@@ -1,4 +1,5 @@
 from importlib import metadata
+from typing import Optional
 
 from .address_helper import AddressHelper
 from .amqp_consumer_handler import AMQPMessagingHandler
@@ -57,6 +58,7 @@ from .ssl_configuration import (
 )
 from .utils import Converter
 
+__license__: Optional[str]
 try:
     __version__ = metadata.version(__package__)
     __license__ = metadata.metadata(__package__)["license"]

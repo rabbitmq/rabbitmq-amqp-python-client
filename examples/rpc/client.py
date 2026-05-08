@@ -65,7 +65,10 @@ class Requester:
     def send_request(self, request_body: str, correlation_id: str) -> Message:
         self._reply_handler.begin_wait()
         message = Message(body=Converter.string_to_bytes(request_body))
-        message.reply_to = self.consumer.address
+        reply_addr = self.consumer.address
+        if reply_addr is None:
+            raise RuntimeError("Consumer reply address is not available yet")
+        message.reply_to = reply_addr
         message.correlation_id = correlation_id
         self.publisher.publish(message=message)
         r = self._reply_handler.wait_reply()
@@ -85,10 +88,15 @@ def main() -> None:
         response_message = requester.send_request(
             request_body=request_body, correlation_id=correlation_id
         )
-        response_body = Converter.bytes_to_string(response_message.body)
+        raw_body = response_message.body
+        if not isinstance(raw_body, (bytes, bytearray)):
+            raise TypeError("Expected bytes message body in RPC response")
+        response_body = Converter.bytes_to_string(bytes(raw_body))
+        corr = response_message.correlation_id
+        corr_s = corr.decode() if isinstance(corr, (bytes, bytearray)) else str(corr)
         print(
             "[Requester] Received response: {} - correlation_id: {}".format(
-                response_body, response_message.correlation_id
+                response_body, corr_s
             )
         )
         print("------------------------------------------------------")

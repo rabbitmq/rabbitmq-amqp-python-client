@@ -96,7 +96,7 @@ class Management:
 
         if self._sender:
             try:
-                self._sender.close()
+                self._sender.close()  # type: ignore[no-untyped-call]
             except LinkDetached as e:
                 # avoid raising exception if the queue is deleted before closing the link
                 if e.condition and e.condition != "amqp:resource-deleted":
@@ -104,7 +104,7 @@ class Management:
 
         if self._receiver:
             try:
-                self._receiver.close()
+                self._receiver.close()  # type: ignore[no-untyped-call]
             except LinkDetached as e:
                 if e.condition and e.condition != "amqp:resource-deleted":
                     raise
@@ -153,15 +153,19 @@ class Management:
             durable=False,
         )
 
-        if self._sender is not None:
-            logger.debug("Sending message: " + str(amq_message))
-            self._sender.send(amq_message)
+        if self._sender is None or self._receiver is None:
+            raise ValidationCodeException("Management connection is not fully open")
 
-        if self._receiver is not None:
-            msg = self._receiver.receive()
-            logger.debug("Received message: " + str(msg))
+        logger.debug("Sending message: " + str(amq_message))
+        self._sender.send(amq_message)
 
-        self._validate_reponse_code(int(msg.subject), expected_response_codes)
+        msg = self._receiver.receive()
+        logger.debug("Received message: " + str(msg))
+
+        subject = msg.subject
+        if subject is None:
+            raise ValidationCodeException("Management response subject missing")
+        self._validate_reponse_code(int(subject), expected_response_codes)
         return msg
 
     def declare_exchange(
@@ -537,7 +541,13 @@ class Management:
             ],
         )
 
-        return int(response.body["message_count"])
+        body = response.body
+        if not isinstance(body, dict):
+            raise ValidationCodeException("Unexpected purge response body")
+        raw_count = body.get("message_count")
+        if raw_count is None:
+            raise ValidationCodeException("purge response missing message_count")
+        return int(raw_count)
 
     def queue_info(self, name: str) -> QueueInfo:
         """
@@ -564,7 +574,10 @@ class Management:
             ],
         )
 
-        queue_info: dict[str, Any] = message.body
+        body = message.body
+        if not isinstance(body, dict):
+            raise ValidationCodeException("Unexpected queue_info response body")
+        queue_info: dict[str, Any] = body
 
         if queue_info["type"] == "quorum":
             queue_type = QueueType.quorum

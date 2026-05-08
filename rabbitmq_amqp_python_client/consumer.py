@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, cast
+from typing import Optional
 
 from .amqp_consumer_handler import AMQPMessagingHandler
 from .entities import (
@@ -115,7 +115,7 @@ class Consumer:
         """
         logger.debug("Closing the receiver")
         if self._receiver is not None:
-            self._receiver.close()
+            self._receiver.close()  # type: ignore[no-untyped-call]
             if self in self._consumers:
                 self._consumers.remove(self)
 
@@ -218,7 +218,7 @@ class Consumer:
     @property
     def address(self) -> Optional[str]:
         if self._receiver is not None:
-            return cast(Optional[str], self._receiver.link.remote_source.address)
+            return self._receiver.link.remote_source.address
         else:
             raise Exception("Receiver is not initialized")
 

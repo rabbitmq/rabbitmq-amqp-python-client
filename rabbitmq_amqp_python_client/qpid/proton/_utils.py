@@ -432,7 +432,6 @@ class BlockingConnection(Handler):
         on_disconnection_handler: Optional[CB] = None,
         **kwargs
     ) -> None:
-
         # Preserve previous behaviour if neither reconnect nor urls are supplied
         if urls is None:
             urls = []
@@ -516,7 +515,6 @@ class BlockingConnection(Handler):
             handler=handler,
             name="dynamic-receiver_" + str(id(self)),
         )
-
     def create_receiver(
         self,
         address: Optional[str] = None,

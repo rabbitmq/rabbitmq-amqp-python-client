@@ -8,6 +8,7 @@ import pytest
 from rabbitmq_amqp_python_client import (
     AddressHelper,
     AMQPMessagingHandler,
+    Converter,
     Environment,
     Event,
     OAuth2Options,
@@ -112,7 +113,6 @@ def ssl_context(pytestconfig):
 
 @pytest.fixture()
 def connection_ssl(pytestconfig, ssl_context):
-
     environment = Environment(
         "amqps://guest:guest@localhost:5671/",
         ssl_context=ssl_context,
@@ -183,16 +183,28 @@ class MyMessageHandlerAcceptStreamOffset(AMQPMessagingHandler):
     def __init__(self, starting_offset: Optional[int] = None):
         super().__init__()
         self._received = 0
+        self._messages = []
         self._starting_offset = starting_offset
 
     def on_message(self, event: Event):
+        stream_offset = int(event.message.annotations["x-stream-offset"])
+        self._messages.append(event.message)
         if self._starting_offset is not None:
-            assert event.message.annotations["x-stream-offset"] == self._starting_offset
+            assert stream_offset == self._starting_offset
             self._starting_offset = self._starting_offset + 1
         self.delivery_context.accept(event)
         self._received = self._received + 1
+        print(
+            "received message: "
+            + Converter.bytes_to_string(event.message.body)
+            + " with offset "
+            + str(stream_offset)
+        )
         if self._received == 10:
             raise ConsumerTestException("consumed")
+
+    def messages(self):
+        return self._messages
 
 
 class MyMessageHandlerAcceptStreamOffsetReconnect(AMQPMessagingHandler):

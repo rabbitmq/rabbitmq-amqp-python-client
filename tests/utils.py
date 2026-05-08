@@ -35,7 +35,9 @@ def publish_messages(
     for i in range(messages_to_send):
         publisher.publish(
             Message(
-                body=Converter.string_to_bytes("test{}".format(i)),
+                body=Converter.string_to_bytes(
+                    "test:{} queue:{}".format(i, queue_name)
+                ),
                 annotations=annotations,
             )
         )

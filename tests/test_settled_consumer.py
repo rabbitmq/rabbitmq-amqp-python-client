@@ -28,7 +28,9 @@ class MyMessagePresettledHandler(AMQPMessagingHandler):
         # With pre_settled=True, messages are automatically settled
         # calling self.delivery_context.accept(event) will raise an error
         # assert False, "Cannot accept a pre-settled message"
-        assert message_body == "test{}".format(self._received)
+        assert message_body == "test:{} queue:{}".format(
+            self._received, event.message.annotations["x-routing-key"]
+        )
         try:
             self.delivery_context.accept(event)
             assert False, "Cannot accept a pre-settled message"

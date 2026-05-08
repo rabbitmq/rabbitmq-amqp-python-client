@@ -107,6 +107,7 @@ async def test_stream_read_from_offset_zero_async(
 
     queue_specification = StreamSpecification(name=stream_name)
     management = await async_connection.management()
+    await management.delete_queue(stream_name)
     await management.declare_queue(queue_specification)
 
     addr_queue = AddressHelper.queue_address(stream_name)

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum, auto
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, cast
 
 from .common import ExchangeType, QueueType
 from .exceptions import ValidationCodeException
@@ -326,7 +326,7 @@ class StreamConsumerOptions(AbcConsumerOptions):
             filters: List of filter strings to apply to the stream
         """
         self._filter_set[symbol(STREAM_FILTER_SPEC)] = Described(
-            symbol(STREAM_FILTER_SPEC), filters
+            symbol(STREAM_FILTER_SPEC), cast(Any, filters)
         )
 
     def _filter_match_unfiltered(self, filter_match_unfiltered: bool) -> None:
@@ -361,7 +361,7 @@ class StreamConsumerOptions(AbcConsumerOptions):
 
             if len(filter_prop) > 0:
                 self._filter_set[symbol(AMQP_PROPERTIES_FILTER)] = Described(
-                    symbol(AMQP_PROPERTIES_FILTER), filter_prop
+                    symbol(AMQP_PROPERTIES_FILTER), cast(Any, filter_prop)
                 )
 
     def _filter_application_properties(
@@ -372,7 +372,10 @@ class StreamConsumerOptions(AbcConsumerOptions):
 
             if len(app_prop) > 0:
                 self._filter_set[symbol(AMQP_APPLICATION_PROPERTIES_FILTER)] = (
-                    Described(symbol(AMQP_APPLICATION_PROPERTIES_FILTER), app_prop)
+                    Described(
+                        symbol(AMQP_APPLICATION_PROPERTIES_FILTER),
+                        cast(Any, app_prop),
+                    )
                 )
 
     def _filter_sql(self, sql: str) -> None:

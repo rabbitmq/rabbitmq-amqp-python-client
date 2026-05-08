@@ -105,6 +105,10 @@ class DeliveryContext(AbcDeliveryContext):
         This means the message has been processed and the broker can delete it.
         """
         dlv = event.delivery
+        if dlv is None:
+            raise InvalidOperationException(
+                "delivery is None, message could be already disposed"
+            )
         if dlv.settled:
             # like the other clients, it has to raise an exception if trying to accept an already settled delivery
             raise InvalidOperationException(
@@ -120,6 +124,10 @@ class DeliveryContext(AbcDeliveryContext):
         or dead-letter it if it is configured.
         """
         dlv = event.delivery
+        if dlv is None:
+            raise InvalidOperationException(
+                "delivery is None, message could be already disposed"
+            )
         if dlv.settled:
             # like the other clients, it has to raise an exception if trying to discard an already settled delivery
             raise InvalidOperationException(
@@ -146,6 +154,10 @@ class DeliveryContext(AbcDeliveryContext):
          The annotations can be used only with Quorum queues, see https://www.rabbitmq.com/docs/amqp#modified-outcome
         """
         dlv = event.delivery
+        if dlv is None:
+            raise InvalidOperationException(
+                "delivery is None, message could be already disposed"
+            )
         if dlv.settled:
             # like the other clients, it has to raise an exception if trying to discard an already settled delivery
             raise InvalidOperationException(
@@ -172,6 +184,10 @@ class DeliveryContext(AbcDeliveryContext):
         to the same or a different consumer.
         """
         dlv = event.delivery
+        if dlv is None:
+            raise InvalidOperationException(
+                "delivery is None, message could be already disposed"
+            )
         if dlv.settled:
             # like the other clients, it has to raise an exception if trying to requeue an already settled delivery
             raise InvalidOperationException(
@@ -199,6 +215,11 @@ class DeliveryContext(AbcDeliveryContext):
         The annotations can be used only with Quorum queues, see https://www.rabbitmq.com/docs/amqp#modified-outcome
         """
         dlv = event.delivery
+        if dlv is None:
+            raise InvalidOperationException(
+                "delivery is None, message could be already disposed"
+            )
+
         if dlv.settled:
             # like the other clients, it has to raise an exception if trying to requeue an already settled delivery
             raise InvalidOperationException(

@@ -90,17 +90,22 @@ class Publisher:
             raise ArgumentOutOfRangeException("Message inferred must be True")
 
         if self._addr != "":
-            if self._sender is not None:
-                return self._sender.send(message)
-        else:
-            if message.address != "":
-                if not validate_address(message.address):
-                    raise ArgumentOutOfRangeException(
-                        "destination address must start with /queues or /exchanges"
-                    )
-                if self.is_open:
-                    delivery = self._sender.send(message)  # type: ignore
-                    return delivery
+            if self._sender is None:
+                raise ValidationCodeException("Publisher sender is not initialized")
+            return self._sender.send(message)
+
+        if not message.address:
+            raise ValidationCodeException(
+                "destination address must be specified in the message when "
+                "the publisher has no default address"
+            )
+        if not validate_address(message.address):
+            raise ArgumentOutOfRangeException(
+                "destination address must start with /queues or /exchanges"
+            )
+        if not self.is_open or self._sender is None:
+            raise ValidationCodeException("Publisher sender is not open")
+        return self._sender.send(message)
 
     def close(self) -> None:
         """

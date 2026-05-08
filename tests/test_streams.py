@@ -32,7 +32,7 @@ def test_stream_read_from_last_default(
     connection: Connection, environment: Environment
 ) -> None:
     consumer = None
-    stream_name = "test_stream_info_with_validation"
+    stream_name = "test_stream_info_with_validation_{}".format(time.time())
     messages_to_send = 10
 
     queue_specification = StreamSpecification(
@@ -56,6 +56,7 @@ def test_stream_read_from_last_default(
     except ConsumerTestException:
         pass
     finally:
+        assert consumer is not None
         consumer.close()
         management.delete_queue(stream_name)
 
@@ -64,7 +65,7 @@ def test_stream_read_from_last(
     connection: Connection, environment: Environment
 ) -> None:
     consumer = None
-    stream_name = "test_stream_info_with_validation"
+    stream_name = "test_stream_info_with_validation_{}".format(time.time())
     messages_to_send = 10
 
     queue_specification = StreamSpecification(
@@ -92,6 +93,7 @@ def test_stream_read_from_last(
     except ConsumerTestException:
         pass
     finally:
+        assert consumer is not None
         consumer.close()
         management.delete_queue(stream_name)
 
@@ -99,46 +101,46 @@ def test_stream_read_from_last(
 def test_stream_read_from_offset_zero(
     connection: Connection, environment: Environment
 ) -> None:
-    consumer = None
-    stream_name = "test_stream_info_with_validation"
+    stream_name = "test_stream_read_from_offset_zero_{}".format(time.time())
     messages_to_send = 10
 
     queue_specification = StreamSpecification(
         name=stream_name,
     )
     management = connection.management()
+    management.delete_queue(stream_name)
     management.declare_queue(queue_specification)
 
     addr_queue = AddressHelper.queue_address(stream_name)
 
     # publish and then consume
     publish_messages(connection, messages_to_send, stream_name)
-
+    connection_consumer = environment.connection()
+    connection_consumer.dial()
+    consumer = connection_consumer.consumer(
+        addr_queue,
+        message_handler=MyMessageHandlerAcceptStreamOffset(0),
+        consumer_options=StreamConsumerOptions(offset_specification=0),
+    )
     try:
-        connection_consumer = environment.connection()
-        connection_consumer.dial()
-        consumer = connection_consumer.consumer(
-            addr_queue,
-            message_handler=MyMessageHandlerAcceptStreamOffset(0),
-            consumer_options=StreamConsumerOptions(offset_specification=0),
-        )
-
+        assert consumer is not None
         consumer.run()
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
     finally:
+        assert consumer is not None
         consumer.close()
         management.delete_queue(stream_name)
+        connection_consumer.close()
 
 
 def test_stream_read_from_offset_first(
     connection: Connection, environment: Environment
 ) -> None:
-    consumer = None
-    stream_name = "test_stream_info_with_validation"
+    stream_name = "test_stream_read_from_offset_first_{}".format(time.time())
     messages_to_send = 10
-
+    msg_handler = MyMessageHandlerAcceptStreamOffset(0)
     queue_specification = StreamSpecification(
         name=stream_name,
     )
@@ -149,32 +151,53 @@ def test_stream_read_from_offset_first(
 
     # publish and then consume
     publish_messages(connection, messages_to_send, stream_name)
-
+    connection_consumer = environment.connection()
+    connection_consumer.dial()
+    consumer = connection_consumer.consumer(
+        addr_queue,
+        message_handler=msg_handler,
+        consumer_options=StreamConsumerOptions(OffsetSpecification.first),
+    )
     try:
-        connection_consumer = environment.connection()
-        connection_consumer.dial()
-        consumer = connection_consumer.consumer(
-            addr_queue,
-            message_handler=MyMessageHandlerAcceptStreamOffset(0),
-            consumer_options=StreamConsumerOptions(OffsetSpecification.first),
-        )
-
+        time.sleep(1)
+        assert consumer is not None
         consumer.run()
     # ack to terminate the consumer
     except ConsumerTestException:
         pass
     finally:
+        assert msg_handler.messages is not None
+        assert consumer is not None
         consumer.close()
+        connection_consumer.close()
         management.delete_queue(stream_name)
+
+
+class MyMessageHandlerFromTen(AMQPMessagingHandler):
+
+    def __init__(self):
+        super().__init__()
+        self.stream_offset = None
+        self._received = 0
+        self._messages = []
+
+    def on_message(self, event: Event):
+        self._messages.append(event.message)
+        self.stream_offset = int(event.message.annotations["x-stream-offset"])
+        self._received = self._received + 1
+        if self._received == 10:
+            raise ConsumerTestException("MyMessageHandlerFromTen Consumed")
+
+    def stream_offset(self):
+        return self.stream_offset
 
 
 def test_stream_read_from_offset_ten(
     connection: Connection, environment: Environment
 ) -> None:
-    consumer = None
-    stream_name = "test_stream_info_with_validation"
+    stream_name = "test_stream_read_from_offset_ten_{}".format(time.time())
     messages_to_send = 20
-
+    msg_handler = MyMessageHandlerFromTen()
     queue_specification = StreamSpecification(
         name=stream_name,
     )
@@ -185,15 +208,15 @@ def test_stream_read_from_offset_ten(
 
     # publish and then consume
     publish_messages(connection, messages_to_send, stream_name)
+    connection_consumer = environment.connection()
+    connection_consumer.dial()
+    consumer = connection_consumer.consumer(
+        addr_queue,
+        message_handler=msg_handler,
+        consumer_options=StreamConsumerOptions(offset_specification=10),
+    )
 
     try:
-        connection_consumer = environment.connection()
-        connection_consumer.dial()
-        consumer = connection_consumer.consumer(
-            addr_queue,
-            message_handler=MyMessageHandlerAcceptStreamOffset(10),
-            consumer_options=StreamConsumerOptions(offset_specification=10),
-        )
 
         consumer.run()
     # ack to terminate the consumer
@@ -201,13 +224,17 @@ def test_stream_read_from_offset_ten(
     except ConsumerTestException:
         pass
     finally:
+        assert consumer is not None
         consumer.close()
+        assert msg_handler.stream_offset is not None
+        assert msg_handler.stream_offset == 19
+        connection_consumer.close()
         management.delete_queue(stream_name)
 
 
 def test_stream_filtering(connection: Connection, environment: Environment) -> None:
     consumer = None
-    stream_name = "test_stream_info_with_filtering"
+    stream_name = "test_stream_info_with_filtering_{}".format(time.time())
     messages_to_send = 10
 
     queue_specification = StreamSpecification(
@@ -237,6 +264,7 @@ def test_stream_filtering(connection: Connection, environment: Environment) -> N
     except ConsumerTestException:
         pass
     finally:
+        assert consumer is not None
         consumer.close()
         management.delete_queue(stream_name)
 
@@ -277,6 +305,7 @@ def test_stream_filtering_mixed(
     except ConsumerTestException:
         pass
     finally:
+        assert consumer is not None
         consumer.close()
         management.delete_queue(stream_name)
 
@@ -316,6 +345,7 @@ def test_stream_match_unfiltered(
     except ConsumerTestException:
         pass
     finally:
+        assert consumer is not None
         consumer.close()
         management.delete_queue(stream_name)
 
@@ -356,6 +386,7 @@ def test_stream_reconnection(
     except ConsumerTestException:
         pass
     finally:
+        assert consumer is not None
         consumer.close()
         management.delete_queue(stream_name)
 

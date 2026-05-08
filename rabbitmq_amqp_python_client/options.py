@@ -16,7 +16,7 @@ from .qpid.proton.reactor import (  # noqa: E402
 )
 
 
-class SenderOption(LinkOption):  # type: ignore
+class SenderOption(LinkOption):
     def __init__(self, addr: str):
         self._addr = addr
 
@@ -31,7 +31,7 @@ class SenderOption(LinkOption):  # type: ignore
         return bool(link.is_sender)
 
 
-class SenderOptionUnseattle(LinkOption):  # type: ignore
+class SenderOptionUnseattle(LinkOption):
     def __init__(self, addr: str):
         self._addr = addr
 
@@ -46,7 +46,7 @@ class SenderOptionUnseattle(LinkOption):  # type: ignore
         return bool(link.is_sender)
 
 
-class ReceiverOption(LinkOption):  # type: ignore
+class ReceiverOption(LinkOption):
     def __init__(self, addr: str):
         self._addr = addr
 
@@ -58,7 +58,7 @@ class ReceiverOption(LinkOption):  # type: ignore
         link.source.dynamic = False
 
 
-class DynamicReceiverOption(LinkOption):  # type: ignore
+class DynamicReceiverOption(LinkOption):
 
     def apply(self, link: Link) -> None:
         link.snd_settle_mode = Link.SND_SETTLED
@@ -73,12 +73,12 @@ class DynamicReceiverOption(LinkOption):  # type: ignore
         data.exit()
 
 
-class ReceiverOptionUnsettled(LinkOption):  # type: ignore
+class ReceiverOptionUnsettled(LinkOption):
     def __init__(self, addr: Optional[str]):
         self._addr = addr
 
     def apply(self, link: Link) -> None:
-        link.target.address = self._addr
+        link.target.address = self._addr or ""
         link.snd_settle_mode = Link.SND_UNSETTLED
         link.rcv_settle_mode = Link.RCV_FIRST
         link.properties = PropertyDict({symbol("paired"): True})
@@ -88,13 +88,13 @@ class ReceiverOptionUnsettled(LinkOption):  # type: ignore
         return bool(link.is_receiver)
 
 
-class ReceiverOptionUnsettledWithFilters(Filter):  # type: ignore
+class ReceiverOptionUnsettledWithFilters(Filter):
     def __init__(self, addr: Optional[str], consumer_options: AbcConsumerOptions):
         super().__init__(consumer_options.filter_set())
         self._addr = addr
 
     def apply(self, link: Link) -> None:
-        link.target.address = self._addr
+        link.target.address = self._addr or ""
         link.snd_settle_mode = Link.SND_UNSETTLED
         link.rcv_settle_mode = Link.RCV_FIRST
         link.properties = PropertyDict({symbol("paired"): True})
@@ -105,7 +105,7 @@ class ReceiverOptionUnsettledWithFilters(Filter):  # type: ignore
         return bool(link.is_receiver)
 
 
-class ReceiverOptionPreSettled(LinkOption):  # type: ignore
+class ReceiverOptionPreSettled(LinkOption):
     """
     Receiver option for pre-settled deliveries (at-most-once semantics).
 
@@ -118,7 +118,7 @@ class ReceiverOptionPreSettled(LinkOption):  # type: ignore
         self._addr = addr
 
     def apply(self, link: Link) -> None:
-        link.target.address = self._addr
+        link.target.address = self._addr or ""
         link.snd_settle_mode = Link.SND_SETTLED
         link.rcv_settle_mode = Link.RCV_FIRST
         link.properties = PropertyDict({symbol("paired"): True})

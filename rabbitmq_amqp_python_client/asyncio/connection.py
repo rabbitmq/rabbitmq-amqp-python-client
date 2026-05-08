@@ -5,6 +5,7 @@ import logging
 from typing import Callable, Optional, Union
 
 from ..address_helper import validate_address
+from ..amqp_consumer_handler import AMQPMessagingHandler
 from ..connection import Connection
 from ..consumer import Consumer
 from ..entities import (
@@ -15,7 +16,6 @@ from ..entities import (
 from ..exceptions import ArgumentOutOfRangeException
 from ..management import Management
 from ..publisher import Publisher
-from ..qpid.proton._handlers import MessagingHandler
 from ..ssl_configuration import (
     PosixSslConfigurationContext,
     WinSslConfigurationContext,
@@ -227,7 +227,7 @@ class AsyncConnection:
     async def consumer(
         self,
         destination: Optional[str] = None,
-        message_handler: Optional[MessagingHandler] = None,
+        message_handler: Optional[AMQPMessagingHandler] = None,
         consumer_options: Optional[AbcConsumerOptions] = None,
         credit: Optional[int] = None,
     ) -> AsyncConsumer:
@@ -265,7 +265,7 @@ class AsyncConnection:
             async_consumer = AsyncConsumer(
                 self._connection._conn,
                 destination,
-                message_handler,  # pyright: ignore[reportArgumentType]
+                message_handler,
                 consumer_options,
                 credit,
                 connection_lock=self._connection_lock,

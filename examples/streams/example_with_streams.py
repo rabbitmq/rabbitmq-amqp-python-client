@@ -49,7 +49,6 @@ class MyMessageHandler(AMQPMessagingHandler):
         # in case of rejection with annotations added
         # self.delivery_context.discard_with_annotations(event)
 
-        print("count " + str(self._count))
 
         self._count = self._count + 1
 
@@ -101,11 +100,13 @@ def main() -> None:
 
     consumer = consumer_connection.consumer(
         addr_queue,
+
         message_handler=MyMessageHandler(),
         # can be first, last, next or an offset long
         # you can also specify stream filters with methods: apply_filters and filter_match_unfiltered
         consumer_options=StreamConsumerOptions(
             offset_specification=OffsetSpecification.first
+
         ),
     )
     print(
@@ -125,28 +126,27 @@ def main() -> None:
         )
 
     # publish with a filter of banana
-    for i in range(MESSAGES_TO_PUBLISH):
-        publisher.publish(
-            Message(
-                body=Converter.string_to_bytes("banana: " + str(i)),
-                annotations={"x-stream-filter-value": "banana"},
-            )
-        )
+    # for i in range(MESSAGES_TO_PUBLISH):
+    #     publisher.publish(
+    #         Message(
+    #             body=Converter.string_to_bytes("banana: " + str(i)),
+    #             annotations={"x-stream-filter-value": "banana"},
+    #         )
+    #     )
 
     publisher.close()
 
-    while True:
-        try:
-            consumer.run()
-        except KeyboardInterrupt:
-            pass
-        except ConnectionClosed:
-            print("connection closed")
-            continue
-        except Exception as e:
-            print("consumer exited for exception " + str(e))
-
-        break
+    # consumer.run() drives the event loop on the consumer connection.
+    # Messages only start arriving once this is called because credit is
+    # not sent to the server until the first process() cycle here.
+    try:
+        consumer.run()
+    except KeyboardInterrupt:
+        pass
+    except ConnectionClosed:
+        print("connection closed")
+    except Exception as e:
+        print("consumer exited for exception " + str(e))
 
     #
     print("delete queue")

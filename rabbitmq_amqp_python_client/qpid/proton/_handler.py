@@ -27,11 +27,18 @@ from typing import (
     Tuple,
     Type,
     Union,
+    overload,
 )
 
 
 class LazyHandlers(object):
-    def __get__(self, obj: "Handler", clazz: Any) -> Union["LazyHandlers", List[Any]]:
+    @overload
+    def __get__(self, obj: None, clazz: Any) -> "LazyHandlers": ...
+
+    @overload
+    def __get__(self, obj: "Handler", clazz: Any) -> List[Any]: ...
+
+    def __get__(self, obj: Optional["Handler"], clazz: Any) -> Union["LazyHandlers", List[Any]]:
         if obj is None:
             return self
         ret = []
