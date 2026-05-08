@@ -49,7 +49,6 @@ class MyMessageHandler(AMQPMessagingHandler):
         # in case of rejection with annotations added
         # self.delivery_context.discard_with_annotations(event)
 
-
         self._count = self._count + 1
 
         if self._count == MESSAGES_TO_PUBLISH:
@@ -100,13 +99,11 @@ def main() -> None:
 
     consumer = consumer_connection.consumer(
         addr_queue,
-
         message_handler=MyMessageHandler(),
         # can be first, last, next or an offset long
         # you can also specify stream filters with methods: apply_filters and filter_match_unfiltered
         consumer_options=StreamConsumerOptions(
             offset_specification=OffsetSpecification.first
-
         ),
     )
     print(
