@@ -29,6 +29,7 @@ from ._delivery import Delivery
 from ._endpoints import Endpoint
 from ._events import Event, _dispatch
 from ._exceptions import ProtonException
+from ._flow_properties import SAC_CALLBACK_KEY, extract_sac_active_from_bytes
 from ._handler import Handler
 from ._io import IO
 from ._message import Message
@@ -1224,6 +1225,14 @@ class IOHandler(Handler):
             try:
                 b = s.recv(capacity)
                 if len(b) > 0:
+                    sac_cb = getattr(t, SAC_CALLBACK_KEY, None)
+                    if sac_cb is not None:
+                        try:
+                            active = extract_sac_active_from_bytes(b)
+                            if active is not None:
+                                sac_cb(active)
+                        except Exception:
+                            log.debug("SAC callback raised an exception", exc_info=True)
                     t.push(b)
                 else:
                     # EOF handling

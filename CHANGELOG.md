@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Raise `AmqpMessageRejectedException` when a published message is rejected by the broker. The exception message contains the rejection reason provided by the broker (queue name and specific reason). This requires RabbitMQ 4.3+ to include detailed rejection information; older versions will raise the exception with a generic message.
+- Add `QuorumConsumerOptions` with `sac_state_handler` callback for Quorum Queue Single Active Consumer (SAC) state-change notifications via AMQP 1.0 FLOW `rabbitmq:active` link-state property (RabbitMQ 4.3+). The callback receives `True` when the consumer becomes active and `False` when it is placed in standby.
 
 ### Changed
 - Refresh declared dependency ranges (including dev tools) to current releases.

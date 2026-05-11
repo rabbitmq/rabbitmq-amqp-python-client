@@ -11,3 +11,4 @@ Client examples
  - [Stream Consumer Offset Datetime](./stream_consumer_offset_datetime) - Example of stream consumer starting from a specific datetime
  - [RPC](./rpc) - Basic RPC example
  - [Rejected Messages](./rejected_messages/example_rejected_messages.py) - How to handle [rejected messages](https://www.rabbitmq.com/blog/2026/04/23/rabbitmq-4.3-release#amqp-rejection-reason) with `AmqpMessageRejectedException` (RabbitMQ 4.3+)
+ - [Quorum Queue SAC Notification](./quorum_queue_sac/example_quorum_queue_sac.py) - Quorum Queue Single Active Consumer state-change notifications via `QuorumConsumerOptions.sac_state_handler` (RabbitMQ 4.3+)

@@ -5,6 +5,7 @@ from .amqp_consumer_handler import AMQPMessagingHandler
 from .entities import (
     AbcConsumerOptions,
     ConsumerOptions,
+    QuorumConsumerOptions,
     StreamConsumerOptions,
 )
 from .options import (
@@ -13,6 +14,7 @@ from .options import (
     ReceiverOptionUnsettled,
     ReceiverOptionUnsettledWithFilters,
 )
+from .qpid.proton._flow_properties import SAC_CALLBACK_KEY
 from .qpid.proton.utils import (
     BlockingConnection,
     BlockingReceiver,
@@ -68,6 +70,7 @@ class Consumer:
     def _open(self) -> None:
         if self._receiver is None:
             logger.debug("Creating Receiver")
+            self._register_sac_callback()
             self._receiver = self._create_receiver(self._addr)
 
     def _update_connection(self, conn: BlockingConnection) -> None:
@@ -99,7 +102,10 @@ class Consumer:
                 ),
                 handler=self._handler,
             )
-        elif isinstance(self._consumer_options, ConsumerOptions):
+        elif isinstance(
+            self._consumer_options, (QuorumConsumerOptions, ConsumerOptions)
+        ):
+            self._register_sac_callback()
             self._receiver = self._create_receiver_from_cq_consumer_options(
                 addr, credit
             )
@@ -114,10 +120,42 @@ class Consumer:
         Closes the receiver if it exists and cleans up resources.
         """
         logger.debug("Closing the receiver")
+        self._unregister_sac_callback()
         if self._receiver is not None:
             self._receiver.close()  # type: ignore[no-untyped-call]
             if self in self._consumers:
                 self._consumers.remove(self)
+
+    def _register_sac_callback(self) -> None:
+        """Register the SAC callback on the transport for QuorumConsumerOptions."""
+        if not isinstance(self._consumer_options, QuorumConsumerOptions):
+            return
+        cb = self._consumer_options.sac_state_handler
+        if cb is None:
+            return
+        try:
+            conn = self._conn.conn
+            if conn is None:
+                return
+            transport = conn.transport
+            if transport is not None:
+                setattr(transport, SAC_CALLBACK_KEY, cb)
+                logger.debug("Registered SAC callback on transport")
+        except Exception as exc:
+            logger.debug("Could not register SAC callback: %s", exc)
+
+    def _unregister_sac_callback(self) -> None:
+        """Remove the SAC callback from the transport, if one was registered."""
+        try:
+            conn = self._conn.conn
+            if conn is None:
+                return
+            transport = conn.transport
+            if transport is not None and hasattr(transport, SAC_CALLBACK_KEY):
+                delattr(transport, SAC_CALLBACK_KEY)
+                logger.debug("Unregistered SAC callback from transport")
+        except Exception as exc:
+            logger.debug("Could not unregister SAC callback: %s", exc)
 
     def run(self) -> None:
         """
@@ -172,6 +210,9 @@ class Consumer:
                 ),
                 handler=self._handler,
             )
+
+        if isinstance(self._consumer_options, QuorumConsumerOptions):
+            return self._create_receiver_from_cq_consumer_options(addr, credit)
 
         if isinstance(self._consumer_options, ConsumerOptions):
             return self._create_receiver_from_cq_consumer_options(addr, credit)

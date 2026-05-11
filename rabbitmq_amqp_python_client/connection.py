@@ -416,6 +416,7 @@ class Connection:
                     "4.0.0": self._is_server_version_gte("4.0.0"),
                     "4.1.0": self._is_server_version_gte("4.1.0"),
                     "4.2.0": self._is_server_version_gte("4.2.0"),
+                    "4.3.0": self._is_server_version_gte("4.3.0"),
                 }
             )
         consumer = Consumer(

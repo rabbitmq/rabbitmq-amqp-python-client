@@ -2,7 +2,14 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum, auto
-from typing import Any, Dict, Optional, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Optional,
+    Union,
+    cast,
+)
 
 from .common import ExchangeType, QueueType
 from .exceptions import ValidationCodeException
@@ -547,3 +554,61 @@ class RecoveryConfiguration:
 @dataclass
 class OAuth2Options:
     token: str
+
+
+class QuorumConsumerOptions(ConsumerOptions):
+    """
+    Configuration options for Quorum queue consumers with optional
+    Single Active Consumer (SAC) state-change notifications.
+
+    When ``sac_state_handler`` is set, the client registers for AMQP 1.0
+    FLOW link-state ``rabbitmq:active`` updates sent by RabbitMQ 4.3+.
+    The callback receives a single ``bool``: ``True`` when this consumer
+    becomes the active consumer, ``False`` when it is placed in standby.
+
+    Requires:
+        - RabbitMQ 4.3 or higher.
+        - The queue must be declared with ``single_active_consumer=True``.
+        - Cannot be combined with ``ConsumerSettleStrategy.DirectReplyTo``.
+
+    Args:
+        settle_strategy: How deliveries are settled (default: ExplicitSettle).
+        sac_state_handler: Optional callback ``(is_active: bool) -> None``
+            invoked on SAC state transitions.
+    """
+
+    def __init__(
+        self,
+        settle_strategy: ConsumerSettleStrategy = ConsumerSettleStrategy.ExplicitSettle,
+        sac_state_handler: Optional[Callable[[bool], None]] = None,
+    ):
+        super().__init__(settle_strategy=settle_strategy)
+        self._sac_state_handler = sac_state_handler
+
+    def validate(self, versions: Dict[str, bool]) -> None:
+        """
+        Validates Quorum consumer options against supported RabbitMQ server versions.
+
+        Args:
+            versions: Dictionary mapping version strings to boolean indicating support.
+
+        Raises:
+            ValidationCodeException: If SAC notification is used with an incompatible
+                                     strategy or unsupported server version.
+        """
+        super().validate(versions)
+        if self._sac_state_handler is not None:
+            if self.direct_reply_to():
+                raise ValidationCodeException(
+                    "Single Active Consumer state notification is not compatible "
+                    "with DirectReplyTo settle strategy"
+                )
+            if not versions.get("4.3.0", False):
+                raise ValidationCodeException(
+                    "Single Active Consumer state notification requires RabbitMQ 4.3.0 or higher"
+                )
+
+    @property
+    def sac_state_handler(self) -> Optional[Callable[[bool], None]]:
+        """The SAC state-change callback, or ``None`` if not configured."""
+        return self._sac_state_handler
