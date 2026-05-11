@@ -123,6 +123,7 @@ def run_consumer(consumer_name: str, addr: str) -> None:
 
     try:
         consumer.run()
+        print("Done consuming.\n")
     except Exception:
         pass
 
@@ -136,10 +137,6 @@ def main() -> None:
     management = setup_conn.management()
 
     print(f"Declaring Quorum Queue '{QUEUE_NAME}' with single_active_consumer=True …")
-    try:
-        management.delete_queue(QUEUE_NAME)
-    except Exception:
-        pass
     management.declare_queue(
         QuorumQueueSpecification(name=QUEUE_NAME, single_active_consumer=True)
     )
@@ -154,7 +151,7 @@ def main() -> None:
     t2.start()
 
     # Give consumers time to attach and receive their initial SAC notifications.
-    time.sleep(3)
+    time.sleep(10)
 
     # Publish messages — only the active consumer will receive them.
     publish_messages(setup_conn)
