@@ -4,7 +4,11 @@ import asyncio
 import logging
 from typing import Optional, Union
 
-from ..entities import OAuth2Options, RecoveryConfiguration
+from ..entities import (
+    AmqpUri,
+    OAuth2Options,
+    RecoveryConfiguration,
+)
 from ..ssl_configuration import (
     PosixSslConfigurationContext,
     WinSslConfigurationContext,
@@ -38,6 +42,8 @@ class AsyncEnvironment:
         uri: Optional[str] = None,
         # multi-node mode
         uris: Optional[list[str]] = None,
+        # structured single-node mode
+        amqp_uri: Optional[AmqpUri] = None,
         ssl_context: Union[
             PosixSslConfigurationContext, WinSslConfigurationContext, None
         ] = None,
@@ -47,25 +53,38 @@ class AsyncEnvironment:
         """
         Initialize AsyncEnvironment.
 
+        Exactly one of ``uri``, ``uris``, or ``amqp_uri`` must be provided.
+
         Args:
-            uri: Single node connection URI
-            uris: List of URIs for multi-node setup
-            ssl_context: SSL configuration for secure connections
-            oauth2_options: OAuth2 options for authentication
-            recovery_configuration: Configuration for connection recovery
+            uri: Single node connection URI string (e.g. ``"amqp://guest:guest@localhost:5672/"``).
+            uris: List of URI strings for multi-node setup.
+            amqp_uri: Structured single-node connection parameters as an :class:`AmqpUri`
+                instance.  Converted to a URI string internally.
+            ssl_context: SSL configuration for secure connections.
+            oauth2_options: OAuth2 options for authentication.
+            recovery_configuration: Configuration for connection recovery.
 
         Raises:
-            ValueError: If both 'uri' and 'uris' are specified or if neither is specified.
+            ValueError: If more than one of 'uri', 'uris', 'amqp_uri' is specified,
+                or if none is specified.
         """
-        if uri is not None and uris is not None:
+        set_count = sum(x is not None for x in [uri, uris, amqp_uri])
+        if set_count > 1:
             raise ValueError(
-                "Cannot specify both 'uri' and 'uris'. Choose one connection mode."
+                "Cannot specify more than one of 'uri', 'uris', or 'amqp_uri'. "
+                "Choose one connection mode."
             )
-        if uri is None and uris is None:
-            raise ValueError("Must specify either 'uri' or 'uris' for connection.")
+        if set_count == 0:
+            raise ValueError(
+                "Must specify exactly one of 'uri', 'uris', or 'amqp_uri' for connection."
+            )
 
-        self._uri = uri
-        self._uris = uris
+        if amqp_uri is not None:
+            self._uri: Optional[str] = amqp_uri.to_uri()
+            self._uris: Optional[list[str]] = None
+        else:
+            self._uri = uri
+            self._uris = uris
         self._ssl_context = ssl_context
         self._oauth2_options = oauth2_options
         self._recovery_configuration = recovery_configuration

@@ -552,6 +552,48 @@ class RecoveryConfiguration:
 
 
 @dataclass
+class AmqpUri:
+    """
+    Configuration for an AMQP connection using individual fields.
+
+    Provides a structured alternative to a raw URI string, building the
+    connection URI from its component parts.
+
+    Attributes:
+        schema: The URI scheme (``"amqp"`` or ``"amqps"``). Defaults to ``"amqp"``.
+        host: The broker hostname or IP address. Defaults to ``"localhost"``.
+        port: The broker port. Defaults to ``5672``.
+        user: The authentication username. Defaults to ``"guest"``.
+        password: The authentication password. Defaults to ``"guest"``.
+        vhost: The target virtual host. Defaults to ``"/"``.
+    """
+
+    schema: str = "amqp"
+    host: str = "localhost"
+    port: int = 5672
+    user: str = "guest"
+    password: str = "guest"
+    vhost: str = "/"
+
+    def to_uri(self) -> str:
+        """
+        Build an AMQP URI string from the individual fields.
+
+        Returns:
+            str: A URI in the form ``schema://user:password@host:port/vhost``.
+        """
+        from urllib.parse import quote
+
+        user_enc = quote(self.user, safe="")
+        password_enc = quote(self.password, safe="")
+        if self.vhost == "/":
+            vhost_path = "/"
+        else:
+            vhost_path = "/" + quote(self.vhost, safe="")
+        return f"{self.schema}://{user_enc}:{password_enc}@{self.host}:{self.port}{vhost_path}"
+
+
+@dataclass
 class OAuth2Options:
     token: str
 

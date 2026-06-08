@@ -12,3 +12,4 @@ Client examples
  - [RPC](./rpc) - Basic RPC example
  - [Rejected Messages](./rejected_messages/example_rejected_messages.py) - How to handle [rejected messages](https://www.rabbitmq.com/blog/2026/04/23/rabbitmq-4.3-release#amqp-rejection-reason) with `AmqpMessageRejectedException` (RabbitMQ 4.3+)
  - [Quorum Queue SAC Notification](./quorum_queue_sac/example_quorum_queue_sac.py) - Quorum Queue Single Active Consumer state-change notifications via `QuorumConsumerOptions.sac_state_handler` (RabbitMQ 4.3+)
+ - [AmqpUri](./amqp_uri/example_amqp_uri.py) - Configure the connection with individual fields (host, port, user, password, vhost) using `AmqpUri` instead of a raw URI string
