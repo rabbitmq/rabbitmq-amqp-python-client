@@ -69,7 +69,7 @@ def main() -> None:
     # ------------------------------------------------------------------
     # 2. Custom fields – only override what differs from the defaults
     # ------------------------------------------------------------------
-    custom_uri = AmqpUri(
+    uri = AmqpUri(
         schema="amqp",
         host="localhost",
         port=5672,
@@ -77,13 +77,13 @@ def main() -> None:
         password="guest",
         vhost="/",
     )
-    print(f"custom AmqpUri   → {custom_uri.to_uri()}")
+    print(f"custom AmqpUri   → {uri.to_uri()}")
 
     # ------------------------------------------------------------------
     # 3. Connect using amqp_uri=  (mutually exclusive with uri= / uris=)
     # ------------------------------------------------------------------
     print("\nconnecting to RabbitMQ via AmqpUri …")
-    environment = Environment(amqp_uri=AmqpUri())
+    environment = Environment(amqp_uri=uri)
     connection = environment.connection()
     connection.dial()
     print("connected")
