@@ -15,6 +15,7 @@ from .connection import Connection
 from .consumer import Consumer
 from .entities import (
     AbcConsumerOptions,
+    AmqpUri,
     ConsumerOptions,
     ConsumerSettleStrategy,
     ExchangeCustomSpecification,
@@ -73,6 +74,7 @@ del metadata
 OutcomeState = Disposition
 
 __all__ = [
+    "AmqpUri",
     "Connection",
     "Management",
     "ExchangeSpecification",
