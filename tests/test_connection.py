@@ -1,10 +1,14 @@
+import os
+import tempfile
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from rabbitmq_amqp_python_client import (
+    Connection,
     ConnectionClosed,
     Environment,
     PKCS12Store,
@@ -17,6 +21,9 @@ from rabbitmq_amqp_python_client import (
 )
 from rabbitmq_amqp_python_client.qpid.proton import (
     ConnectionException,
+)
+from rabbitmq_amqp_python_client.qpid.proton._transport import (
+    SSLDomain,
 )
 
 from .http_requests import (
@@ -272,3 +279,33 @@ def test_connection_vhost_not_exists() -> None:
         exception = True
 
     assert exception is True
+
+
+def test_connection_ssl_explicit_peer_verification() -> None:
+    with tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as f:
+        ca_path = f.name
+
+    try:
+        ssl_ctx = PosixSslConfigurationContext(ca_cert=ca_path)
+        conn = Connection(
+            uri="amqps://guest:guest@localhost:5671/", ssl_context=ssl_ctx
+        )
+
+        mock_domain = MagicMock(spec=SSLDomain)
+
+        with patch(
+            "rabbitmq_amqp_python_client.connection.SSLDomain"
+        ) as mock_ssl_domain_cls:
+            mock_ssl_domain_cls.return_value = mock_domain
+            mock_ssl_domain_cls.VERIFY_PEER_NAME = SSLDomain.VERIFY_PEER_NAME
+            mock_ssl_domain_cls.MODE_CLIENT = SSLDomain.MODE_CLIENT
+
+            with patch.object(conn, "_open_connections"):
+                conn.dial()
+
+        mock_domain.set_trusted_ca_db.assert_called_once_with(ca_path)
+        mock_domain.set_peer_authentication.assert_called_once_with(
+            SSLDomain.VERIFY_PEER_NAME, ca_path
+        )
+    finally:
+        os.unlink(ca_path)

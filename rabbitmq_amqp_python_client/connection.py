@@ -274,6 +274,9 @@ class Connection:
             else:
                 typing_extensions.assert_never(self._conf_ssl_context)
             self._ssl_domain.set_trusted_ca_db(ca_cert)
+            self._ssl_domain.set_peer_authentication(
+                SSLDomain.VERIFY_PEER_NAME, ca_cert
+            )
 
             # for mutual authentication
             if self._conf_ssl_context.client_cert is not None:
