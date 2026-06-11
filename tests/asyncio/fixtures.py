@@ -27,7 +27,7 @@ async def async_environment():
 async def async_environment_auth() -> AsyncGenerator[AsyncEnvironment, None]:
     token_string = token(datetime.now() + timedelta(milliseconds=2500))
     environment = AsyncEnvironment(
-        uri="amqp://localhost:5672",
+        uri="amqps://localhost:5671",
         oauth2_options=OAuth2Options(token=token_string),
     )
     yield environment

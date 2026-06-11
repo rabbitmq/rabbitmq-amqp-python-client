@@ -54,7 +54,7 @@ def environment(pytestconfig):
 def environment_auth(pytestconfig):
     token_string = token(datetime.now() + timedelta(milliseconds=2500))
     environment = Environment(
-        uri="amqp://localhost:5672",
+        uri="amqps://localhost:5671",
         oauth2_options=OAuth2Options(token=token_string),
     )
     try:

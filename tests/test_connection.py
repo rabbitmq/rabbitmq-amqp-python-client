@@ -5,8 +5,10 @@ from pathlib import Path
 import pytest
 
 from rabbitmq_amqp_python_client import (
+    Connection,
     ConnectionClosed,
     Environment,
+    OAuth2Options,
     PKCS12Store,
     PosixSslConfigurationContext,
     QuorumQueueSpecification,
@@ -272,3 +274,52 @@ def test_connection_vhost_not_exists() -> None:
         exception = True
 
     assert exception is True
+
+
+def test_oauth2_with_plaintext_uri_raises() -> None:
+    """Connection raises ValueError when OAuth2 is used with amqp:// (no TLS)."""
+    with pytest.raises(ValueError, match="amqps://"):
+        Connection(
+            uri="amqp://guest:guest@localhost:5672/",
+            oauth2_options=OAuth2Options(token="super-secret-bearer-token"),
+        )
+
+
+def test_oauth2_with_tls_uri_does_not_raise() -> None:
+    """Connection accepts OAuth2 when the URI is amqps:// (TLS enforced)."""
+    conn = Connection(
+        uri="amqps://guest:guest@localhost:5671/",
+        oauth2_options=OAuth2Options(token="super-secret-bearer-token"),
+    )
+    assert conn._oauth2_options is not None
+
+
+def test_oauth2_with_multiple_uris_all_must_be_tls() -> None:
+    """All URIs in a multi-node list must use amqps:// when OAuth2 is provided."""
+    with pytest.raises(ValueError, match="amqps://"):
+        Connection(
+            uris=[
+                "amqps://guest:guest@node1:5671/",
+                "amqp://guest:guest@node2:5672/",  # one plain URI — must be rejected
+            ],
+            oauth2_options=OAuth2Options(token="super-secret-bearer-token"),
+        )
+
+
+def test_oauth2_with_all_tls_uris_does_not_raise() -> None:
+    """Multi-node setup with all amqps:// URIs is accepted with OAuth2."""
+    conn = Connection(
+        uris=[
+            "amqps://guest:guest@node1:5671/",
+            "amqps://guest:guest@node2:5671/",
+        ],
+        oauth2_options=OAuth2Options(token="super-secret-bearer-token"),
+    )
+    assert conn._addrs is not None
+    assert len(conn._addrs) == 2
+
+
+def test_no_oauth2_allows_plaintext_uri() -> None:
+    """Without OAuth2, a plain amqp:// URI is still accepted (no change to existing behaviour)."""
+    conn = Connection(uri="amqp://guest:guest@localhost:5672/")
+    assert conn._addr == "amqp://guest:guest@localhost:5672/"

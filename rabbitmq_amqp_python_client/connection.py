@@ -104,6 +104,16 @@ class Connection:
         self._consumers: list[Consumer] = []
         self._oauth2_options = oauth2_options
 
+        # OAuth2 tokens are transmitted via PLAIN SASL; require TLS to prevent cleartext exposure
+        if oauth2_options is not None:
+            uris_to_check = uris if uris is not None else [uri]
+            for u in uris_to_check:
+                if u and not str(u).startswith("amqps://"):
+                    raise ValueError(
+                        "OAuth2 authentication requires an encrypted connection. "
+                        "Use amqps:// instead of amqp://"
+                    )
+
         # Some recovery_configuration validation
         if recovery_configuration.back_off_reconnect_interval < timedelta(seconds=1):
             raise ValidationCodeException(
