@@ -77,11 +77,11 @@ async def main() -> None:
     exchange_name = "tls-test-exchange"
     queue_name = "tls-example-queue"
     routing_key = "tls-routing-key"
-    ca_p12_store = ".ci/certs/ca.p12"
-    ca_cert_file = ".ci/certs/ca_certificate.pem"
-    client_cert = ".ci/certs/client_localhost_certificate.pem"
-    client_key = ".ci/certs/client_localhost_key.pem"
-    client_p12_store = ".ci/certs/client_localhost.p12"
+    ca_p12_store = "../../.ci/certs/ca.p12"
+    ca_cert_file = "../../.ci/certs/ca_certificate.pem"
+    client_cert = "../../.ci/certs/client_localhost_certificate.pem"
+    client_key = "../../.ci/certs/client_localhost_key.pem"
+    client_p12_store = "../../.ci/certs/client_localhost.p12"
     uri = "amqps://guest:guest@localhost:5671/"
 
     environment = None
