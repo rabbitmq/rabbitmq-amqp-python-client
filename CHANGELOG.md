@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [[0.8.0](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v0.8.0)]
+
+## 0.8.0 - 2026-06-15
+- [Release 0.8.0](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v0.8.0)
+
+### Added
+- Add `AmqpUri` class for structured AMQP connection configuration by @Gsantomaggio in [#113](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/113)
+- Enforce peer verification for SSL connections by @MirahImage in [#115](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/115)
+- Ensure `bytes_to_string` can handle non-ASCII encoded UTF-8 strings by @MirahImage in [#116](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/116)
+
+### Changed
+- Bump idna from 3.11 to 3.15 by @dependabot in [#112](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/112)
+
+
 ## [[0.7.0](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v0.7.0)]
 
 ## 0.7.0 - 2026-05-18
