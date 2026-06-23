@@ -470,6 +470,7 @@ class BlockingConnection(Handler):
                     timeout=10,
                     msg="Connection opened",
                 )
+                break
 
             except ConnectionException:
                 if self.conn is not None:

@@ -25,6 +25,9 @@ from rabbitmq_amqp_python_client.qpid.proton import (
 from rabbitmq_amqp_python_client.qpid.proton._transport import (
     SSLDomain,
 )
+from rabbitmq_amqp_python_client.qpid.proton._utils import (
+    BlockingConnection,
+)
 
 from .http_requests import (
     create_vhost,
@@ -309,3 +312,27 @@ def test_connection_ssl_explicit_peer_verification() -> None:
         )
     finally:
         os.unlink(ca_path)
+
+
+def test_multiconnection_breaks_after_first_success() -> None:
+    mock_container = MagicMock()
+    mock_container.connect.return_value = MagicMock()
+    urls = ["amqp://host1:5672", "amqp://host2:5672", "amqp://host3:5672"]
+
+    with patch.object(BlockingConnection, "wait"):
+        BlockingConnection(urls=urls, container=mock_container)
+
+    assert mock_container.connect.call_count == 1
+
+
+def test_multiconnection_tries_next_url_on_failure() -> None:
+    mock_container = MagicMock()
+    mock_container.connect.return_value = MagicMock()
+    urls = ["amqp://host1:5672", "amqp://host2:5672"]
+
+    with patch.object(BlockingConnection, "wait") as mock_wait:
+        # first wait raises (first URL fails), next two succeed (second URL connects)
+        mock_wait.side_effect = [ConnectionException("refused"), None, None]
+        BlockingConnection(urls=urls, container=mock_container)
+
+    assert mock_container.connect.call_count == 2
