@@ -25,7 +25,9 @@ from rabbitmq_amqp_python_client.qpid.proton import (
 from rabbitmq_amqp_python_client.qpid.proton._transport import (
     SSLDomain,
 )
-from rabbitmq_amqp_python_client.qpid.proton._utils import BlockingConnection
+from rabbitmq_amqp_python_client.qpid.proton._utils import (
+    BlockingConnection,
+)
 
 from .http_requests import (
     create_vhost,
