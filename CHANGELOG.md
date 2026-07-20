@@ -6,6 +6,21 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [[1.0.0](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v1.0.0)]
+
+## 1.0.0 - 2026-07-20
+- [Release 1.0.0](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v1.0.0)
+
+### Added
+- Promote to the first stable release by @Gsantomaggio in [#122](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/122)
+
+### Fixed
+- Fix multiconnection loop not breaking after successful connect by @Chr1s70ph in [#120](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/120)
+
+### Changed
+- Bump pyjwt from 2.12.1 to 2.13.0 by @dependabot in [#121](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/121)
+
+
 ## [[0.8.0](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v0.8.0)]
 
 ## 0.8.0 - 2026-06-15
