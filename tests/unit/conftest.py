@@ -79,8 +79,31 @@ def connect(broker_factory):
 
 @pytest.fixture
 def broker_farm(monkeypatch):
-    """Return a :class:`BrokerFarm` answering every dial, redials included."""
+    """Return a :class:`BrokerFarm` answering every dial, redials included.
+
+    Every ``Connection`` built while this fixture is active is tracked and
+    force-closed in teardown, even if the test body never reaches its own
+    ``connection.close()`` (e.g. because an earlier assertion failed). A test
+    that skips that call would otherwise leave a live recovery thread behind;
+    since ``_connect_socket`` is a module-level hook each test's fixture
+    re-monkeypatches independently, that orphaned thread's next redial would
+    call whichever ``_connect_socket`` a *later*, unrelated test has bound —
+    hijacking that test's fresh socket mid-handshake. The failure is a timing
+    race (rare locally, common on slower CI runners), so closing every
+    connection unconditionally is what actually closes the window.
+    """
     farm = BrokerFarm()
+    connections: list[Connection] = []
+    original_init = Connection.__init__
+
+    def tracked_init(self, *args, **kwargs):
+        connections.append(self)
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(Connection, "__init__", tracked_init)
     monkeypatch.setattr(connection_module, "_connect_socket", farm.dial)
     yield farm
+    for connection in connections:
+        with contextlib.suppress(Exception):  # teardown must never mask a test failure
+            connection.close()
     farm.close()
