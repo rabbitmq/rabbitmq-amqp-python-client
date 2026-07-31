@@ -969,7 +969,7 @@ def build_connection_parameters(options: Options) -> ConnectionParameters:
         user=options.user,
         password=options.password,
         tls=ssl.create_default_context() if options.tls else None,
-        recovery_configuration=RecoveryConfiguration(activated=True),
+        recovery_configuration=RecoveryConfiguration(activated=False),
     )
 
 

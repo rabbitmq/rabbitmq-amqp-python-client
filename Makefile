@@ -21,7 +21,7 @@ lint:
 	$(PYTHON) -m ruff format --check .
 
 typecheck:
-	$(PYTHON) -m mypy rabbitmq_amqp_python_client
+	$(PYTHON) -m mypy src
 	MYPYPATH=. $(PYTHON) -m mypy docs/examples
 
 build:

@@ -1,11 +1,11 @@
-# RabbitMQ AMQP 1.0 Python
+# RabbitMQ AMQP 1.0 Python version 2.x
 
-RabbitMQ AMQP 1.0 Python client for RabbitMQ 4.x.
+RabbitMQ AMQP 1.0 Python client version 2.x for RabbitMQ 4.x.
 
-Implemented: connection and SASL, management (queues, exchanges, bindings),
-publishers, consumers, auto-reconnection with optional topology recovery,
-presettled consumption, structured rejection reasons, single-active-consumer
-notifications on quorum queues, and stream consumption with offsets and filters.
+This client version built from scratch. The primary reason for this rewrite is to remove the dependency on the `qpid-proton` C library present in version 1, providing a fully native Python client. 
+This client is inspired by the Java and .NET AMQP 1.0 clients, aiming to deliver the same behavior and user experience across ecosystems.
+
+The client is different from 1.0 and not compatible, so read the documentation before updating the client.
 
 
 ## Installation
