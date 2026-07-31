@@ -1,0 +1,188 @@
+"""A from-scratch AMQP 1.0 client for RabbitMQ.
+
+Everything an application needs is exported here: the connection and its
+parameters, the management API and its specifications, the publisher and
+consumer builders, the reconnection policy, and the message types needed to
+compose a message and read an outcome. The lower layers remain importable from
+their own modules — :mod:`~src.wire` in particular holds
+the rest of the protocol types. See ``docs/examples`` for usage.
+"""
+
+from __future__ import annotations
+
+from .connection import Connection, ConnectionParameters, ConnectionState
+from .consumer import (
+    Consumer,
+    ConsumerBuilder,
+    Context,
+    MessageHandler,
+    QuorumConsumerOptions,
+    SingleActiveConsumerStateHandler,
+    StreamFilterOptions,
+    StreamOffsetSpecification,
+    StreamOptions,
+)
+from .exceptions import (
+    AMQPError,
+    AMQPTimeoutError,
+    AuthenticationError,
+    ConsumerError,
+    InvalidAddressError,
+    ManagementError,
+    ProtocolError,
+    PublisherError,
+    ValidationError,
+)
+from .link import (
+    Delivery,
+    Link,
+    LinkRefusal,
+    LinkRole,
+    PendingDelivery,
+    ReceiverLink,
+    SenderLink,
+)
+from .management import (
+    ClassicQueueMode,
+    ClassicQueueSpecification,
+    ClassicQueueVersion,
+    ExchangeSpecification,
+    ExchangeType,
+    LeaderLocatorStrategy,
+    Management,
+    OverflowStrategy,
+    QueueInfo,
+    QueueSpecification,
+    QueueType,
+    QuorumQueueDeadLetterStrategy,
+    QuorumQueueDelayedRetryType,
+    QuorumQueueSpecification,
+    StreamSpecification,
+)
+from .publisher import (
+    Outcome,
+    OutcomeState,
+    Publisher,
+    PublisherBuilder,
+    PublishResult,
+    RejectionDetails,
+    exchange_address,
+    queue_address,
+)
+from .reconnection import (
+    BackOffDelayPolicy,
+    DefaultBackOffDelayPolicy,
+    RecordedBinding,
+    RecordedExchange,
+    RecordedQueue,
+    RecordingTopologyListener,
+    RecoveryConfiguration,
+)
+from .session import Session
+
+# Re-exported from .wire for ergonomics: composing a message and reading an
+# outcome are everyday tasks, and neither should require reaching into the
+# wire package. These are aliases — .wire remains the definition site and the
+# place to look for the rest of the protocol types.
+from .wire import (
+    Accepted,
+    AmqpSequence,
+    AmqpValue,
+    ApplicationProperties,
+    Data,
+    DeliveryAnnotations,
+    DeliveryState,
+    Error,
+    Footer,
+    Header,
+    Long,
+    Message,
+    MessageAnnotations,
+    Modified,
+    Properties,
+    Rejected,
+    Released,
+    Symbol,
+    Timestamp,
+)
+
+__all__ = [
+    "AMQPError",
+    "ProtocolError",
+    "AuthenticationError",
+    "AMQPTimeoutError",
+    "InvalidAddressError",
+    "ValidationError",
+    "PublisherError",
+    "ConsumerError",
+    "ManagementError",
+    "Connection",
+    "ConnectionParameters",
+    "ConnectionState",
+    "RecoveryConfiguration",
+    "BackOffDelayPolicy",
+    "DefaultBackOffDelayPolicy",
+    "RecordingTopologyListener",
+    "RecordedQueue",
+    "RecordedExchange",
+    "RecordedBinding",
+    "Session",
+    "Link",
+    "LinkRole",
+    "LinkRefusal",
+    "PendingDelivery",
+    "Delivery",
+    "SenderLink",
+    "ReceiverLink",
+    "Management",
+    "QueueInfo",
+    "QueueSpecification",
+    "StreamSpecification",
+    "QuorumQueueSpecification",
+    "ClassicQueueSpecification",
+    "ExchangeSpecification",
+    "QueueType",
+    "OverflowStrategy",
+    "LeaderLocatorStrategy",
+    "QuorumQueueDeadLetterStrategy",
+    "QuorumQueueDelayedRetryType",
+    "ClassicQueueMode",
+    "ClassicQueueVersion",
+    "ExchangeType",
+    "Publisher",
+    "PublisherBuilder",
+    "PublishResult",
+    "Outcome",
+    "OutcomeState",
+    "RejectionDetails",
+    "Consumer",
+    "ConsumerBuilder",
+    "Context",
+    "MessageHandler",
+    "QuorumConsumerOptions",
+    "SingleActiveConsumerStateHandler",
+    "StreamOptions",
+    "StreamFilterOptions",
+    "StreamOffsetSpecification",
+    "queue_address",
+    "exchange_address",
+    "Message",
+    "Header",
+    "Properties",
+    "ApplicationProperties",
+    "MessageAnnotations",
+    "DeliveryAnnotations",
+    "Footer",
+    "Data",
+    "AmqpValue",
+    "AmqpSequence",
+    "Symbol",
+    "Long",
+    "Timestamp",
+    "DeliveryState",
+    "Accepted",
+    "Rejected",
+    "Released",
+    "Modified",
+    "Error",
+]
