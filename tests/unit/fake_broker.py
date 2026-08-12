@@ -111,8 +111,17 @@ class FakeBroker:
         self._thread.join(0.5)
 
     def drop_connection(self) -> None:
-        """Close the socket abruptly, without any ``close`` performative."""
+        """Close the socket abruptly, without any ``close`` performative.
+
+        ``shutdown()`` first, same as :meth:`stop`: closing a socket from one
+        thread doesn't reliably unblock another thread of this same process
+        blocked in ``recv()`` on it (``_run`` sits in exactly that state) —
+        Linux defers the actual teardown, and thus EOF on the peer, until
+        that blocking call returns on its own, which macOS does not.
+        """
         self._stop.set()
+        with contextlib.suppress(OSError):
+            self._sock.shutdown(socket.SHUT_RDWR)
         self._sock.close()
 
     # --- writing --------------------------------------------------------
