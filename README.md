@@ -1,6 +1,12 @@
 ## RabbitMQ AMQP 1.0 Python Client
 This library is meant to be used with RabbitMQ `4.x`. 
 
+## Version 2.0 is coming
+
+Please follow the [version 2.0](https://github.com/rabbitmq/rabbitmq-amqp-python-client/discussions/123) 
+
+## Install
+
 The client is distributed via [`PIP`](https://pypi.org/project/rabbitmq-amqp-python-client/):
 ```bash
  pip install rabbitmq-amqp-python-client
