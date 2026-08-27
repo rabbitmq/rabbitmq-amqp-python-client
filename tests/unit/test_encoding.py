@@ -310,6 +310,18 @@ class TestCompound:
         with pytest.raises(ProtocolError, match="odd element count"):
             enc.decode_value(malformed)
 
+    def test_list32_tolerates_a_declared_size_shorter_than_its_true_content(self):
+        # A real producer quirk (seen in 004_amqp10_validation's
+        # message_from_version_1_0_0.amqp fixture): the size field undercounts
+        # by exactly the count field's own width. Each element is still
+        # self-describing, so the reader must trust how many bytes parsing
+        # `count` of them actually took, not the (here, wrong) declared size.
+        item = enc.encode_string("abcdefgh")
+        correct_size = len(item) + 4
+        undercounted_size = correct_size - 4
+        encoded = bytes((enc.CODE_LIST32,)) + struct.pack(">II", undercounted_size, 1) + item
+        assert round_trip(encoded) == ["abcdefgh"]
+
 
 class TestArrays:
     def test_symbol_array_uses_array8_and_one_constructor(self):
