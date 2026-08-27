@@ -679,15 +679,20 @@ class Decoder:
         return Symbol(raw.decode("ascii"))
 
     def _read_compound(self, code: int, size: int, count: int) -> Any:
+        # `size` is a hint used only to reject a declared length that could
+        # never fit in the buffer; the true end of the compound value is
+        # wherever parsing its `count` self-describing elements actually
+        # lands. Some producers get the size field's byte-count wrong (e.g.
+        # forgetting the count field's own width), so trusting the declared
+        # `size` to reposition the cursor would silently truncate or corrupt
+        # a well-formed trailing element instead of reading it correctly.
         width = 1 if code in (CODE_LIST8, CODE_MAP8, CODE_ARRAY8) else 4
         end = self._position + size - width
         if end > len(self._data):
             raise ProtocolError(f"truncated AMQP compound value: declared size {size} overruns the buffer")
         if code in (CODE_ARRAY8, CODE_ARRAY32):
             element_code = self.read_code()
-            values = [self._read_body(element_code) for _ in range(count)]
-            self._position = end
-            return values
+            return [self._read_body(element_code) for _ in range(count)]
         if code in (CODE_MAP8, CODE_MAP32):
             if count % 2 != 0:
                 raise ProtocolError(f"AMQP map has an odd element count ({count})")
@@ -695,11 +700,8 @@ class Decoder:
             for _ in range(count // 2):
                 key = self.read_value()
                 result[key] = self.read_value()
-            self._position = end
             return result
-        items = [self.read_value() for _ in range(count)]
-        self._position = end
-        return items
+        return [self.read_value() for _ in range(count)]
 
 
 def decode_value(data: bytes | bytearray | memoryview) -> Any:
