@@ -18,6 +18,7 @@ import pytest
 
 from src import (
     ConsumerError,
+    ConsumerSettleStrategy,
     InvalidAddressError,
     ProtocolError,
     StreamFilterOptions,
@@ -29,6 +30,7 @@ from src.constants import (
     AMQP_APPLICATION_PROPERTIES_FILTER,
     AMQP_PROPERTIES_FILTER,
     AMQP_SQL_FILTER,
+    DIRECT_REPLY_TO_CAPABILITY,
     RABBITMQ_ACTIVE_PROPERTY,
     SQL_FILTER_NAME,
     STREAM_FILTER_VALUES_FILTER,
@@ -146,24 +148,38 @@ class Harness:
         self.handle = 0
         self._next_delivery_id = 0
 
-    def build(self, handler, *, queue="orders", credits=None, presettled=False, on_state_changed=None, stream=None):
+    def build(
+        self,
+        handler,
+        *,
+        queue="orders",
+        credits=None,
+        settle_strategy=ConsumerSettleStrategy.EXPLICIT_SETTLE,
+        on_state_changed=None,
+        stream=None,
+    ):
         """Build one consumer and remember the channel/handle its link got.
 
         Args:
             handler: The message handler to register.
-            queue: Queue to consume from.
+            queue: Queue to consume from. Ignored (never set on the builder)
+                when ``settle_strategy`` is ``DIRECT_REPLY_TO``, whose address is
+                broker-generated (step_060_consumer_strategy.md §3.3).
             credits: Initial credits, when not the default.
-            presettled: Whether to ask the broker to settle every delivery.
+            settle_strategy: How deliveries on the built consumer are settled.
             on_state_changed: Single-active-consumer handler to register.
             stream: Called as ``stream(stream_options)`` to configure the stream
                 sub-builder; whatever it returns is ignored, since every view
                 writes to the same builder.
         """
-        builder = self.connection.consumer_builder().queue(queue).message_handler(handler)
+        builder = self.connection.consumer_builder()
+        if settle_strategy is not ConsumerSettleStrategy.DIRECT_REPLY_TO:
+            builder = builder.queue(queue)
+        builder = builder.message_handler(handler)
         if credits is not None:
             builder.initial_credits(credits)
-        if presettled:
-            builder.presettled()
+        if settle_strategy is not ConsumerSettleStrategy.EXPLICIT_SETTLE:
+            builder.settle_strategy(settle_strategy)
         if on_state_changed is not None:
             builder.quorum().single_active_consumer_state_changed(on_state_changed).builder()
         if stream is not None:
@@ -279,11 +295,11 @@ class TestBuilderValidation:
         assert builder.queue("orders") is builder
         assert builder.message_handler(RecordingHandler()) is builder
         assert builder.initial_credits(7) is builder
-        assert builder.presettled() is builder
+        assert builder.settle_strategy(ConsumerSettleStrategy.PRESETTLED) is builder
 
 
 class TestAttach:
-    """step_030 §3.1 / step_060 §1: one receiver link per consumer, credited at attach."""
+    """step_030 §3.1 / step_060_consumer_strategy.md §1/§3.2/§3.3: one receiver link per consumer, credited at attach."""
 
     def test_receiver_attach_fields(self, consuming):
         consumer = consuming.build(RecordingHandler(), queue="orders")
@@ -303,10 +319,51 @@ class TestAttach:
         consumer.close()
 
     def test_a_presettled_consumer_asks_the_broker_to_settle(self, consuming):
-        consumer = consuming.build(RecordingHandler(), presettled=True)
+        consumer = consuming.build(RecordingHandler(), settle_strategy=ConsumerSettleStrategy.PRESETTLED)
         assert consuming.attach.snd_settle_mode == SND_SETTLE_MODE_SETTLED
         assert consumer.is_presettled
         consumer.close()
+
+    def test_a_direct_reply_to_consumer_attaches_dynamic_and_settled(self, consuming):
+        consumer = consuming.build(RecordingHandler(), settle_strategy=ConsumerSettleStrategy.DIRECT_REPLY_TO)
+        attach = consuming.attach
+        assert attach.snd_settle_mode == SND_SETTLE_MODE_SETTLED
+        assert attach.source.address is None
+        assert attach.source.dynamic is True
+        assert attach.source.capabilities == [DIRECT_REPLY_TO_CAPABILITY]
+        assert consumer.is_presettled
+        consumer.close()
+
+    def test_a_direct_reply_to_consumer_reads_back_the_broker_generated_address(self, consuming):
+        consumer = consuming.build(RecordingHandler(), settle_strategy=ConsumerSettleStrategy.DIRECT_REPLY_TO)
+        assert consumer.queue is not None
+        assert consumer.queue.startswith("/queues/amq.rabbitmq.reply-to.")
+        assert consumer.address == consumer.queue
+        consumer.close()
+
+    def test_direct_reply_to_cannot_be_combined_with_a_queue(self, consuming):
+        builder = (
+            consuming.connection.consumer_builder()
+            .queue("orders")
+            .message_handler(RecordingHandler())
+            .settle_strategy(ConsumerSettleStrategy.DIRECT_REPLY_TO)
+        )
+        with pytest.raises(ConsumerError, match="queue"):
+            builder.build()
+        assert consuming.broker.all_received(Attach) == []
+
+    def test_direct_reply_to_cannot_be_combined_with_single_active_consumer_state_changed(self, consuming):
+        builder = consuming.connection.consumer_builder().queue("orders")
+        builder.quorum().single_active_consumer_state_changed(lambda consumer, is_active: None).builder()
+        # quorum() requires a queue to already be set (step_090 §2), but
+        # DIRECT_REPLY_TO forbids one (§5) — clearing it here isolates the
+        # single-active-consumer-only conflict from the queue conflict above,
+        # which build() would otherwise report first.
+        builder._queue = None
+        builder.message_handler(RecordingHandler()).settle_strategy(ConsumerSettleStrategy.DIRECT_REPLY_TO)
+        with pytest.raises(ConsumerError, match="single_active_consumer_state_changed"):
+            builder.build()
+        assert consuming.broker.all_received(Attach) == []
 
     def test_the_queue_name_is_percent_encoded(self, consuming):
         consumer = consuming.build(RecordingHandler(), queue="my orders")
@@ -531,11 +588,11 @@ class TestSettlement:
 
 
 class TestPresettled:
-    """step_060 §1/§4: nothing is ever settled by this client."""
+    """step_060_consumer_strategy.md §3.2/§3.3/§5: nothing is ever settled by this client."""
 
     def test_every_context_method_is_refused(self, consuming):
         handler = RecordingHandler()
-        consumer = consuming.build(handler, credits=CREDITS, presettled=True)
+        consumer = consuming.build(handler, credits=CREDITS, settle_strategy=ConsumerSettleStrategy.PRESETTLED)
         consuming.deliver(settled=True)
         handler.wait()
         context = handler.contexts[0]
@@ -550,9 +607,22 @@ class TestPresettled:
         consuming.expect_no_disposition()
         consumer.close()
 
+    def test_every_context_method_is_refused_under_direct_reply_to(self, consuming):
+        handler = RecordingHandler()
+        consumer = consuming.build(handler, credits=CREDITS, settle_strategy=ConsumerSettleStrategy.DIRECT_REPLY_TO)
+        consuming.deliver(settled=True)
+        handler.wait()
+        context = handler.contexts[0]
+        assert context.is_presettled is True
+        for settle in (context.accept, context.discard, context.requeue):
+            with pytest.raises(ConsumerError, match="presettled"):
+                settle()
+        consuming.expect_no_disposition()
+        consumer.close()
+
     def test_nothing_is_ever_counted_as_unsettled(self, consuming):
         handler = RecordingHandler()
-        consumer = consuming.build(handler, credits=CREDITS, presettled=True)
+        consumer = consuming.build(handler, credits=CREDITS, settle_strategy=ConsumerSettleStrategy.PRESETTLED)
         for index in range(3):
             consuming.deliver(f"m-{index}", settled=True)
         handler.wait(3)
@@ -595,7 +665,7 @@ class TestCreditReplenishment:
     def test_a_presettled_consumer_replenishes_before_the_handler_returns(self, consuming):
         blocked = threading.Event()
         handler = RecordingHandler(action=lambda context, message: blocked.wait(HANDLER_TIMEOUT))
-        consumer = consuming.build(handler, credits=CREDITS, presettled=True)
+        consumer = consuming.build(handler, credits=CREDITS, settle_strategy=ConsumerSettleStrategy.PRESETTLED)
         assert consuming.next_flow().link_credit == CREDITS
         consuming.deliver(settled=True)
         handler.wait()

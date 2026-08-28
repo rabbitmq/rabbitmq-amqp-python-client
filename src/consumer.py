@@ -1,8 +1,11 @@
 """Consumers: one receiver link per consumer, on the connection's shared pub/sub session.
 
 This module implements ``step_030_consumers.md`` together with
-``step_060_presettled.md``, which is the same attach/delivery path with
-``snd-settle-mode`` flipped and no ``disposition`` ever sent,
+``step_060_consumer_strategy.md``, which widens the plain unsettled/presettled
+attach into the three-way :class:`ConsumerSettleStrategy` — the presettled case
+is the same attach/delivery path with ``snd-settle-mode`` flipped and no
+``disposition`` ever sent, and ``DirectReplyTo`` additionally attaches to
+RabbitMQ's direct-reply-to pseudo-queue instead of a caller-supplied one —
 ``step_090_quorum-queue-notifications.md``, which reads one extra property off
 the ``flow`` frames that path already processes, and
 ``step_080_stream-filtering.md``, which only adds entries to the receiver's
@@ -45,6 +48,7 @@ from .constants import (
     AMQP_APPLICATION_PROPERTIES_FILTER,
     AMQP_PROPERTIES_FILTER,
     AMQP_SQL_FILTER,
+    DIRECT_REPLY_TO_CAPABILITY,
     RABBITMQ_ACTIVE_PROPERTY,
     SQL_FILTER_NAME,
     STREAM_FILTER_VALUES_FILTER,
@@ -144,6 +148,23 @@ def parse_active_flag(value: Any) -> bool:
     raise ProtocolError(
         f"the {RABBITMQ_ACTIVE_PROPERTY!r} flow property carried an unusable {type(value).__name__}: {value!r}"
     )
+
+
+class ConsumerSettleStrategy(Enum):
+    """How deliveries on a :class:`Consumer` are settled (step_060_consumer_strategy.md §1)."""
+
+    #: Default: every delivery is settled via :class:`Context`
+    #: (step_030_consumers.md §4). ``snd-settle-mode = unsettled`` at attach.
+    EXPLICIT_SETTLE = "explicit_settle"
+    #: The broker settles every delivery itself before the ``transfer`` is even
+    #: sent; every :class:`Context` method raises :class:`~.exceptions.ConsumerError`
+    #: (§3.2). ``snd-settle-mode = settled`` at attach.
+    PRESETTLED = "presettled"
+    #: Attaches to RabbitMQ's direct-reply-to pseudo-queue instead of a
+    #: caller-supplied one, implicitly presettled (§3.3). Mutually exclusive
+    #: with :meth:`ConsumerBuilder.queue` and with
+    #: :meth:`QuorumConsumerOptions.single_active_consumer_state_changed` (§5).
+    DIRECT_REPLY_TO = "direct_reply_to"
 
 
 class StreamOffsetSpecification(Enum):
@@ -302,11 +323,15 @@ def stream_offset_of(message: Message) -> int | None:
     return value
 
 
-def _consumer_source(address: str, filter_set: Mapping[str, Any] | None = None) -> Source:
+def _consumer_source(address: str | None, filter_set: Mapping[str, Any] | None = None) -> Source:
     """Build the ``source`` terminus of a consumer's receiver link (step_030 §3.1).
 
     Args:
-        address: The resolved ``/queues/{name}`` node address.
+        address: The resolved ``/queues/{name}`` node address. Typed as
+            optional only because :attr:`Consumer._address` is shared with
+            ``ConsumerSettleStrategy.DIRECT_REPLY_TO`` (§3.3), which never calls
+            this function — every actual caller has already required a
+            non-``None`` queue.
         filter_set: Stream offset/filter entries to attach with (step_080 §1),
             or ``None`` for a consumer that asked for none.
 
@@ -319,6 +344,23 @@ def _consumer_source(address: str, filter_set: Mapping[str, Any] | None = None) 
         timeout=0,
         dynamic=False,
         filter=None if filter_set is None else dict(filter_set),
+    )
+
+
+def _direct_reply_to_source() -> Source:
+    """Build the dynamic ``source`` terminus for a direct-reply-to consumer (step_060_consumer_strategy.md §3.3).
+
+    Returns:
+        The terminus to put on ``attach.source``: no caller-supplied address,
+        ``dynamic = true`` so the broker generates one, and the capability that
+        marks this as a direct-reply-to attach.
+    """
+    return Source(
+        address=None,
+        expiry_policy=EXPIRY_POLICY_LINK_DETACH,
+        timeout=0,
+        dynamic=True,
+        capabilities=[DIRECT_REPLY_TO_CAPABILITY],
     )
 
 
@@ -356,7 +398,8 @@ class Context:
     :meth:`accept`, :meth:`discard` and :meth:`requeue` may be called, at most
     once; every later call raises :class:`~.exceptions.ConsumerError`. A context
     for a presettled delivery raises from all three, since the broker settled
-    that delivery before it ever reached this client (step_060 §1).
+    that delivery before it ever reached this client
+    (step_060_consumer_strategy.md §3.2/§3.3).
 
     Example:
         >>> def handler(context, message):
@@ -493,11 +536,11 @@ class Consumer:
         self,
         connection: Connection,
         session: Session,
-        queue: str,
+        queue: str | None,
         handler: MessageHandler,
         *,
         initial_credits: int = DEFAULT_INITIAL_CREDITS,
-        presettled: bool = False,
+        settle_strategy: ConsumerSettleStrategy = ConsumerSettleStrategy.EXPLICIT_SETTLE,
         single_active_consumer_handler: SingleActiveConsumerStateHandler | None = None,
         stream_filter: Mapping[str, Any] | None = None,
     ) -> None:
@@ -506,11 +549,15 @@ class Consumer:
         Args:
             connection: Connection tracking this consumer.
             session: The connection's shared pub/sub session to attach on.
-            queue: Name of the queue to consume from.
+            queue: Name of the queue to consume from, or ``None`` for
+                ``ConsumerSettleStrategy.DIRECT_REPLY_TO``, whose address is
+                broker-generated and only known once ``open()`` completes
+                (step_060_consumer_strategy.md §3.3 point 2).
             handler: Callback invoked once per delivery.
             initial_credits: Link credit granted at attach and kept topped up.
-            presettled: Ask the broker to settle every delivery itself
-                (step_060), which makes every :class:`Context` method raise.
+            settle_strategy: How deliveries are settled
+                (step_060_consumer_strategy.md §1); anything but
+                ``EXPLICIT_SETTLE`` makes every :class:`Context` method raise.
             single_active_consumer_handler: Callback invoked with every
                 active/standby status the broker reports for this link
                 (step_090 §3). Without one, the status is never watched for.
@@ -520,10 +567,10 @@ class Consumer:
         self._connection = connection
         self._session = session
         self._queue = queue
-        self._address = queue_address(queue)
+        self._address = None if queue is None else queue_address(queue)
         self._handler = handler
         self._initial_credits = initial_credits
-        self._presettled = presettled
+        self._settle_strategy = settle_strategy
         self._single_active_consumer_handler = single_active_consumer_handler
         self._stream_filter = None if stream_filter is None else dict(stream_filter)
         self._last_stream_offset: int | None = None
@@ -547,13 +594,22 @@ class Consumer:
         return self._name
 
     @property
-    def queue(self) -> str:
-        """The queue this consumer is attached to (§3.6)."""
+    def queue(self) -> str | None:
+        """The queue this consumer is attached to (step_030_consumers.md §3.6).
+
+        For ``ConsumerSettleStrategy.DIRECT_REPLY_TO`` this is not a caller-
+        supplied name but the broker-generated pseudo-queue address read back
+        from the ``attach`` reply (step_060_consumer_strategy.md §3.3 point 2) —
+        ``None`` until :meth:`open`/``ConsumerBuilder.build()`` has completed.
+        """
         return self._queue
 
     @property
-    def address(self) -> str:
-        """The resolved ``/queues/{name}`` node address of that queue."""
+    def address(self) -> str | None:
+        """The resolved ``/queues/{name}`` node address of that queue.
+
+        Same caveat as :attr:`queue` for ``ConsumerSettleStrategy.DIRECT_REPLY_TO``.
+        """
         return self._address
 
     @property
@@ -562,8 +618,18 @@ class Consumer:
         return self._initial_credits
 
     @property
+    def settle_strategy(self) -> ConsumerSettleStrategy:
+        """Which settlement strategy this consumer was built with (step_060_consumer_strategy.md §1)."""
+        return self._settle_strategy
+
+    @property
+    def _presettled(self) -> bool:
+        """Whether the broker settles every delivery itself, leaving nothing for `Context` to do."""
+        return self._settle_strategy is not ConsumerSettleStrategy.EXPLICIT_SETTLE
+
+    @property
     def is_presettled(self) -> bool:
-        """Whether the broker settles every delivery itself (step_060 §1)."""
+        """Whether the broker settles every delivery itself (step_060_consumer_strategy.md §1)."""
         return self._presettled
 
     @property
@@ -677,14 +743,25 @@ class Consumer:
         replaying from its original offset specification (see
         :meth:`_effective_stream_filter`).
         """
+        source = (
+            _direct_reply_to_source()
+            if self._settle_strategy is ConsumerSettleStrategy.DIRECT_REPLY_TO
+            else _consumer_source(self._address, self._effective_stream_filter())
+        )
         self._link.attach(
             self._session,
-            source=_consumer_source(self._address, self._effective_stream_filter()),
+            source=source,
             target=None,
             on_refused=_refusal_error,
-            snd_settle_mode=SND_SETTLE_MODE_SETTLED if self._presettled else SND_SETTLE_MODE_UNSETTLED,
+            snd_settle_mode=(
+                SND_SETTLE_MODE_UNSETTLED
+                if self._settle_strategy is ConsumerSettleStrategy.EXPLICIT_SETTLE
+                else SND_SETTLE_MODE_SETTLED
+            ),
             rcv_settle_mode=RCV_SETTLE_MODE_FIRST,
         )
+        if self._settle_strategy is ConsumerSettleStrategy.DIRECT_REPLY_TO:
+            self._resolve_direct_reply_to_address()
         if self._single_active_consumer_handler is not None:
             # Registered before the initial flow — and again on every fresh link a
             # reconnect brings — because the broker's first flow can already carry
@@ -696,6 +773,22 @@ class Consumer:
         except BaseException:
             self._link.detach()
             raise
+
+    def _resolve_direct_reply_to_address(self) -> None:
+        """Read back the broker-generated pseudo-queue address (step_060_consumer_strategy.md §3.3 point 2).
+
+        Raises:
+            ConsumerError: If the broker's attach reply carried no usable address.
+        """
+        remote_attach = self._link.remote_attach
+        address = remote_attach.source.address if remote_attach and remote_attach.source else None
+        if not address:
+            raise ConsumerError(
+                f"consumer {self.id!r} used ConsumerSettleStrategy.DIRECT_REPLY_TO but the broker returned no address"
+            )
+        with self._lock:
+            self._queue = address
+            self._address = address
 
     def _effective_stream_filter(self) -> dict[str, Any] | None:
         """Return the filter set to attach with, resumed past what was consumed.
@@ -759,11 +852,11 @@ class Consumer:
         """Attach a fresh receiver link on ``session`` after a reconnect (step_040 §3.3).
 
         The consumer keeps its identity and its whole configuration — queue,
-        handler, credits, presettled and paused flags all live on this object —
-        so a caller holding it never has to rebuild it. The delivery loop that
-        was draining the dead link is stopped and replaced, since the old one
-        would otherwise race the new one for the same deliveries. A consumer that
-        was closed before the reconnect is left alone.
+        handler, credits, settle strategy and paused flags all live on this
+        object — so a caller holding it never has to rebuild it. The delivery
+        loop that was draining the dead link is stopped and replaced, since the
+        old one would otherwise race the new one for the same deliveries. A
+        consumer that was closed before the reconnect is left alone.
 
         Args:
             session: The connection's freshly re-opened pub/sub session.
@@ -782,6 +875,12 @@ class Consumer:
             self._session = session
             self._link = ReceiverLink(self._name)
             self._unsettled = 0
+            if self._settle_strategy is ConsumerSettleStrategy.DIRECT_REPLY_TO:
+                # The pseudo-queue is session-scoped (step_060_consumer_strategy.md
+                # §3.3 point 5): it dies with the old session, and the fresh attach
+                # below gets a brand new broker-generated address, not the old one.
+                self._queue = None
+                self._address = None
         self._attach_link()
         self._stopped.clear()
         self._start_delivery_loop()
@@ -851,8 +950,9 @@ class Consumer:
         self._track_stream_offset(delivery.message)
         with self._lock:
             if self._presettled:
-                # step_060 §1: no settlement will ever follow, so the credit is
-                # reclaimed at handoff rather than after the handler returns.
+                # step_060_consumer_strategy.md §3.2/§3.3: no settlement will ever
+                # follow, so the credit is reclaimed at handoff rather than after
+                # the handler returns.
                 self._replenish_credit()
             else:
                 self._unsettled += 1
@@ -931,7 +1031,9 @@ class ConsumerBuilder:
     A fresh builder comes from every
     :meth:`~.connection.Connection.consumer_builder` call and is not reusable
     after :meth:`build`. Both :meth:`queue` and :meth:`message_handler` are
-    mandatory.
+    mandatory — unless :meth:`settle_strategy` is set to
+    :attr:`ConsumerSettleStrategy.DIRECT_REPLY_TO`, in which case :meth:`queue`
+    must **not** be called (step_060_consumer_strategy.md §2, §5).
 
     Example:
         >>> consumer = (
@@ -953,7 +1055,7 @@ class ConsumerBuilder:
         self._queue: str | None = None
         self._handler: MessageHandler | None = None
         self._initial_credits = DEFAULT_INITIAL_CREDITS
-        self._presettled = False
+        self._settle_strategy = ConsumerSettleStrategy.EXPLICIT_SETTLE
         self._single_active_consumer_handler: SingleActiveConsumerStateHandler | None = None
         self._stream = StreamConfiguration()
 
@@ -1014,20 +1116,23 @@ class ConsumerBuilder:
         self._initial_credits = credits
         return self
 
-    def presettled(self, presettled: bool = True) -> ConsumerBuilder:
-        """Ask the broker to settle every delivery itself (step_060 §1).
+    def settle_strategy(self, strategy: ConsumerSettleStrategy) -> ConsumerBuilder:
+        """Select how deliveries on the built consumer are settled (step_060_consumer_strategy.md §1-§2).
 
         Args:
-            presettled: ``True`` attaches with ``snd-settle-mode = settled``, so
-                no ``disposition`` is ever sent and every :class:`Context` method
-                raises :class:`~.exceptions.ConsumerError`. Trades the
-                at-least-once guarantee for fewer frames per message (step_060
-                §2). Defaults to ``False``.
+            strategy: ``EXPLICIT_SETTLE`` (default): every delivery is settled via
+                :class:`Context`. ``PRESETTLED``: the broker settles every
+                delivery itself; every :class:`Context` method raises
+                :class:`~.exceptions.ConsumerError` (§3.2). ``DIRECT_REPLY_TO``:
+                attaches to RabbitMQ's direct-reply-to pseudo-queue instead of a
+                named queue — mutually exclusive with :meth:`queue` and with
+                :meth:`QuorumConsumerOptions.single_active_consumer_state_changed`
+                (§3.3, §5).
 
         Returns:
             This builder.
         """
-        self._presettled = presettled
+        self._settle_strategy = strategy
         return self
 
     # --- type-specific sub-builders -------------------------------------
@@ -1075,13 +1180,30 @@ class ConsumerBuilder:
             The consumer, already receiving.
 
         Raises:
-            ConsumerError: If no queue or no message handler was set, if the
-                stream offset specification is invalid (step_080 §1.1), or if the
-                broker refuses the queue.
+            ConsumerError: If no queue or no message handler was set (unless
+                ``settle_strategy(DIRECT_REPLY_TO)``, which forbids a queue), if
+                ``DIRECT_REPLY_TO`` is combined with ``queue(...)`` or with
+                ``quorum().single_active_consumer_state_changed(...)``
+                (step_060_consumer_strategy.md §5), if the stream offset
+                specification is invalid (step_080 §1.1), or if the broker
+                refuses the queue.
             AMQPTimeoutError: If the broker does not answer ``begin``/``attach``.
         """
+        strategy = self._settle_strategy
         queue = self._queue
-        if queue is None:
+        if strategy is ConsumerSettleStrategy.DIRECT_REPLY_TO:
+            if queue is not None:
+                raise ConsumerError(
+                    "settle_strategy(DIRECT_REPLY_TO) cannot be combined with queue(): "
+                    "the pseudo-queue's address is broker-generated, not caller-supplied"
+                )
+            if self._single_active_consumer_handler is not None:
+                raise ConsumerError(
+                    "settle_strategy(DIRECT_REPLY_TO) cannot be combined with "
+                    "quorum().single_active_consumer_state_changed(): the pseudo-queue is never "
+                    "single-active-consumer-enabled"
+                )
+        elif queue is None:
             raise ConsumerError("a consumer needs a queue: call queue() before build()")
         handler = self._handler
         if handler is None:
@@ -1096,7 +1218,7 @@ class ConsumerBuilder:
             queue,
             handler,
             initial_credits=self._initial_credits,
-            presettled=self._presettled,
+            settle_strategy=strategy,
             single_active_consumer_handler=self._single_active_consumer_handler,
             stream_filter=stream_filter,
         )
@@ -1345,6 +1467,7 @@ __all__ = [
     "SUBJECT_FILTER_FIELD",
     "Consumer",
     "ConsumerBuilder",
+    "ConsumerSettleStrategy",
     "Context",
     "MessageHandler",
     "QuorumConsumerOptions",

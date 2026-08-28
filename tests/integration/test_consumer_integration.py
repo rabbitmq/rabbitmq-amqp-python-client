@@ -3,10 +3,12 @@
 Covers what only a real broker can show: that credit really does gate delivery
 while a consumer is paused, that a ``released``/``rejected`` disposition really
 does requeue or drop the message, that a presettled link really is settled by
-the broker before the client sees the ``transfer`` (step_060 §6), that a
-single-active-consumer quorum queue really does report which consumer it feeds
-(step_090 §6), and which of a stream's offset specifications and filters the
-broker really honours (step_080 §6).
+the broker before the client sees the ``transfer``, and that direct-reply-to
+really hands back a usable, broker-generated pseudo-queue address
+(step_060_consumer_strategy.md §7), that a single-active-consumer quorum queue
+really does report which consumer it feeds (step_090 §6), and which of a
+stream's offset specifications and filters the broker really honours
+(step_080 §6).
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from src import (
     Connection,
     ConnectionParameters,
     ConsumerError,
+    ConsumerSettleStrategy,
     OutcomeState,
     StreamOffsetSpecification,
 )
@@ -188,17 +191,22 @@ def _consume(connection, consumers, queue_name, handler, **options):
     Args:
         connection: Connection to build on.
         consumers: List every built consumer is appended to, for teardown.
-        queue_name: Queue to consume from.
+        queue_name: Queue to consume from, or ``None`` for
+            ``settle_strategy=ConsumerSettleStrategy.DIRECT_REPLY_TO``, whose
+            address is broker-generated (step_060_consumer_strategy.md §3.3).
         handler: The message handler.
-        **options: ``credits``, ``presettled``, ``on_state_changed``, and
+        **options: ``credits``, ``settle_strategy``, ``on_state_changed``, and
             ``stream``, a ``stream(stream_options)`` callable configuring the
             stream sub-builder.
     """
-    builder = connection.consumer_builder().queue(queue_name).message_handler(handler)
+    builder = connection.consumer_builder()
+    if queue_name is not None:
+        builder = builder.queue(queue_name)
+    builder = builder.message_handler(handler)
     if "credits" in options:
         builder.initial_credits(options["credits"])
-    if options.get("presettled"):
-        builder.presettled()
+    if options.get("settle_strategy") is not None:
+        builder.settle_strategy(options["settle_strategy"])
     if options.get("on_state_changed") is not None:
         builder.quorum().single_active_consumer_state_changed(options["on_state_changed"]).builder()
     if options.get("stream") is not None:
@@ -277,7 +285,7 @@ class TestPause:
 
 
 class TestPresettled:
-    """step_060 §6: the broker settles every delivery itself."""
+    """step_060_consumer_strategy.md §3.2/§7: the broker settles every delivery itself."""
 
     def test_all_messages_arrive_and_nothing_is_ever_unsettled(self, connection, management, queue, publish, consumers):
         name = queue("con-it-presettled", quorum=True)
@@ -295,7 +303,7 @@ class TestPresettled:
                     refusals.append(error)
 
         handler = RecordingHandler(action=try_to_settle)
-        consumer = _consume(connection, consumers, name, handler, presettled=True)
+        consumer = _consume(connection, consumers, name, handler, settle_strategy=ConsumerSettleStrategy.PRESETTLED)
 
         # Sampled from this thread while deliveries are in flight, so "always 0"
         # is checked throughout rather than only at the end.
@@ -311,6 +319,94 @@ class TestPresettled:
         assert all(isinstance(refusal, ConsumerError) for refusal in refusals)
         assert all("presettled" in str(refusal) for refusal in refusals)
         _wait_until(lambda: management.queue_info(name).message_count == 0, "the queue to drain")
+
+
+class TestDirectReplyTo:
+    """step_060_consumer_strategy.md §3.3/§7: request/reply over the broker-generated pseudo-queue."""
+
+    def test_a_reply_reaches_the_requester_and_is_presettled(self, connection, queue, consumers):
+        request_queue = queue("con-it-direct-reply-to")
+
+        reply_handler = RecordingHandler()
+        requester = _consume(
+            connection, consumers, None, reply_handler, settle_strategy=ConsumerSettleStrategy.DIRECT_REPLY_TO
+        )
+        reply_to = requester.queue
+        assert reply_to is not None
+        assert reply_to.startswith("/queues/amq.rabbitmq.reply-to.")
+
+        def respond(context, message):
+            responder_publisher = connection.publisher_builder().build()
+            try:
+                responder_publisher.publish(
+                    Message("pong", properties=Properties(to=message.properties.reply_to)),
+                    timeout=WAIT_TIMEOUT_SECONDS,
+                )
+            finally:
+                responder_publisher.close()
+            context.accept()
+
+        request_handler = RecordingHandler(action=respond)
+        _consume(connection, consumers, request_queue, request_handler)
+
+        requester_publisher = connection.publisher_builder().build()
+        try:
+            requester_publisher.publish(
+                Message(
+                    "ping",
+                    properties=Properties(to=f"/queues/{request_queue}", reply_to=reply_to),
+                ),
+                timeout=WAIT_TIMEOUT_SECONDS,
+            )
+        finally:
+            requester_publisher.close()
+
+        reply_handler.wait(1)
+        assert reply_handler.bodies == ["pong"]
+
+    def test_context_methods_are_refused_on_a_direct_reply_to_delivery(self, connection, queue, consumers):
+        request_queue = queue("con-it-direct-reply-to-context")
+        contexts = []
+
+        def capture(context, message):
+            contexts.append(context)
+
+        requester = _consume(
+            connection, consumers, None, capture, settle_strategy=ConsumerSettleStrategy.DIRECT_REPLY_TO
+        )
+        reply_to = requester.queue
+        assert reply_to is not None
+
+        def respond(context, message):
+            responder_publisher = connection.publisher_builder().build()
+            try:
+                responder_publisher.publish(
+                    Message("pong", properties=Properties(to=message.properties.reply_to)),
+                    timeout=WAIT_TIMEOUT_SECONDS,
+                )
+            finally:
+                responder_publisher.close()
+            context.accept()
+
+        request_handler = RecordingHandler(action=respond)
+        _consume(connection, consumers, request_queue, request_handler)
+
+        requester_publisher = connection.publisher_builder().build()
+        try:
+            requester_publisher.publish(
+                Message("ping", properties=Properties(to=f"/queues/{request_queue}", reply_to=reply_to)),
+                timeout=WAIT_TIMEOUT_SECONDS,
+            )
+        finally:
+            requester_publisher.close()
+
+        _wait_until(lambda: len(contexts) == 1, "the reply to arrive")
+        context = contexts[0]
+        assert context.is_presettled is True
+        for settle in (context.accept, context.discard, context.requeue):
+            with pytest.raises(ConsumerError, match="presettled"):
+                settle()
+        assert requester.unsettled_message_count == 0
 
 
 class TestRequeueAndDiscard:

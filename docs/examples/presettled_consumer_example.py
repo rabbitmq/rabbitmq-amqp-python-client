@@ -1,14 +1,15 @@
-"""Presettled consumption: at-most-once delivery with no dispositions (step_060 §6).
+"""Presettled consumption: at-most-once delivery with no dispositions (step_060_consumer_strategy.md §7).
 
 Run against a local broker::
 
     PYTHONPATH=. .venv/bin/python docs/examples/presettled_consumer_example.py
 
-``consumer_builder().presettled()`` attaches the receiver link with
-``snd-settle-mode = settled``. The broker then considers every delivery settled
-the moment it puts it on the wire: it forgets the message immediately, and the
-client never sends a ``disposition`` back. That is the whole trade — one frame
-per message instead of two, and no redelivery if the consumer dies holding one.
+``consumer_builder().settle_strategy(ConsumerSettleStrategy.PRESETTLED)`` attaches
+the receiver link with ``snd-settle-mode = settled``. The broker then considers
+every delivery settled the moment it puts it on the wire: it forgets the message
+immediately, and the client never sends a ``disposition`` back. That is the
+whole trade — one frame per message instead of two, and no redelivery if the
+consumer dies holding one.
 
 Two consequences show up directly in the API and are asserted below:
 
@@ -20,12 +21,13 @@ Two consequences show up directly in the API and are asserted below:
 * ``consumer.unsettled_message_count`` stays at ``0`` for the consumer's whole
   life, because nothing is ever outstanding.
 
-The second half of the script is the reconnection requirement of step_060 §6:
-the socket is torn down underneath the connection, the default
-``RecoveryConfiguration`` redials and re-attaches both links, and the *same*
-publisher and consumer objects keep working — still presettled, still settling
-nothing. Tearing down the live socket (``connection._socket.shutdown``) reaches
-into the client on purpose; application code never does this.
+The second half of the script is the reconnection requirement of
+step_060_consumer_strategy.md §7: the socket is torn down underneath the
+connection, the default ``RecoveryConfiguration`` redials and re-attaches both
+links, and the *same* publisher and consumer objects keep working — still
+presettled, still settling nothing. Tearing down the live socket
+(``connection._socket.shutdown``) reaches into the client on purpose;
+application code never does this.
 """
 
 from __future__ import annotations
@@ -41,6 +43,7 @@ from src import (
     ConnectionParameters,
     ConnectionState,
     Consumer,
+    ConsumerSettleStrategy,
     Context,
     Message,
     Publisher,
@@ -117,7 +120,13 @@ def presettled_consumer() -> None:
         connection.management().queue(name).quorum().queue().declare()
         logger.info("declared the quorum queue %r", name)
 
-        consumer = connection.consumer_builder().queue(name).message_handler(tally.on_message).presettled().build()
+        consumer = (
+            connection.consumer_builder()
+            .queue(name)
+            .message_handler(tally.on_message)
+            .settle_strategy(ConsumerSettleStrategy.PRESETTLED)
+            .build()
+        )
         logger.info("consuming from %r presettled=%s", consumer.queue, consumer.is_presettled)
 
         publisher = connection.publisher_builder().queue(name).build()

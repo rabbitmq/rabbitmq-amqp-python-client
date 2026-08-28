@@ -14,6 +14,7 @@ from .connection import Connection, ConnectionParameters, ConnectionState
 from .consumer import (
     Consumer,
     ConsumerBuilder,
+    ConsumerSettleStrategy,
     Context,
     MessageHandler,
     QuorumConsumerOptions,
@@ -157,6 +158,7 @@ __all__ = [
     "RejectionDetails",
     "Consumer",
     "ConsumerBuilder",
+    "ConsumerSettleStrategy",
     "Context",
     "MessageHandler",
     "QuorumConsumerOptions",

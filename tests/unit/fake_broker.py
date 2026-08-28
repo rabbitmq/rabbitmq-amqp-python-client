@@ -12,6 +12,8 @@ import contextlib
 import queue
 import socket
 import threading
+import uuid
+from dataclasses import replace
 
 from src.wire import (
     AMQP_PROTOCOL_HEADER,
@@ -308,7 +310,7 @@ class FakeBroker:
                 name=performative.name,
                 handle=performative.handle,
                 role=not performative.role,
-                source=performative.source if performative.source is not None else Source(address="broker-source"),
+                source=self._reply_source(performative.source),
                 target=performative.target if performative.target is not None else Target(address="broker-target"),
                 initial_delivery_count=None if client_is_sender else 0,
             ),
@@ -320,6 +322,23 @@ class FakeBroker:
             # single-active-consumer quorum queue: it may reach the client before
             # it has finished building its Consumer (step_090 §3).
             self.grant_credit(channel, performative.handle, 0, properties=self.receiver_flow_properties)
+
+    def _reply_source(self, source: Source | None) -> Source:
+        """Return the ``source`` to echo back in an ``attach`` reply.
+
+        A plain source is echoed back unchanged, matching real broker behaviour
+        for a caller-supplied address. A *dynamic* one (``source.dynamic``,
+        e.g. a direct-reply-to attach, step_060_consumer_strategy.md §3.3) gets a
+        fresh, broker-generated address instead of the client's `undefined` one
+        — simulating what a real broker does when asked to create a node on
+        demand, since :class:`~src.consumer.Consumer` reads this address back
+        from the reply.
+        """
+        if source is None:
+            return Source(address="broker-source")
+        if source.dynamic:
+            return replace(source, address=f"/queues/amq.rabbitmq.reply-to.{uuid.uuid4().hex}")
+        return source
 
     def grant_credit(self, channel: int, handle: int, link_credit: int, *, properties=None) -> None:
         """Send a link ``flow`` granting ``link_credit`` to the client."""

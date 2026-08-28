@@ -670,8 +670,8 @@ def build_consumer(connection: Connection, options: Options, counters: Counters)
     """Attach the consumer that counts every delivery (§3.3).
 
     Built before the publisher, so nothing this run publishes can arrive before
-    something is already listening. ``initial_credits`` and ``presettled`` are
-    left at ``ConsumerBuilder``'s own defaults.
+    something is already listening. ``initial_credits`` and ``settle_strategy``
+    are left at ``ConsumerBuilder``'s own defaults (``EXPLICIT_SETTLE``).
 
     Args:
         connection: The connection to attach on.
