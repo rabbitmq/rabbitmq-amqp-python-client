@@ -81,6 +81,7 @@ function start_rabbitmq
         --hostname "$rabbitmq_docker_name" \
         --publish 5671:5671 \
         --publish 5672:5672 \
+        --publish 5552:5552 \
         --publish 15672:15672 \
         --network "$docker_network_name" \
         --volume "$GITHUB_WORKSPACE/.ci/ubuntu/enabled_plugins:/etc/rabbitmq/enabled_plugins" \
