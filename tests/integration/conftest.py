@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import contextlib
 import json
+import pathlib
 import socket
 import urllib.error
 import urllib.parse
@@ -14,10 +15,18 @@ import pytest
 
 BROKER_HOST = "localhost"
 BROKER_PORT = 5672
+BROKER_TLS_PORT = 5671
 MANAGEMENT_URL = "http://localhost:15672"
 BROKER_USER = "guest"
 BROKER_PASSWORD = "guest"
 PROBE_TIMEOUT_SECONDS = 2.0
+
+# 006_tls_auth's canonical certificate fixture (step_111_tls_test_configurations.md §1).
+CERTS_DIR = pathlib.Path(__file__).resolve().parents[2] / ".ci" / "certs"
+CA_CERTIFICATE = CERTS_DIR / "ca_certificate.pem"
+SERVER_CERTIFICATE = CERTS_DIR / "server_localhost_certificate.pem"
+CLIENT_CERTIFICATE = CERTS_DIR / "client_localhost_certificate.pem"
+CLIENT_KEY = CERTS_DIR / "client_localhost_key.pem"
 
 
 def _probe(host: str, port: int) -> bool:
@@ -34,6 +43,13 @@ def require_broker():
     """Skip the whole integration suite unless the broker answers on 5672."""
     if not _probe(BROKER_HOST, BROKER_PORT):
         pytest.skip(f"no RabbitMQ broker reachable at {BROKER_HOST}:{BROKER_PORT}")
+
+
+@pytest.fixture(scope="session")
+def require_tls_broker():
+    """Skip TLS tests unless the broker answers on 5671 (step_111_tls_test_configurations.md §5)."""
+    if not _probe(BROKER_HOST, BROKER_TLS_PORT):
+        pytest.skip(f"no RabbitMQ TLS listener reachable at {BROKER_HOST}:{BROKER_TLS_PORT}")
 
 
 @pytest.fixture(scope="session")

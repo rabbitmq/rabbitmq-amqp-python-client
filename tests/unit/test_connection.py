@@ -11,9 +11,10 @@ from src.connection import (
     ConnectionParameters,
     ConnectionState,
 )
-from src.exceptions import AuthenticationError, ProtocolError
+from src.exceptions import AuthenticationError, ProtocolError, ValidationError
 from src.wire import (
     MECHANISM_ANONYMOUS,
+    MECHANISM_EXTERNAL,
     MECHANISM_PLAIN,
     Begin,
     Close,
@@ -65,6 +66,16 @@ class TestConnectionParameters:
         assert ConnectionParameters(user="u", password="").sasl_mechanism == MECHANISM_PLAIN
         assert ConnectionParameters(user="", password="p").sasl_mechanism == MECHANISM_PLAIN
 
+    def test_sasl_external_requires_tls(self):
+        with pytest.raises(ValidationError):
+            ConnectionParameters(sasl_external=True)
+
+    def test_sasl_external_wins_over_plain_credentials(self):
+        import ssl
+
+        parameters = ConnectionParameters(tls=ssl.create_default_context(), sasl_external=True, user="u", password="p")
+        assert parameters.sasl_mechanism == MECHANISM_EXTERNAL
+
 
 class TestBootstrap:
     def test_sends_plain_sasl_init_with_the_credentials(self, connect):
@@ -77,6 +88,17 @@ class TestBootstrap:
     def test_sends_anonymous_when_no_credentials_are_given(self, connect):
         broker, _connection = connect(user="", password="")
         assert broker.sasl_init.mechanism == MECHANISM_ANONYMOUS
+
+    def test_sends_external_with_an_empty_initial_response(self, connect):
+        import ssl
+
+        broker, _connection = connect(
+            tls=ssl.create_default_context(),
+            sasl_external=True,
+            broker_kwargs={"mechanisms": ("PLAIN", "ANONYMOUS", "EXTERNAL")},
+        )
+        assert broker.sasl_init.mechanism == MECHANISM_EXTERNAL
+        assert broker.sasl_init.initial_response == b""
 
     def test_open_carries_the_declared_parameters(self, connect):
         broker, _connection = connect(
