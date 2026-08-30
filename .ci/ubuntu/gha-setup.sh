@@ -96,7 +96,7 @@ function wait_rabbitmq
     set +o errexit
     set +o xtrace
 
-    declare -i count=12
+    declare -i count=24
     while (( count > 0 )) && [[ "$(docker inspect --format='{{.State.Running}}' "$rabbitmq_docker_name")" != 'true' ]]
     do
         echo '[WARNING] RabbitMQ container is not yet running...'
@@ -104,7 +104,7 @@ function wait_rabbitmq
         (( count-- ))
     done
 
-    declare -i count=12
+    declare -i count=24
     while (( count > 0 )) && ! docker exec "$rabbitmq_docker_name" epmd -names | grep -F 'name rabbit'
     do
         echo '[WARNING] epmd is not reporting rabbit name just yet...'
