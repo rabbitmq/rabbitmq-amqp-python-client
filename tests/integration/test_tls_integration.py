@@ -35,7 +35,10 @@ class TestOneWayTls:
             connection.close()
 
     def test_fails_when_the_ca_is_not_trusted(self):
-        context = ssl.create_default_context()  # no cafile: falls back to the default trust store
+        # An empty trust store, not ssl.create_default_context() with no cafile: CI installs this
+        # fixture's CA into the OS trust store too (.ci/ubuntu/gha-setup.sh's install_ca_certificate),
+        # so falling back to the OS default would make this test environment-dependent.
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         with pytest.raises(ssl.SSLError):
             _connect(tls=context)
 
