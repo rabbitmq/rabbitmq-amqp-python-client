@@ -51,11 +51,11 @@ finally:
 
 ## Examples
 
-[`docs/examples/README.md`](docs/examples/README.md) catalogues eleven runnable
+[`docs/examples/README.md`](docs/examples/README.md) catalogues twelve runnable
 scripts, in reading order — from `basic_connection.py` through publishing and
-consuming to auto-reconnection, presettled consumers, rejection reasons,
-single-active-consumer notifications and stream filtering. Each one talks to a
-local broker:
+consuming to auto-reconnection, presettled consumers, direct reply-to,
+rejection reasons, single-active-consumer notifications and stream filtering.
+Each one talks to a local broker:
 
 ```sh
 PYTHONPATH=. .venv/bin/python docs/examples/basic_connection.py

@@ -16,6 +16,9 @@ EXCHANGE_ADDRESS_WITH_KEY_TEMPLATE = "/exchanges/{name}/{key}"
 # --- Single active consumer (quorum queues) ---
 RABBITMQ_ACTIVE_PROPERTY = "rabbitmq:active"
 
+# --- Direct reply-to (step_060 §3.3) ---
+DIRECT_REPLY_TO_CAPABILITY = "rabbitmq:volatile-queue"
+
 # --- Stream offset / filtering symbols (Source.filter map keys) ---
 STREAM_OFFSET_SPEC_FILTER = "rabbitmq:stream-offset-spec"
 STREAM_FILTER_VALUES_FILTER = "rabbitmq:stream-filter"

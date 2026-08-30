@@ -984,9 +984,9 @@ def build_consumer(
 
     Built before the publisher, so nothing this run publishes can arrive before
     something is already listening. ``initial_credits`` comes from
-    ``--initial-credits``; ``presettled`` is left at ``ConsumerBuilder``'s own
-    default of ``False``, since a presettled run's latency would exclude the
-    disposition round-trip this program means to measure (§10).
+    ``--initial-credits``; ``settle_strategy`` is left at ``ConsumerBuilder``'s
+    own default of ``EXPLICIT_SETTLE``, since a presettled run's latency would
+    exclude the disposition round-trip this program means to measure (§10).
 
     Args:
         connection: The connection to attach on.
