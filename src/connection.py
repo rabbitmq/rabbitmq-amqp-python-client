@@ -31,7 +31,7 @@ from .constants import (
     DEFAULT_VIRTUAL_HOST,
 )
 from .consumer import Consumer, ConsumerBuilder
-from .exceptions import AMQPError, AuthenticationError, ProtocolError
+from .exceptions import AMQPError, AuthenticationError, ProtocolError, ValidationError
 from .logging_utils import get_logger
 from .management import Management
 from .publisher import Publisher, PublisherBuilder
@@ -44,6 +44,7 @@ from .wire import (
     FRAME_TYPE_AMQP,
     FRAME_TYPE_SASL,
     MECHANISM_ANONYMOUS,
+    MECHANISM_EXTERNAL,
     MECHANISM_PLAIN,
     Begin,
     Close,
@@ -114,6 +115,13 @@ class ConnectionParameters:
         container_id: ``Open.container-id``; a unique one is generated when empty.
         tls: SSL context used to wrap the socket before the protocol header
             handshake; ``None`` disables TLS.
+        sasl_external: Use SASL EXTERNAL — authenticating by the identity of
+            the client certificate presented during the TLS handshake —
+            instead of PLAIN/ANONYMOUS (step_110_tls_transport.md §2.1).
+            Requires ``tls`` to be set and to carry a client certificate;
+            ``tls`` being unset raises ``ValidationError`` eagerly, since that
+            half is checkable without a network round trip. RabbitMQ's
+            ``rabbitmq_auth_mechanism_ssl`` plugin enforces the rest.
         max_frame_size: ``Open.max-frame-size`` this client advertises.
         channel_max: ``Open.channel-max`` this client advertises.
         idle_timeout: ``Open.idle-time-out`` in milliseconds; 0 disables it.
@@ -133,6 +141,7 @@ class ConnectionParameters:
     password: str = DEFAULT_PASSWORD
     container_id: str = ""
     tls: ssl.SSLContext | None = None
+    sasl_external: bool = False
     max_frame_size: int = DEFAULT_MAX_FRAME_SIZE
     channel_max: int = DEFAULT_CHANNEL_MAX
     idle_timeout: int = DEFAULT_IDLE_TIMEOUT_MS
@@ -140,6 +149,8 @@ class ConnectionParameters:
     recovery_configuration: RecoveryConfiguration = field(default_factory=RecoveryConfiguration)
 
     def __post_init__(self) -> None:
+        if self.sasl_external and self.tls is None:
+            raise ValidationError("sasl_external requires tls to be set")
         if self.port is None:
             self.port = DEFAULT_AMQPS_PORT if self.tls is not None else DEFAULT_AMQP_PORT
         if not self.container_id:
@@ -161,7 +172,9 @@ class ConnectionParameters:
 
     @property
     def sasl_mechanism(self) -> str:
-        """``PLAIN`` when any credential is set, ``ANONYMOUS`` otherwise."""
+        """``EXTERNAL`` if requested, else ``PLAIN`` when any credential is set, else ``ANONYMOUS``."""
+        if self.sasl_external:
+            return MECHANISM_EXTERNAL
         if not self.user and not self.password:
             return MECHANISM_ANONYMOUS
         return MECHANISM_PLAIN

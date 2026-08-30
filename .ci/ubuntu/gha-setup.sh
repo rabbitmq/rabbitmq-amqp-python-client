@@ -121,6 +121,22 @@ function wait_rabbitmq
     set -o errexit
 }
 
+function provision_tls_auth_user
+{
+    # SASL EXTERNAL (006_tls_auth) maps a client certificate's Common Name to a
+    # RabbitMQ user via ssl_cert_login_from=common_name (rabbitmq.conf); create
+    # that user here rather than hardcoding it, since it is derived from
+    # whatever CN client_localhost_certificate.pem was generated with.
+    local client_cn
+    client_cn="$(openssl x509 -in "$GITHUB_WORKSPACE/.ci/certs/client_localhost_certificate.pem" -noout -subject -nameopt multiline \
+        | awk -F' *= *' '/commonName/ {print $2}')"
+    echo "[INFO] provisioning SASL EXTERNAL user '$client_cn' from the client certificate's CN"
+    docker exec "$rabbitmq_docker_name" rabbitmqctl add_user "$client_cn" 'unused-external-auth-password' \
+        || echo "[INFO] user '$client_cn' already exists"
+    docker exec "$rabbitmq_docker_name" rabbitmqctl set_permissions -p / "$client_cn" '.*' '.*' '.*'
+    docker exec "$rabbitmq_docker_name" rabbitmqctl set_user_tags "$client_cn" ''
+}
+
 function get_rabbitmq_id
 {
     local rabbitmq_docker_id
@@ -168,6 +184,8 @@ start_toxiproxy
 start_rabbitmq
 
 wait_rabbitmq
+
+provision_tls_auth_user
 
 get_rabbitmq_id
 

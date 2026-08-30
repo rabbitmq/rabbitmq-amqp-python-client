@@ -51,10 +51,11 @@ finally:
 
 ## Examples
 
-[`docs/examples/README.md`](docs/examples/README.md) catalogues twelve runnable
+[`docs/examples/README.md`](docs/examples/README.md) catalogues thirteen runnable
 scripts, in reading order — from `basic_connection.py` through publishing and
 consuming to auto-reconnection, presettled consumers, direct reply-to,
-rejection reasons, single-active-consumer notifications and stream filtering.
+rejection reasons, single-active-consumer notifications, stream filtering and
+TLS/certificate-based authentication.
 Each one talks to a local broker:
 
 ```sh
