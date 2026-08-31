@@ -1105,7 +1105,10 @@ class _Connector(Handler):
         else:
             connection.hostname = url.host
 
-        _logger.info("Connecting to %r..." % url)
+        log_url = Url(url)
+        if log_url.password:
+            log_url.password = "********"
+        _logger.info("Connecting to %r..." % log_url)
 
         transport = Transport()
         if self.sasl_enabled:
