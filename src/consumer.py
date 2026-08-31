@@ -1381,9 +1381,10 @@ class StreamFilterOptions:
     :class:`ConsumerBuilder`. Unlike the bloom filter, these are evaluated exactly
     by the broker against the message's own ``properties`` and
     ``application-properties`` sections, so nothing has to be tagged when
-    publishing. :meth:`sql` needs RabbitMQ 4.2+, and the broker treats it as
-    mutually exclusive with :meth:`subject`/:meth:`property` — a consumer should
-    use one style or the other, not both.
+    publishing. :meth:`sql` needs RabbitMQ 4.2+. The broker ANDs every filter
+    entry together, so :meth:`sql` can be combined with :meth:`subject`/
+    :meth:`property` — unusual, and mostly useful for testing/demonstration,
+    but not refused.
 
     Example:
         >>> consumer = (

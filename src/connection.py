@@ -477,9 +477,9 @@ class Connection:
             self._cancel_recovery()
             with self._state_lock:
                 self._state = ConnectionState.CLOSING
-            self._close_management()
             self._close_publishers()
             self._close_consumers()
+            self._close_management()
             self._release_pub_sub_session()
             self._end_sessions()
             self._send_close(error)
@@ -1022,9 +1022,10 @@ class Connection:
     def _close_management(self) -> None:
         """Detach the management link pair, if one was ever opened.
 
-        Runs before :meth:`_end_sessions` so the pair is detached properly and
-        its response pump stopped, rather than being torn down implicitly by the
-        session's ``end``.
+        Runs after :meth:`_close_publishers`/:meth:`_close_consumers` and before
+        :meth:`_end_sessions`, so the pair is detached properly and its response
+        pump stopped, rather than being torn down implicitly by the session's
+        ``end``.
         """
         with self._management_lock:
             management, self._management = self._management, None
@@ -1038,7 +1039,7 @@ class Connection:
     def _close_publishers(self) -> None:
         """Detach every still-open publisher's sender link.
 
-        Runs after :meth:`_close_management` and before :meth:`_end_sessions`, so
+        Runs before :meth:`_close_management` and before :meth:`_end_sessions`, so
         each link is detached properly rather than being torn down implicitly by
         the pub/sub session's ``end``.
         """
@@ -1054,9 +1055,9 @@ class Connection:
     def _close_consumers(self) -> None:
         """Stop every still-open consumer's delivery loop and detach its link.
 
-        Runs after :meth:`_close_publishers` and before :meth:`_end_sessions`, so
-        each link is detached properly rather than being torn down implicitly by
-        the pub/sub session's ``end``.
+        Runs after :meth:`_close_publishers` and before :meth:`_close_management`
+        and :meth:`_end_sessions`, so each link is detached properly rather than
+        being torn down implicitly by the pub/sub session's ``end``.
         """
         with self._consumers_lock:
             consumers = list(self._consumers.values())
