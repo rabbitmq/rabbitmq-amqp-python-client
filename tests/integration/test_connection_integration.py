@@ -8,7 +8,7 @@ import time
 
 import pytest
 
-from src import (
+from rabbitmq_amqp_python_client import (
     AuthenticationError,
     Connection,
     ConnectionParameters,

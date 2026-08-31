@@ -26,7 +26,7 @@ pip install -e ".[dev]"
 ## Quick start
 
 ```python
-from src import Connection, ConnectionParameters, Context, Message
+from rabbitmq_amqp_python_client import Connection, ConnectionParameters, Context, Message
 
 connection = Connection(ConnectionParameters())  # localhost:5672, guest/guest
 try:
@@ -68,7 +68,7 @@ PYTHONPATH=. .venv/bin/python docs/examples/basic_connection.py
 make install          # create .venv and install the package with its dev extras
 make format           # ruff format, then ruff check --fix
 make lint             # ruff check and ruff format --check
-make typecheck        # mypy src, in strict mode
+make typecheck        # mypy rabbitmq_amqp_python_client, in strict mode
 make test-unit        # the unit suite; no broker needed
 make test-integration # the integration suite; needs a broker on localhost:5672
 make test             # both suites
@@ -82,7 +82,7 @@ MYPYPATH=. .venv/bin/python -m mypy docs/examples/*.py
 
 ## Project layout
 
-`src/` holds the client: `wire/` is the protocol
+`rabbitmq_amqp_python_client/` holds the client: `wire/` is the protocol
 layer (type codec, frames, performatives, messages, SASL) and knows nothing
 above itself, and `connection.py`, `session.py`, `link.py`, `management.py`,
 `publisher.py`, `consumer.py` and `reconnection.py` build the public API on top

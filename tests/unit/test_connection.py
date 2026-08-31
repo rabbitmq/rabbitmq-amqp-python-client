@@ -6,13 +6,13 @@ import threading
 
 import pytest
 
-from src.connection import (
+from rabbitmq_amqp_python_client.connection import (
     Connection,
     ConnectionParameters,
     ConnectionState,
 )
-from src.exceptions import AuthenticationError, ProtocolError, ValidationError
-from src.wire import (
+from rabbitmq_amqp_python_client.exceptions import AuthenticationError, ProtocolError, ValidationError
+from rabbitmq_amqp_python_client.wire import (
     MECHANISM_ANONYMOUS,
     MECHANISM_EXTERNAL,
     MECHANISM_PLAIN,
@@ -146,7 +146,7 @@ class TestBootstrap:
             connect(broker_kwargs={"sasl_layer": False})
 
     def test_a_failed_bootstrap_leaves_no_open_socket(self, broker_factory, monkeypatch):
-        from src import connection as connection_module
+        from rabbitmq_amqp_python_client import connection as connection_module
 
         broker = broker_factory(outcome_code=1)
         captured = {}
@@ -231,7 +231,7 @@ class TestClose:
         assert not connection._reader.is_alive()
 
     def test_ends_open_sessions_first(self, connect):
-        from src.wire import End
+        from rabbitmq_amqp_python_client.wire import End
 
         broker, connection = connect()
         connection.open_session()
@@ -239,7 +239,7 @@ class TestClose:
         assert len(broker.all_received(End)) == 1
 
     def test_completes_even_when_the_broker_never_replies(self, connect, monkeypatch):
-        from src import connection as connection_module
+        from rabbitmq_amqp_python_client import connection as connection_module
 
         monkeypatch.setattr(connection_module, "CLOSE_TIMEOUT_SECONDS", 0.2)
         _broker, connection = connect(broker_kwargs={"auto_respond": False})
@@ -367,7 +367,7 @@ class _SessionDouble:
 
 def _begin_without_reply(connection):
     """Start ``begin`` on a background thread so the test can script the reply."""
-    from src.session import Session
+    from rabbitmq_amqp_python_client.session import Session
 
     session = Session(begin_timeout=5.0)
     threading.Thread(target=session.begin, args=(connection,), daemon=True).start()

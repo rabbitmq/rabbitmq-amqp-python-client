@@ -13,10 +13,10 @@ summary::
     python3 docs/examples/performance_test.py --help
 
 This program adds nothing to the client's public surface: it is built entirely
-out of :class:`~src.Connection`,
-:class:`~src.Management`,
-:class:`~src.Publisher` and
-:class:`~src.Consumer`. It owns exactly one connection,
+out of :class:`~rabbitmq_amqp_python_client.Connection`,
+:class:`~rabbitmq_amqp_python_client.Management`,
+:class:`~rabbitmq_amqp_python_client.Publisher` and
+:class:`~rabbitmq_amqp_python_client.Consumer`. It owns exactly one connection,
 one publisher and one consumer: it measures what one such pair can sustain, not
 a cluster-wide ceiling (§10).
 
@@ -57,7 +57,7 @@ _SOURCE_ROOT = Path(__file__).resolve().parents[2]
 if _SOURCE_ROOT.is_dir() and str(_SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(_SOURCE_ROOT))
 
-from src import (  # noqa: E402 - after the sys.path bootstrap above
+from rabbitmq_amqp_python_client import (  # noqa: E402 - after the sys.path bootstrap above
     AMQPError,
     ApplicationProperties,
     Connection,
@@ -931,7 +931,7 @@ def map_queue_type(options: Options, specification: QueueSpecification) -> Queue
         specification: The builder from ``management.queue(name)``.
 
     Returns:
-        The same builder, ready to :meth:`~src.QueueSpecification.declare`.
+        The same builder, ready to :meth:`~rabbitmq_amqp_python_client.QueueSpecification.declare`.
 
     Raises:
         OptionsError: If ``queue_type`` is not one of :data:`QUEUE_TYPES`.

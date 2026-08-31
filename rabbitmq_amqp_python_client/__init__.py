@@ -4,7 +4,7 @@ Everything an application needs is exported here: the connection and its
 parameters, the management API and its specifications, the publisher and
 consumer builders, the reconnection policy, and the message types needed to
 compose a message and read an outcome. The lower layers remain importable from
-their own modules — :mod:`~src.wire` in particular holds
+their own modules — :mod:`~rabbitmq_amqp_python_client.wire` in particular holds
 the rest of the protocol types. See ``docs/examples`` for usage.
 """
 

@@ -14,22 +14,22 @@ import threading
 
 import pytest
 
-from src import (
+from rabbitmq_amqp_python_client import (
     AMQPTimeoutError,
     InvalidAddressError,
     OutcomeState,
     PublisherError,
     RejectionDetails,
 )
-from src.management import ExchangeSpecification, QueueSpecification
-from src.publisher import (
+from rabbitmq_amqp_python_client.management import ExchangeSpecification, QueueSpecification
+from rabbitmq_amqp_python_client.publisher import (
     PublisherBuilder,
     exchange_address,
     outcome_from_delivery_state,
     queue_address,
     rejection_details_from_error,
 )
-from src.wire import (
+from rabbitmq_amqp_python_client.wire import (
     EXPIRY_POLICY_LINK_DETACH,
     EXPIRY_POLICY_SESSION_END,
     RCV_SETTLE_MODE_FIRST,

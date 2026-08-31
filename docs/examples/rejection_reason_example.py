@@ -19,7 +19,7 @@ A rejection is **not** an error here: ``publish`` returns normally with
 publish attempt itself succeeded — it is the routing that did not. Anything the
 broker said about why is parsed out of the ``rejected`` disposition's
 ``error.info`` map into
-:class:`~src.RejectionDetails`:
+:class:`~rabbitmq_amqp_python_client.RejectionDetails`:
 
 * ``reason`` — the broker's explanation, e.g. ``maximum queue length exceeded``;
 * ``rejected_by_queue`` — which queue rejected it, which matters when the
@@ -36,7 +36,7 @@ from __future__ import annotations
 import logging
 import uuid
 
-from src import (
+from rabbitmq_amqp_python_client import (
     Connection,
     ConnectionParameters,
     Message,

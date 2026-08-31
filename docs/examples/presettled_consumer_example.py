@@ -13,9 +13,9 @@ consumer dies holding one.
 
 Two consequences show up directly in the API and are asserted below:
 
-* the handler must not touch its :class:`~src.Context`.
+* the handler must not touch its :class:`~rabbitmq_amqp_python_client.Context`.
   There is nothing left to settle, so ``accept()``/``discard()``/``requeue()``
-  each raise :class:`~src.ConsumerError`. A presettled
+  each raise :class:`~rabbitmq_amqp_python_client.ConsumerError`. A presettled
   handler only reads the message. ``context.is_presettled`` says which mode it
   is running in, for a handler shared between both;
 * ``consumer.unsettled_message_count`` stays at ``0`` for the consumer's whole
@@ -38,7 +38,7 @@ import socket
 import time
 import uuid
 
-from src import (
+from rabbitmq_amqp_python_client import (
     Connection,
     ConnectionParameters,
     ConnectionState,

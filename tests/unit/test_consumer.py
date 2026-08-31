@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src import (
+from rabbitmq_amqp_python_client import (
     ConsumerError,
     ConsumerSettleStrategy,
     InvalidAddressError,
@@ -26,7 +26,7 @@ from src import (
     StreamOptions,
     ValidationError,
 )
-from src.constants import (
+from rabbitmq_amqp_python_client.constants import (
     AMQP_APPLICATION_PROPERTIES_FILTER,
     AMQP_PROPERTIES_FILTER,
     AMQP_SQL_FILTER,
@@ -38,15 +38,15 @@ from src.constants import (
     STREAM_OFFSET_ANNOTATION,
     STREAM_OFFSET_SPEC_FILTER,
 )
-from src.consumer import (
+from rabbitmq_amqp_python_client.consumer import (
     DEFAULT_INITIAL_CREDITS,
     ConsumerBuilder,
     QuorumConsumerOptions,
     parse_active_flag,
 )
-from src.link import ReceiverLink
-from src.management import QueueSpecification
-from src.wire import (
+from rabbitmq_amqp_python_client.link import ReceiverLink
+from rabbitmq_amqp_python_client.management import QueueSpecification
+from rabbitmq_amqp_python_client.wire import (
     EXPIRY_POLICY_LINK_DETACH,
     RCV_SETTLE_MODE_FIRST,
     SND_SETTLE_MODE_SETTLED,
@@ -65,7 +65,7 @@ from src.wire import (
     Symbol,
     Timestamp,
 )
-from src.wire.encoding import (
+from rabbitmq_amqp_python_client.wire.encoding import (
     Byte,
     Int,
     Long,
@@ -456,7 +456,7 @@ class TestDelivery:
 
         handler = RecordingHandler(action=explode)
         consumer = consuming.build(handler, credits=CREDITS)
-        with caplog.at_level("ERROR", logger="src.consumer"):
+        with caplog.at_level("ERROR", logger="rabbitmq_amqp_python_client.consumer"):
             consuming.deliver("bad")
             handler.wait(1)
             consuming.deliver("good")
@@ -1021,7 +1021,7 @@ class TestSingleActiveConsumerNotifications:
     def test_an_unusable_value_is_dropped_with_a_warning(self, consuming, caplog):
         states = StateRecorder()
         consumer = consuming.build(RecordingHandler(), on_state_changed=states)
-        with caplog.at_level("WARNING", logger="src.consumer"):
+        with caplog.at_level("WARNING", logger="rabbitmq_amqp_python_client.consumer"):
             consuming.broker.grant_credit(
                 consuming.channel, consuming.handle, 0, properties={RABBITMQ_ACTIVE_PROPERTY: "yes"}
             )
@@ -1036,7 +1036,7 @@ class TestSingleActiveConsumerNotifications:
         states = StateRecorder(action=explode)
         deliveries = RecordingHandler(action=lambda context, message: context.accept())
         consumer = consuming.build(deliveries, credits=CREDITS, on_state_changed=states)
-        with caplog.at_level("ERROR", logger="src.consumer"):
+        with caplog.at_level("ERROR", logger="rabbitmq_amqp_python_client.consumer"):
             for value in (True, False):
                 consuming.broker.grant_credit(
                     consuming.channel, consuming.handle, 0, properties={RABBITMQ_ACTIVE_PROPERTY: value}

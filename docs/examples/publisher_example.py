@@ -18,7 +18,7 @@ how that address is chosen. All three forms appear here:
    two different addresses, one link.
 
 Every ``publish`` blocks until the broker settles the message and returns a
-:class:`~src.PublishResult` pairing the message with its
+:class:`~rabbitmq_amqp_python_client.PublishResult` pairing the message with its
 outcome. ``RELEASED`` is worth noticing: it is not an error and not a rejection,
 it is the broker saying the message routed nowhere — which is exactly what
 happens when an exchange has no binding matching the routing key.
@@ -32,7 +32,7 @@ from __future__ import annotations
 import logging
 import uuid
 
-from src import (
+from rabbitmq_amqp_python_client import (
     Connection,
     ConnectionParameters,
     ExchangeType,

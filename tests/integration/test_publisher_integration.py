@@ -5,7 +5,7 @@ message, ``released`` for an exchange with no bindings, and ``rejected`` with
 structured details for a quorum queue whose ``x-overflow`` is
 ``reject-publish`` (step_070 §6). Consumers are a later step, so the one test
 that has to prove a message really landed attaches a raw
-:class:`~src.ReceiverLink` itself.
+:class:`~rabbitmq_amqp_python_client.ReceiverLink` itself.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import uuid
 
 import pytest
 
-from src import (
+from rabbitmq_amqp_python_client import (
     Connection,
     ConnectionParameters,
     ExchangeType,
@@ -27,7 +27,7 @@ from src import (
     exchange_address,
     queue_address,
 )
-from src.wire import Accepted, Message, Properties, Source
+from rabbitmq_amqp_python_client.wire import Accepted, Message, Properties, Source
 
 pytestmark = pytest.mark.integration
 

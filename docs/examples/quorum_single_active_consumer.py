@@ -26,7 +26,7 @@ import logging
 import queue
 import uuid
 
-from src import (
+from rabbitmq_amqp_python_client import (
     Connection,
     ConnectionParameters,
     Consumer,

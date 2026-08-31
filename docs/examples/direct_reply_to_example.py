@@ -12,7 +12,7 @@ dynamically generates a private, per-attach pseudo-queue address
 reply puts that address in an outgoing request's ``properties.reply_to``;
 whoever answers just needs to publish to it — no dedicated, exclusive reply
 queue to declare and clean up per requester. Like a presettled consumer, its
-``Context`` methods all raise :class:`~src.ConsumerError`: the broker considers
+``Context`` methods all raise :class:`~rabbitmq_amqp_python_client.ConsumerError`: the broker considers
 every delivery on this link already settled the instant it sends it.
 
 This script plays both roles, on two separate connections:
@@ -22,7 +22,7 @@ This script plays both roles, on two separate connections:
 * the **responder** (``responder_connection``) declares an ordinary request
   queue, consumes it with a normal ``ExplicitSettle`` consumer, and replies to
   whatever address arrived in the request's ``reply_to`` — an ordinary
-  anonymous :class:`~src.Publisher` (step_020_publishers.md §3.3) also sends
+  anonymous :class:`~rabbitmq_amqp_python_client.Publisher` (step_020_publishers.md §3.3) also sends
   the request itself, targeting the request queue.
 
 Because the pseudo-queue is scoped to the exact connection and session that
@@ -43,7 +43,7 @@ import socket
 import time
 import uuid
 
-from src import (
+from rabbitmq_amqp_python_client import (
     Connection,
     ConnectionParameters,
     ConnectionState,
@@ -55,7 +55,7 @@ from src import (
     RecoveryConfiguration,
     queue_address,
 )
-from src.wire import Properties
+from rabbitmq_amqp_python_client.wire import Properties
 
 #: How long the example waits for a reply it expects.
 TIMEOUT_SECONDS = 15.0

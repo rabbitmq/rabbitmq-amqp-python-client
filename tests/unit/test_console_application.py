@@ -15,7 +15,7 @@ from typing import cast
 import console_application as app
 import pytest
 
-from src import (
+from rabbitmq_amqp_python_client import (
     AMQPError,
     AMQPTimeoutError,
     Management,
@@ -26,8 +26,8 @@ from src import (
     QueueSpecification,
     QueueType,
 )
-from src.management import ARG_QUEUE_TYPE
-from src.wire import Message
+from rabbitmq_amqp_python_client.management import ARG_QUEUE_TYPE
+from rabbitmq_amqp_python_client.wire import Message
 
 
 @pytest.fixture
@@ -39,7 +39,7 @@ def counters() -> app.Counters:
 def specification(name: str = "a-queue") -> QueueSpecification:
     """A real specification with no management endpoint behind it.
 
-    Only :meth:`~src.QueueSpecification.declare` touches
+    Only :meth:`~rabbitmq_amqp_python_client.QueueSpecification.declare` touches
     the endpoint, and nothing here declares.
     """
     return QueueSpecification(cast(Management, None), name)
@@ -561,7 +561,7 @@ class FakeConnection:
     """Just enough of a connection for the reporter to read its state."""
 
     def __init__(self) -> None:
-        from src import ConnectionState
+        from rabbitmq_amqp_python_client import ConnectionState
 
         self.state = ConnectionState.CLOSED
 

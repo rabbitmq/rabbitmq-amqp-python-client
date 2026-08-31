@@ -1,6 +1,6 @@
 """A scripted AMQP 1.0 peer, driven over one end of a :func:`socket.socketpair`.
 
-The real :class:`~src.Connection` talks to this exactly
+The real :class:`~rabbitmq_amqp_python_client.Connection` talks to this exactly
 as it talks to RabbitMQ — protocol headers, SASL frames, ``open``, then whatever
 performatives the test drives — so unit tests exercise the actual bootstrap and
 frame-dispatch code paths instead of a stub.
@@ -15,7 +15,7 @@ import threading
 import uuid
 from dataclasses import replace
 
-from src.wire import (
+from rabbitmq_amqp_python_client.wire import (
     AMQP_PROTOCOL_HEADER,
     AMQP_SASL_HEADER,
     FRAME_TYPE_AMQP,
@@ -331,7 +331,7 @@ class FakeBroker:
         e.g. a direct-reply-to attach, step_060_consumer_strategy.md §3.3) gets a
         fresh, broker-generated address instead of the client's `undefined` one
         — simulating what a real broker does when asked to create a node on
-        demand, since :class:`~src.consumer.Consumer` reads this address back
+        demand, since :class:`~rabbitmq_amqp_python_client.consumer.Consumer` reads this address back
         from the reply.
         """
         if source is None:
@@ -400,7 +400,7 @@ class FakeBroker:
 class BrokerFarm:
     """Answers a client's *successive* dials, one scripted broker per dial.
 
-    Stands in for :func:`~src.connection._connect_socket`
+    Stands in for :func:`~rabbitmq_amqp_python_client.connection._connect_socket`
     so a test can drive auto-reconnection: the first dial is the ``Connection``'s
     own bootstrap, every later one is a redial from the recovery loop. Each dial
     gets its own socket pair and its own :class:`FakeBroker`, so the client really

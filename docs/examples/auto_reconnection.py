@@ -27,7 +27,7 @@ import socket
 import time
 import uuid
 
-from src import (
+from rabbitmq_amqp_python_client import (
     AMQPError,
     Connection,
     ConnectionParameters,

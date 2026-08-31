@@ -4,12 +4,12 @@ Run against a local broker::
 
     PYTHONPATH=. .venv/bin/python docs/examples/basic_connection.py
 
-Constructing a :class:`~src.Connection` dials the TCP
+Constructing a :class:`~rabbitmq_amqp_python_client.Connection` dials the TCP
 socket, exchanges the protocol header, runs SASL and the ``open`` handshake, and
 starts the frame reader — all before ``__init__`` returns. There is no separate
 ``connect()`` step: a constructed connection is already ``OPEN`` and usable.
 
-The default :class:`~src.ConnectionParameters` describe
+The default :class:`~rabbitmq_amqp_python_client.ConnectionParameters` describe
 exactly what a stock broker offers — ``localhost:5672``, ``guest``/``guest``, the
 ``/`` virtual host — so the no-argument form below is the shortest connection
 this client can make. What the broker sent back in its own ``open`` is readable
@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 
-from src import Connection, ConnectionParameters
+from rabbitmq_amqp_python_client import Connection, ConnectionParameters
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s")
 logger = logging.getLogger("example")

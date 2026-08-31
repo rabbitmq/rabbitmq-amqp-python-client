@@ -25,14 +25,13 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v3
-      - name: build with poetry
-        env:
-          REPO: ${{ inputs.pypi_repository_url }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: build
         run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          export PATH="/home/runner/.local/bin:$PATH"
-          poetry config repositories.test-pypi $REPO
-          poetry build
+          python3 -m pip install build
+          python3 -m build
       # retrieve your distributions here
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

@@ -18,7 +18,7 @@ from typing import cast
 import performance_test as app
 import pytest
 
-from src import (
+from rabbitmq_amqp_python_client import (
     AMQPError,
     AMQPTimeoutError,
     Management,
@@ -30,8 +30,8 @@ from src import (
     QueueSpecification,
     QueueType,
 )
-from src.management import ARG_QUEUE_TYPE
-from src.wire import ApplicationProperties, Long, Message
+from rabbitmq_amqp_python_client.management import ARG_QUEUE_TYPE
+from rabbitmq_amqp_python_client.wire import ApplicationProperties, Long, Message
 
 MILLISECOND_NS = 1_000_000
 
@@ -51,7 +51,7 @@ def warning() -> app.WarnOnce:
 def specification(name: str = "a-queue") -> QueueSpecification:
     """A real specification with no management endpoint behind it.
 
-    Only :meth:`~src.QueueSpecification.declare` touches
+    Only :meth:`~rabbitmq_amqp_python_client.QueueSpecification.declare` touches
     the endpoint, and nothing here declares.
     """
     return QueueSpecification(cast(Management, None), name)
@@ -122,7 +122,7 @@ class TestParseArgs:
         assert options.tls is False
 
     def test_the_initial_credits_default_overrides_the_clients_own(self):
-        from src.consumer import DEFAULT_INITIAL_CREDITS as CLIENT_DEFAULT
+        from rabbitmq_amqp_python_client.consumer import DEFAULT_INITIAL_CREDITS as CLIENT_DEFAULT
 
         assert app.DEFAULT_INITIAL_CREDITS == 1000
         assert app.DEFAULT_INITIAL_CREDITS != CLIENT_DEFAULT

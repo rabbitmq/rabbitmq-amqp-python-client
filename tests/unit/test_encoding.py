@@ -8,8 +8,8 @@ import uuid
 
 import pytest
 
-from src.exceptions import ProtocolError
-from src.wire import encoding as enc
+from rabbitmq_amqp_python_client.exceptions import ProtocolError
+from rabbitmq_amqp_python_client.wire import encoding as enc
 
 
 def round_trip(encoded: bytes):

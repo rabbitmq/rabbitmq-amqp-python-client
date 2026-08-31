@@ -21,8 +21,8 @@ from pathlib import Path
 import performance_test as app
 import pytest
 
-from src import Connection, ConnectionParameters
-from src.wire import Message
+from rabbitmq_amqp_python_client import Connection, ConnectionParameters
+from rabbitmq_amqp_python_client.wire import Message
 
 pytestmark = pytest.mark.integration
 

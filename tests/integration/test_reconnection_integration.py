@@ -27,7 +27,7 @@ import uuid
 
 import pytest
 
-from src import (
+from rabbitmq_amqp_python_client import (
     AMQPError,
     Connection,
     ConnectionParameters,
@@ -36,7 +36,7 @@ from src import (
     ManagementError,
     RecoveryConfiguration,
 )
-from src.wire import Message
+from rabbitmq_amqp_python_client.wire import Message
 
 pytestmark = pytest.mark.integration
 
