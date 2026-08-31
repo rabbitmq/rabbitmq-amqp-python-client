@@ -10,7 +10,7 @@ import ssl
 
 import pytest
 
-from src import AuthenticationError, Connection, ConnectionParameters, ConnectionState
+from rabbitmq_amqp_python_client import AuthenticationError, Connection, ConnectionParameters, ConnectionState
 
 from .conftest import BROKER_HOST, BROKER_TLS_PORT, CA_CERTIFICATE, CLIENT_CERTIFICATE, CLIENT_KEY
 

@@ -6,7 +6,7 @@ import uuid
 
 import pytest
 
-from src import (
+from rabbitmq_amqp_python_client import (
     Connection,
     ConnectionParameters,
     ConsumerError,
@@ -15,7 +15,7 @@ from src import (
     ReceiverLink,
     SenderLink,
 )
-from src.wire import (
+from rabbitmq_amqp_python_client.wire import (
     Accepted,
     ApplicationProperties,
     Message,
@@ -242,7 +242,7 @@ class TestSettlement:
         second.detach()
 
     def test_a_rejected_message_is_not_redelivered(self, session, queue_address):
-        from src.wire import Error
+        from rabbitmq_amqp_python_client.wire import Error
 
         sender = _sender(session, queue_address)
         sender.send_transfer(b"tag-1", Message("reject me"), settled=True)

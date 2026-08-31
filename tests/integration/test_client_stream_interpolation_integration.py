@@ -45,10 +45,10 @@ from rstream import Consumer as RstreamConsumer
 from rstream import Producer as RstreamProducer
 from rstream import Properties as RstreamProperties
 
-from src import Connection, ConnectionParameters, OutcomeState
-from src.consumer import StreamOffsetSpecification
-from src.management import QueueInfo
-from src.wire import ApplicationProperties, Message, Properties
+from rabbitmq_amqp_python_client import Connection, ConnectionParameters, OutcomeState
+from rabbitmq_amqp_python_client.consumer import StreamOffsetSpecification
+from rabbitmq_amqp_python_client.management import QueueInfo
+from rabbitmq_amqp_python_client.wire import ApplicationProperties, Message, Properties
 
 pytestmark = pytest.mark.integration
 

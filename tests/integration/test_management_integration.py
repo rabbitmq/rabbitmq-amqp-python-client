@@ -13,7 +13,7 @@ import uuid
 
 import pytest
 
-from src import (
+from rabbitmq_amqp_python_client import (
     ClassicQueueMode,
     ClassicQueueVersion,
     Connection,
@@ -28,15 +28,15 @@ from src import (
     ReceiverLink,
     SenderLink,
 )
-from src.constants import EXCHANGE_ADDRESS_WITH_KEY_TEMPLATE
-from src.management import (
+from rabbitmq_amqp_python_client.constants import EXCHANGE_ADDRESS_WITH_KEY_TEMPLATE
+from rabbitmq_amqp_python_client.management import (
     STATUS_BAD_REQUEST,
     STATUS_CONFLICT,
     STATUS_NOT_FOUND,
     encode_path_segment,
     queue_path,
 )
-from src.wire import Accepted, Message, Source, Target
+from rabbitmq_amqp_python_client.wire import Accepted, Message, Source, Target
 
 pytestmark = pytest.mark.integration
 

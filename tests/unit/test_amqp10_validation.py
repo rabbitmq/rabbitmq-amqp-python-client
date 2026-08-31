@@ -17,9 +17,9 @@ from pathlib import Path
 
 import pytest
 
-from src.exceptions import ProtocolError
-from src.wire import encoding as enc
-from src.wire import message as msg
+from rabbitmq_amqp_python_client.exceptions import ProtocolError
+from rabbitmq_amqp_python_client.wire import encoding as enc
+from rabbitmq_amqp_python_client.wire import message as msg
 
 RESOURCES = Path(__file__).parent / "resources" / "amqp10_validation"
 

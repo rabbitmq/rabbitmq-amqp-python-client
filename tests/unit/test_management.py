@@ -12,14 +12,14 @@ import threading
 
 import pytest
 
-from src import AMQPTimeoutError, ManagementError, ProtocolError
-from src.constants import (
+from rabbitmq_amqp_python_client import AMQPTimeoutError, ManagementError, ProtocolError
+from rabbitmq_amqp_python_client.constants import (
     MANAGEMENT_LINK_CREDIT,
     MANAGEMENT_LINK_NAME,
     MANAGEMENT_NODE_ADDRESS,
     MANAGEMENT_REPLY_TO,
 )
-from src.management import (
+from rabbitmq_amqp_python_client.management import (
     BINDINGS_PATH,
     GENERATED_NAME_PREFIX,
     Management,
@@ -34,7 +34,7 @@ from src.management import (
     unbind_path,
     validate_response,
 )
-from src.wire import (
+from rabbitmq_amqp_python_client.wire import (
     EXPIRY_POLICY_LINK_DETACH,
     EXPIRY_POLICY_SESSION_END,
     RCV_SETTLE_MODE_FIRST,

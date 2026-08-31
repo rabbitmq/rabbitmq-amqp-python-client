@@ -22,7 +22,7 @@ import uuid
 
 import pytest
 
-from src import (
+from rabbitmq_amqp_python_client import (
     Connection,
     ConnectionParameters,
     ConsumerError,
@@ -30,8 +30,8 @@ from src import (
     OutcomeState,
     StreamOffsetSpecification,
 )
-from src.constants import STREAM_FILTER_VALUE_ANNOTATION
-from src.wire import (
+from rabbitmq_amqp_python_client.constants import STREAM_FILTER_VALUE_ANNOTATION
+from rabbitmq_amqp_python_client.wire import (
     ApplicationProperties,
     Message,
     MessageAnnotations,

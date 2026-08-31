@@ -12,7 +12,7 @@ from typing import NamedTuple
 
 import pytest
 
-from src import (
+from rabbitmq_amqp_python_client import (
     ClassicQueueMode,
     ClassicQueueVersion,
     ExchangeSpecification,
@@ -27,7 +27,7 @@ from src import (
     QuorumQueueDelayedRetryType,
     ValidationError,
 )
-from src.management import (
+from rabbitmq_amqp_python_client.management import (
     EXPECTED_BIND,
     EXPECTED_DECLARE_EXCHANGE,
     EXPECTED_DECLARE_QUEUE,

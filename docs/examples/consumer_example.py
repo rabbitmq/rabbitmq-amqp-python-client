@@ -8,7 +8,7 @@ A consumer is a receiver link plus a ``message_handler``. The link is granted
 ``initial_credits`` when it attaches, and the client re-grants one credit every
 time a delivery is settled, so at most that many messages are ever outstanding.
 The handler runs on the client's delivery thread and is handed a
-:class:`~src.Context` alongside the message; calling
+:class:`~rabbitmq_amqp_python_client.Context` alongside the message; calling
 ``context.accept()`` settles the delivery as ``accepted``, which is what tells
 the broker it may drop it. ``discard()`` and ``requeue()`` are the other two
 choices, and doing nothing leaves the delivery unsettled — visible as
@@ -28,7 +28,7 @@ import logging
 import queue
 import uuid
 
-from src import (
+from rabbitmq_amqp_python_client import (
     Connection,
     ConnectionParameters,
     Context,

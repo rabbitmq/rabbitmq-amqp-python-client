@@ -8,30 +8,30 @@ import time
 
 import pytest
 
-from src.connection import (
+from rabbitmq_amqp_python_client.connection import (
     Connection,
     ConnectionParameters,
     ConnectionState,
 )
-from src.constants import (
+from rabbitmq_amqp_python_client.constants import (
     RABBITMQ_ACTIVE_PROPERTY,
     STREAM_OFFSET_ANNOTATION,
     STREAM_OFFSET_SPEC_FILTER,
 )
-from src.consumer import StreamOffsetSpecification
-from src.exceptions import AMQPError, ManagementError
-from src.management import (
+from rabbitmq_amqp_python_client.consumer import StreamOffsetSpecification
+from rabbitmq_amqp_python_client.exceptions import AMQPError, ManagementError
+from rabbitmq_amqp_python_client.management import (
     ExchangeSpecification,
     QueueInfo,
     QueueSpecification,
 )
-from src.reconnection import (
+from rabbitmq_amqp_python_client.reconnection import (
     MULTIPLIER_PERIOD,
     DefaultBackOffDelayPolicy,
     RecordingTopologyListener,
     RecoveryConfiguration,
 )
-from src.wire import Attach, Described, Message, MessageAnnotations
+from rabbitmq_amqp_python_client.wire import Attach, Described, Message, MessageAnnotations
 
 STATE_POLL_INTERVAL_SECONDS = 0.005
 
@@ -170,13 +170,13 @@ class TestDefaultBackOffDelayPolicy:
         assert policy.current_attempt == 3
 
     def test_the_multiplier_grows_then_falls_back_every_five_attempts(self, monkeypatch):
-        monkeypatch.setattr("src.reconnection.random.random", lambda: 0.0)
+        monkeypatch.setattr("rabbitmq_amqp_python_client.reconnection.random.random", lambda: 0.0)
         policy = DefaultBackOffDelayPolicy(max_attempts=100)
         multipliers = [round(policy.next_delay() / 0.5) for _ in range(12)]
         assert multipliers == [1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2]
 
     def test_custom_bounds_are_honoured(self, monkeypatch):
-        monkeypatch.setattr("src.reconnection.random.random", lambda: 0.5)
+        monkeypatch.setattr("rabbitmq_amqp_python_client.reconnection.random.random", lambda: 0.5)
         policy = DefaultBackOffDelayPolicy(min_delay=0.1, max_delay=0.3)
         assert policy.next_delay() == pytest.approx(0.2)
 
@@ -198,7 +198,7 @@ class TestDefaultBackOffDelayPolicy:
         assert not policy.is_active()
 
     def test_reset_restarts_both_the_count_and_the_multiplier(self, monkeypatch):
-        monkeypatch.setattr("src.reconnection.random.random", lambda: 0.0)
+        monkeypatch.setattr("rabbitmq_amqp_python_client.reconnection.random.random", lambda: 0.0)
         policy = DefaultBackOffDelayPolicy(max_attempts=3)
         policy.next_delay()
         policy.next_delay()

@@ -11,11 +11,11 @@ both confirmed and consumed, so this doubles as a scriptable smoke test::
     python3 docs/examples/console_application.py --help
 
 This program adds nothing to the client's public surface: it is built entirely
-out of :class:`~src.Connection`,
-:class:`~src.Management`,
-:class:`~src.Publisher`,
-:class:`~src.Consumer` and
-:class:`~src.RecoveryConfiguration`. It owns exactly one
+out of :class:`~rabbitmq_amqp_python_client.Connection`,
+:class:`~rabbitmq_amqp_python_client.Management`,
+:class:`~rabbitmq_amqp_python_client.Publisher`,
+:class:`~rabbitmq_amqp_python_client.Consumer` and
+:class:`~rabbitmq_amqp_python_client.RecoveryConfiguration`. It owns exactly one
 connection: it is a correctness/smoke-test tool, not a load generator.
 
 Exit codes:
@@ -49,7 +49,7 @@ _SOURCE_ROOT = Path(__file__).resolve().parents[2]
 if _SOURCE_ROOT.is_dir() and str(_SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(_SOURCE_ROOT))
 
-from src import (  # noqa: E402 - after the sys.path bootstrap above
+from rabbitmq_amqp_python_client import (  # noqa: E402 - after the sys.path bootstrap above
     AMQPError,
     Connection,
     ConnectionParameters,
@@ -64,7 +64,7 @@ from src import (  # noqa: E402 - after the sys.path bootstrap above
 )
 
 if TYPE_CHECKING:
-    from src.connection import ConnectionState
+    from rabbitmq_amqp_python_client.connection import ConnectionState
 
 # --- exit codes (§7) ----------------------------------------------------
 
@@ -475,7 +475,7 @@ def map_queue_type(options: Options, specification: QueueSpecification) -> Queue
         specification: The builder from ``management.queue(name)``.
 
     Returns:
-        The same builder, ready to :meth:`~src.QueueSpecification.declare`.
+        The same builder, ready to :meth:`~rabbitmq_amqp_python_client.QueueSpecification.declare`.
 
     Raises:
         OptionsError: If ``queue_type`` is not one of :data:`QUEUE_TYPES`.

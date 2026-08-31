@@ -1,11 +1,11 @@
-"""Unit tests for the package's public surface: ``src.__all__``."""
+"""Unit tests for the package's public surface: ``rabbitmq_amqp_python_client.__all__``."""
 
 from __future__ import annotations
 
 import pytest
 
-import src as client
-from src import wire
+import rabbitmq_amqp_python_client as client
+from rabbitmq_amqp_python_client import wire
 
 #: Names re-exported from ``.wire`` for ergonomics; the alias must be the original object.
 WIRE_ALIASES = (

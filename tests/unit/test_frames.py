@@ -9,9 +9,9 @@ import time
 
 import pytest
 
-from src.exceptions import ProtocolError
-from src.wire import frames, sasl
-from src.wire import performatives as perf
+from rabbitmq_amqp_python_client.exceptions import ProtocolError
+from rabbitmq_amqp_python_client.wire import frames, sasl
+from rabbitmq_amqp_python_client.wire import performatives as perf
 
 
 @pytest.fixture

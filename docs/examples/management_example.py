@@ -14,7 +14,7 @@ request message out and one response message back, correlated by
 The script walks the whole surface once:
 
 1. ``queue(name).declare()`` declares a classic queue and returns a
-   :class:`~src.QueueInfo` parsed from the broker's
+   :class:`~rabbitmq_amqp_python_client.QueueInfo` parsed from the broker's
    answer, so the queue's real settings are readable straight away;
 2. ``exchange(name).type(ExchangeType.TOPIC).declare()`` declares a topic
    exchange;
@@ -26,7 +26,7 @@ The script walks the whole surface once:
 
 Declaring is idempotent as long as the arguments match: re-declaring the same
 queue is a successful no-op, while re-declaring it with different arguments is a
-:class:`~src.ManagementError`.
+:class:`~rabbitmq_amqp_python_client.ManagementError`.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from __future__ import annotations
 import logging
 import uuid
 
-from src import (
+from rabbitmq_amqp_python_client import (
     Connection,
     ConnectionParameters,
     ExchangeType,

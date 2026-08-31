@@ -8,13 +8,13 @@ import time
 
 import pytest
 
-from src.exceptions import (
+from rabbitmq_amqp_python_client.exceptions import (
     AMQPTimeoutError,
     ProtocolError,
 )
-from src.link import LinkRole
-from src.session import DEFAULT_WINDOW, Session
-from src.wire import (
+from rabbitmq_amqp_python_client.link import LinkRole
+from rabbitmq_amqp_python_client.session import DEFAULT_WINDOW, Session
+from rabbitmq_amqp_python_client.wire import (
     Accepted,
     Attach,
     Begin,

@@ -24,7 +24,7 @@ import logging
 import pathlib
 import ssl
 
-from src import Connection, ConnectionParameters
+from rabbitmq_amqp_python_client import Connection, ConnectionParameters
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s")
 logger = logging.getLogger("example")

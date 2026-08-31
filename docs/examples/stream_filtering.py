@@ -32,7 +32,7 @@ import logging
 import queue
 import uuid
 
-from src import (
+from rabbitmq_amqp_python_client import (
     ApplicationProperties,
     Connection,
     ConnectionParameters,
@@ -44,7 +44,7 @@ from src import (
     StreamOffsetSpecification,
     Symbol,
 )
-from src.constants import STREAM_FILTER_VALUE_ANNOTATION
+from rabbitmq_amqp_python_client.constants import STREAM_FILTER_VALUE_ANNOTATION
 
 #: How long the example waits for the deliveries a filter should let through.
 TIMEOUT_SECONDS = 15.0

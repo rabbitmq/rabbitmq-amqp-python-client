@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from src.exceptions import ProtocolError
-from src.wire import encoding as enc
-from src.wire import sasl
+from rabbitmq_amqp_python_client.exceptions import ProtocolError
+from rabbitmq_amqp_python_client.wire import encoding as enc
+from rabbitmq_amqp_python_client.wire import sasl
 
 
 class TestProtocolHeaders:

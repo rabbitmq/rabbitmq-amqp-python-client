@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from src.exceptions import ProtocolError
-from src.wire import encoding as enc
-from src.wire import performatives as perf
-from src.wire.delivery_state import Accepted, Error, Modified, Rejected
+from rabbitmq_amqp_python_client.exceptions import ProtocolError
+from rabbitmq_amqp_python_client.wire import encoding as enc
+from rabbitmq_amqp_python_client.wire import performatives as perf
+from rabbitmq_amqp_python_client.wire.delivery_state import Accepted, Error, Modified, Rejected
 
 
 def fields_of(encoded: bytes) -> list:

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from src.exceptions import ProtocolError
-from src.wire import delivery_state as ds
-from src.wire import encoding as enc
+from rabbitmq_amqp_python_client.exceptions import ProtocolError
+from rabbitmq_amqp_python_client.wire import delivery_state as ds
+from rabbitmq_amqp_python_client.wire import encoding as enc
 
 
 class TestError:

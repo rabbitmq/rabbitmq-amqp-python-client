@@ -7,9 +7,9 @@ import socket
 
 import pytest
 
-from src import connection as connection_module
-from src.connection import Connection, ConnectionParameters
-from src.reconnection import RecoveryConfiguration
+from rabbitmq_amqp_python_client import connection as connection_module
+from rabbitmq_amqp_python_client.connection import Connection, ConnectionParameters
+from rabbitmq_amqp_python_client.reconnection import RecoveryConfiguration
 from tests.unit.fake_broker import BrokerFarm, FakeBroker
 
 
