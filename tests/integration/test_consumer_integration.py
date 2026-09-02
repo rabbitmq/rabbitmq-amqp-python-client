@@ -6,9 +6,12 @@ does requeue or drop the message, that a presettled link really is settled by
 the broker before the client sees the ``transfer``, and that direct-reply-to
 really hands back a usable, broker-generated pseudo-queue address
 (step_060_consumer_strategy.md §7), that a single-active-consumer quorum queue
-really does report which consumer it feeds (step_090 §6), and which of a
+really does report which consumer it feeds (step_090 §6), which of a
 stream's offset specifications and filters the broker really honours
-(step_080 §6).
+(step_080 §6), and that a quorum queue's ``x-delayed-retry-type`` really does
+hold a redelivery back for the configured window, for exactly the kind of
+return each of ``DISABLED``/``ALL``/``FAILED``/``RETURNED`` says it should
+(step_001_management.md §5.4).
 """
 
 from __future__ import annotations
@@ -27,10 +30,13 @@ from rabbitmq_amqp_python_client import (
     ConnectionParameters,
     ConsumerError,
     ConsumerSettleStrategy,
+    ManagementError,
     OutcomeState,
+    QuorumQueueDelayedRetryType,
     StreamOffsetSpecification,
 )
 from rabbitmq_amqp_python_client.constants import STREAM_FILTER_VALUE_ANNOTATION
+from rabbitmq_amqp_python_client.management import STATUS_BAD_REQUEST
 from rabbitmq_amqp_python_client.wire import (
     ApplicationProperties,
     Message,
@@ -128,7 +134,7 @@ def queue(management):
     """Return ``make(prefix, **kind) -> name``, deleting whatever it declared."""
     declared = []
 
-    def make(prefix, quorum=False, single_active_consumer=False, stream=False):
+    def make(prefix, quorum=False, single_active_consumer=False, stream=False, configure=None):
         specification = management.queue(_name(prefix))
         if single_active_consumer:
             specification = specification.single_active_consumer(True)
@@ -136,6 +142,8 @@ def queue(management):
             specification = specification.quorum().queue()
         if stream:
             specification = specification.stream().queue()
+        if configure is not None:
+            configure(specification)
         info = specification.declare()
         declared.append(info.name)
         return info.name
@@ -475,6 +483,123 @@ class TestRequeueAndDiscard:
         _wait_until(lambda: management.queue_info(name).message_count == 0, "the queue to drain")
         time.sleep(QUIET_PERIOD_SECONDS)
         assert handler.count == 1
+
+
+#: Both bounds are set to this same value in every delayed-retry test below,
+#: so a delayed redelivery always arrives after this one fixed wait rather than
+#: somewhere on a backoff curve — the boundary these tests care about is
+#: delayed vs. immediate, not the shape of the backoff.
+DELAYED_RETRY_BOUND_MS = 4_000
+
+#: Comfortably below DELAYED_RETRY_BOUND_MS: an immediate redelivery must land here.
+IMMEDIATE_REDELIVERY_BOUND_SECONDS = 2.0
+
+#: Comfortably below DELAYED_RETRY_BOUND_MS but above the immediate bound: a
+#: delayed redelivery must take at least this long.
+DELAYED_REDELIVERY_LOWER_BOUND_SECONDS = 2.5
+
+
+def _delayed_retry_queue(queue, retry_type):
+    """Declare a quorum queue with ``retry_type`` and matched min/max bounds.
+
+    Raises:
+        pytest.skip.Exception: If this broker predates RabbitMQ 4.3 and rejects
+            ``x-delayed-retry-*`` outright.
+    """
+
+    def configure(specification):
+        (
+            specification.quorum()
+            .delayed_retry_type(retry_type)
+            .delayed_retry_min(DELAYED_RETRY_BOUND_MS)
+            .delayed_retry_max(DELAYED_RETRY_BOUND_MS)
+        )
+
+    try:
+        return queue(f"con-it-retry-{retry_type.value}", quorum=True, configure=configure)
+    except ManagementError as error:
+        if error.status_code == STATUS_BAD_REQUEST:
+            pytest.skip("this broker does not support x-delayed-retry-* (needs RabbitMQ 4.3+)")
+        raise
+
+
+def _redelivery_delay(connection, consumers, queue_name, publish, delivery_failed):
+    """Publish one message, requeue its first delivery as ``delivery_failed``'s kind
+    of return, accept the redelivery, and return the elapsed time between the two.
+
+    ``context.requeue(delivery_failed=True)`` sends
+    ``modified{delivery-failed=true, undeliverable-here=false}`` — a *failed*
+    return. ``context.requeue()`` (``delivery_failed=False``) sends ``released``
+    — a *returned* one (step_030_consumers.md §4). Only these two outcomes are
+    eligible for delayed retry at all: a terminal ``rejected``/``discard()`` is
+    always dropped outright, unaffected by ``x-delayed-retry-type``, so it plays
+    no part in this distinction.
+    """
+    publish(queue_name, ["retry-me"])
+    attempts = itertools.count()
+    arrived_at = []
+
+    def handle(context, message):
+        arrived_at.append(time.monotonic())
+        if next(attempts) == 0:
+            context.requeue(delivery_failed=delivery_failed)
+        else:
+            context.accept()
+
+    handler = RecordingHandler(action=handle)
+    consumer = _consume(connection, consumers, queue_name, handler, credits=1)
+    try:
+        _wait_until(lambda: len(arrived_at) == 2, "the redelivery", WAIT_TIMEOUT_SECONDS)
+    finally:
+        # Closed right away, rather than left for teardown: a still-open, still-
+        # credited consumer from an earlier measurement on the same queue would
+        # otherwise be free to steal the next helper's published message before
+        # its own fresh consumer ever attaches.
+        consumer.close()
+    return arrived_at[1] - arrived_at[0]
+
+
+class TestDelayedRetry:
+    """step_001_management.md §5.4: ``x-delayed-retry-type`` gates whether a quorum
+    queue delays a redelivery, and which kind of return it applies to.
+
+    ``context.requeue(delivery_failed=True)`` is a *failed* return;
+    ``context.requeue()`` is a *returned* one (step_030_consumers.md §4). ``ALL``
+    delays both kinds, ``FAILED``/``RETURNED`` each delay only their own kind,
+    and ``DISABLED`` never delays either one.
+    """
+
+    def test_disabled_redelivers_both_kinds_immediately(self, connection, queue, publish, consumers):
+        name = _delayed_retry_queue(queue, QuorumQueueDelayedRetryType.DISABLED)
+        failed = _redelivery_delay(connection, consumers, name, publish, delivery_failed=True)
+        assert failed < IMMEDIATE_REDELIVERY_BOUND_SECONDS, f"took {failed:.2f}s to redeliver a failed return"
+        returned = _redelivery_delay(connection, consumers, name, publish, delivery_failed=False)
+        assert returned < IMMEDIATE_REDELIVERY_BOUND_SECONDS, f"took {returned:.2f}s to redeliver a returned one"
+
+    def test_all_delays_both_kinds(self, connection, queue, publish, consumers):
+        name = _delayed_retry_queue(queue, QuorumQueueDelayedRetryType.ALL)
+        failed = _redelivery_delay(connection, consumers, name, publish, delivery_failed=True)
+        assert failed >= DELAYED_REDELIVERY_LOWER_BOUND_SECONDS, f"a failed return redelivered after only {failed:.2f}s"
+        returned = _redelivery_delay(connection, consumers, name, publish, delivery_failed=False)
+        assert returned >= DELAYED_REDELIVERY_LOWER_BOUND_SECONDS, (
+            f"a returned one redelivered after only {returned:.2f}s"
+        )
+
+    def test_failed_delays_only_a_failed_return(self, connection, queue, publish, consumers):
+        name = _delayed_retry_queue(queue, QuorumQueueDelayedRetryType.FAILED)
+        failed = _redelivery_delay(connection, consumers, name, publish, delivery_failed=True)
+        assert failed >= DELAYED_REDELIVERY_LOWER_BOUND_SECONDS, f"a failed return redelivered after only {failed:.2f}s"
+        returned = _redelivery_delay(connection, consumers, name, publish, delivery_failed=False)
+        assert returned < IMMEDIATE_REDELIVERY_BOUND_SECONDS, f"took {returned:.2f}s to redeliver a returned one"
+
+    def test_returned_delays_only_a_returned_one(self, connection, queue, publish, consumers):
+        name = _delayed_retry_queue(queue, QuorumQueueDelayedRetryType.RETURNED)
+        failed = _redelivery_delay(connection, consumers, name, publish, delivery_failed=True)
+        assert failed < IMMEDIATE_REDELIVERY_BOUND_SECONDS, f"took {failed:.2f}s to redeliver a failed return"
+        returned = _redelivery_delay(connection, consumers, name, publish, delivery_failed=False)
+        assert returned >= DELAYED_REDELIVERY_LOWER_BOUND_SECONDS, (
+            f"a returned one redelivered after only {returned:.2f}s"
+        )
 
 
 class TestLifecycle:
