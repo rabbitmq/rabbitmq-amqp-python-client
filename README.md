@@ -2,13 +2,23 @@
 
 RabbitMQ AMQP 1.0 Python client version 2.x for RabbitMQ 4.x.
 
-This client version built from scratch. The primary reason for this rewrite is to remove the dependency on the `qpid-proton` C library present in version 1, providing a fully native Python client. 
+This client version built from scratch.</br> 
+The primary reason for this rewrite is to remove the dependency on the `qpid-proton` C library present in version 1.0, providing a fully native Python client, see [here](https://github.com/rabbitmq/rabbitmq-amqp-python-client/discussions/123). 
 This client is inspired by the Java and .NET AMQP 1.0 clients, aiming to deliver the same behavior and user experience across ecosystems.
 
 The client is different from 1.0 and not compatible, so read the documentation before updating the client.
 
 
-## Installation
+## Install 
+
+The client is distributed via [`PIP`](https://pypi.org/project/rabbitmq-amqp-python-client/):
+```bash
+ pip install rabbitmq-amqp-python-client==2.0.0ax
+```
+
+
+
+## Build from source
 
 ```sh
 python3 -m venv .venv
