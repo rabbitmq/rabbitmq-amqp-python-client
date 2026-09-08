@@ -39,6 +39,7 @@ from .wire import (
     Flow,
     Message,
     Performative,
+    Released,
     Source,
     Target,
     Transfer,
@@ -765,6 +766,7 @@ class ReceiverLink(Link):
         self._partial_first: Transfer | None = None
         self._flow_properties: deque[dict[Any, Any]] = deque(maxlen=max(1, flow_properties_buffer))
         self._flow_handler: Callable[[dict[Any, Any]], None] | None = None
+        self._release_handler: Callable[[int, int], None] | None = None
 
     @property
     def credit(self) -> int:
@@ -895,6 +897,45 @@ class ReceiverLink(Link):
             self._cond.notify_all()
         if properties and handler is not None:
             self._invoke_flow_handler(handler, properties)
+
+    def on_release(self, handler: Callable[[int, int], None] | None) -> None:
+        """Observe a broker-initiated release of an unsettled delivery on this link.
+
+        RabbitMQ's consumer-timeout (RabbitMQ 4.3+, step_130 §3): the broker sends
+        an unsolicited ``disposition`` reporting ``released`` for a delivery this
+        endpoint never itself settled, carrying the *sender*'s role on this link
+        (the broker plays sender on every receiver link) — distinct from the
+        ``disposition`` this endpoint's own :meth:`settle` sends, which always
+        carries the *receiver*'s role.
+
+        Args:
+            handler: Called as ``handler(first, last)`` with the inclusive
+                delivery-id range the broker released, or ``None`` to stop
+                observing. Runs on the connection's frame-reader thread and must
+                return promptly; exceptions it raises are logged and swallowed.
+        """
+        with self._cond:
+            self._release_handler = handler
+
+    def _on_disposition(self, performative: Disposition) -> None:
+        """Surface a broker-initiated release to a registered handler (step_130 §3).
+
+        A ``disposition`` carrying the *receiver*'s role is this endpoint's own
+        echo of a settlement it sent and is never mistaken for a broker-initiated
+        release; only a sender-role ``released`` triggers the handler.
+        """
+        if performative.role != LinkRole.SENDER.value or not isinstance(performative.state, Released):
+            self._logger.debug("ignoring disposition on link %r", self.name)
+            return
+        with self._cond:
+            handler = self._release_handler
+        if handler is None:
+            return
+        last = performative.last if performative.last is not None else performative.first
+        try:
+            handler(performative.first, last)
+        except Exception:
+            self._logger.exception("release handler raised for link %r", self.name)
 
     def _on_transfer(self, performative: Transfer, payload: bytes) -> None:
         """Reassemble a possibly multi-frame delivery and queue it."""

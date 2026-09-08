@@ -402,6 +402,39 @@ class TestQuorumQueueSpecification:
         specification.declare()
         assert management.call.body["arguments"]["x-delayed-retry-min"] == 1_000
 
+    def test_consumer_timeout_sets_the_argument(self, management):
+        specification = _queue(management)
+        specification.quorum().consumer_timeout(90_000)
+        assert specification.queue_arguments["x-consumer-timeout"] == 90_000
+
+    def test_consumer_timeout_accepts_a_timedelta(self, management):
+        specification = _queue(management)
+        specification.quorum().consumer_timeout(timedelta(minutes=2))
+        assert specification.queue_arguments["x-consumer-timeout"] == 120_000
+
+    def test_consumer_timeout_accepts_exactly_ten_years(self, management):
+        specification = _queue(management)
+        specification.quorum().consumer_timeout(TEN_YEARS_MS)
+        assert specification.queue_arguments["x-consumer-timeout"] == TEN_YEARS_MS
+
+    def test_consumer_timeout_rejects_more_than_ten_years(self, management):
+        with pytest.raises(ValidationError, match="x-consumer-timeout must be in"):
+            _queue(management).quorum().consumer_timeout(TEN_YEARS_MS + 1)
+
+    def test_consumer_timeout_rejects_zero(self, management):
+        with pytest.raises(ValidationError, match="x-consumer-timeout must be in"):
+            _queue(management).quorum().consumer_timeout(0)
+
+    def test_consumer_timeout_rejects_a_negative_value(self, management):
+        with pytest.raises(ValidationError, match="x-consumer-timeout must be in"):
+            _queue(management).quorum().consumer_timeout(-1)
+
+    def test_consumer_timeout_can_be_combined_with_other_quorum_arguments(self, management):
+        specification = _queue(management)
+        specification.quorum().delivery_limit(7).consumer_timeout(500)
+        assert specification.queue_arguments["x-delivery-limit"] == 7
+        assert specification.queue_arguments["x-consumer-timeout"] == 500
+
 
 class TestClassicQueueSpecification:
     def test_selects_the_classic_type_immediately(self, management):

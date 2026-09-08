@@ -12,7 +12,7 @@ from __future__ import annotations
 import queue as queue_module
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -24,14 +24,17 @@ from rabbitmq_amqp_python_client import (
     StreamFilterOptions,
     StreamOffsetSpecification,
     StreamOptions,
+    TimeoutContext,
     ValidationError,
 )
 from rabbitmq_amqp_python_client.constants import (
     AMQP_APPLICATION_PROPERTIES_FILTER,
     AMQP_PROPERTIES_FILTER,
     AMQP_SQL_FILTER,
+    DELIVERY_TIME_ANNOTATION,
     DIRECT_REPLY_TO_CAPABILITY,
     RABBITMQ_ACTIVE_PROPERTY,
+    RABBITMQ_CONSUMER_TIMEOUT_PROPERTY,
     SQL_FILTER_NAME,
     STREAM_FILTER_VALUES_FILTER,
     STREAM_MATCH_UNFILTERED_FILTER,
@@ -66,6 +69,9 @@ from rabbitmq_amqp_python_client.wire import (
     Timestamp,
 )
 from rabbitmq_amqp_python_client.wire.encoding import (
+    CODE_INT,
+    CODE_SMALLINT,
+    CODE_UINT,
     Byte,
     Int,
     Long,
@@ -74,6 +80,7 @@ from rabbitmq_amqp_python_client.wire.encoding import (
     Uint,
     Ulong,
     Ushort,
+    encode_value,
 )
 
 #: Bound on anything a test expects to happen promptly.
@@ -157,6 +164,8 @@ class Harness:
         settle_strategy=ConsumerSettleStrategy.EXPLICIT_SETTLE,
         on_state_changed=None,
         stream=None,
+        consumer_timeout=None,
+        on_delivery_release=None,
     ):
         """Build one consumer and remember the channel/handle its link got.
 
@@ -171,6 +180,10 @@ class Harness:
             stream: Called as ``stream(stream_options)`` to configure the stream
                 sub-builder; whatever it returns is ignored, since every view
                 writes to the same builder.
+            consumer_timeout: ``rabbitmq:consumer-timeout`` to set via
+                ``quorum().consumer_timeout(...)`` (step_130 §2).
+            on_delivery_release: Handler to register via
+                ``quorum().on_delivery_release(...)`` (step_130 §4).
         """
         builder = self.connection.consumer_builder()
         if settle_strategy is not ConsumerSettleStrategy.DIRECT_REPLY_TO:
@@ -182,6 +195,10 @@ class Harness:
             builder.settle_strategy(settle_strategy)
         if on_state_changed is not None:
             builder.quorum().single_active_consumer_state_changed(on_state_changed).builder()
+        if consumer_timeout is not None:
+            builder.quorum().consumer_timeout(consumer_timeout).builder()
+        if on_delivery_release is not None:
+            builder.quorum().on_delivery_release(on_delivery_release).builder()
         if stream is not None:
             stream(builder.stream())
         consumer = builder.build()
@@ -228,6 +245,26 @@ class Harness:
         """Assert the client sends no ``disposition`` for ``within`` seconds."""
         with pytest.raises(AssertionError):
             self.broker.wait_for(Disposition, timeout=within)
+
+    def release(self, delivery_id, *, last=None):
+        """Send a broker-initiated release ``disposition`` for ``delivery_id`` (step_130 §3).
+
+        Carries the *sender*'s role, matching what the broker actually sends on
+        a receiver link for a consumer-timeout release — the opposite of every
+        other disposition this harness's broker sends via
+        :meth:`FakeBroker.settle`, which answers this client's own outgoing
+        ``transfer``/``disposition`` traffic with the *receiver*'s role.
+        """
+        self.broker.send(
+            self.channel,
+            Disposition(
+                role=False,
+                first=delivery_id,
+                last=delivery_id if last is None else last,
+                settled=True,
+                state=Released(),
+            ),
+        )
 
 
 @pytest.fixture
@@ -949,6 +986,259 @@ class TestQuorumConsumerOptions:
         consumer = consuming.build(RecordingHandler())
         assert consumer._link._flow_handler is None
         assert consumer._notification_loop is None
+        consumer.close()
+
+    def test_consumer_timeout_returns_the_same_view(self):
+        options = ConsumerBuilder(None).queue("orders").quorum()
+        assert options.consumer_timeout(1_000) is options
+
+    def test_consumer_timeout_stores_the_value_as_a_uint(self):
+        """A signed int/long is silently ignored by RabbitMQ 4.3.5 (step_130 §2's wire-type note) —
+        verified against a live broker while implementing this feature: the attach still succeeds
+        and the consumer works normally, but the timeout/release never fires, with no error at all.
+        """
+        builder = ConsumerBuilder(None).queue("orders")
+        builder.quorum().consumer_timeout(3_000)
+        assert type(builder._consumer_timeout_ms) is Uint
+        assert builder._consumer_timeout_ms == 3_000
+
+    def test_consumer_timeout_uint_encodes_differently_from_a_plain_int(self):
+        """Pins down exactly the wire-level distinction the broker cares about."""
+        assert encode_value(Uint(3_000))[0] == CODE_UINT
+        assert encode_value(3_000)[0] in (CODE_INT, CODE_SMALLINT)
+        assert encode_value(Uint(3_000))[0] != encode_value(3_000)[0]
+
+    def test_consumer_timeout_rejects_zero(self):
+        options = ConsumerBuilder(None).queue("orders").quorum()
+        with pytest.raises(ValidationError, match="consumer_timeout must be in"):
+            options.consumer_timeout(0)
+
+    def test_consumer_timeout_rejects_a_negative_value(self):
+        options = ConsumerBuilder(None).queue("orders").quorum()
+        with pytest.raises(ValidationError, match="consumer_timeout must be in"):
+            options.consumer_timeout(-1)
+
+    def test_consumer_timeout_rejects_more_than_a_uint32_can_hold(self):
+        options = ConsumerBuilder(None).queue("orders").quorum()
+        with pytest.raises(ValidationError, match="consumer_timeout must be in"):
+            options.consumer_timeout(0xFFFFFFFF + 1)
+
+    def test_consumer_timeout_accepts_exactly_the_uint32_bound(self):
+        options = ConsumerBuilder(None).queue("orders").quorum()
+        options.consumer_timeout(0xFFFFFFFF)
+        assert options._parent._consumer_timeout_ms == 0xFFFFFFFF
+
+    def test_on_delivery_release_returns_the_same_view(self):
+        options = ConsumerBuilder(None).queue("orders").quorum()
+        assert options.on_delivery_release(lambda context, message: None) is options
+
+
+class TestDelayedRetry:
+    """step_120: ``Context.delayed_retry`` is sugar over ``requeue`` stamping ``x-opt-delivery-time``."""
+
+    def test_sends_modified_with_a_delivery_time_annotation(self, consuming):
+        captured = {}
+
+        def action(context, message):
+            captured["before"] = int(time.time() * 1000)
+            context.delayed_retry(2_000)
+
+        consumer = consuming.build(RecordingHandler(action=action))
+        consuming.deliver()
+        disposition = consuming.next_disposition()
+        assert isinstance(disposition.state, Modified)
+        assert disposition.state.delivery_failed is False
+        assert disposition.state.undeliverable_here is False
+        delivery_time = annotations_of(disposition.state)[DELIVERY_TIME_ANNOTATION]
+        # A tolerant window, not exact equality against wall-clock time.
+        assert captured["before"] + 2_000 <= delivery_time <= captured["before"] + 2_000 + 5_000
+        consumer.close()
+
+    def test_accepts_a_timedelta(self, consuming):
+        before = int(time.time() * 1000)
+        action = lambda context, message: context.delayed_retry(timedelta(seconds=3))  # noqa: E731
+        consumer = consuming.build(RecordingHandler(action=action))
+        consuming.deliver()
+        disposition = consuming.next_disposition()
+        delivery_time = annotations_of(disposition.state)[DELIVERY_TIME_ANNOTATION]
+        assert delivery_time >= before + 3_000
+        consumer.close()
+
+    def test_delivery_failed_propagates_onto_the_outcome(self, consuming):
+        action = lambda context, message: context.delayed_retry(1_000, delivery_failed=True)  # noqa: E731
+        consumer = consuming.build(RecordingHandler(action=action))
+        consuming.deliver()
+        disposition = consuming.next_disposition()
+        assert disposition.state.delivery_failed is True
+        consumer.close()
+
+    def test_defaults_delivery_failed_to_false(self, consuming):
+        action = lambda context, message: context.delayed_retry(1_000)  # noqa: E731
+        consumer = consuming.build(RecordingHandler(action=action))
+        consuming.deliver()
+        disposition = consuming.next_disposition()
+        assert disposition.state.delivery_failed is False
+        consumer.close()
+
+    def test_raises_on_an_already_settled_context(self, consuming):
+        handler = RecordingHandler()
+        consumer = consuming.build(handler)
+        consuming.deliver()
+        handler.wait(1)
+        context = handler.contexts[0]
+        context.accept()
+        consuming.next_disposition()
+        with pytest.raises(ConsumerError, match="already been settled"):
+            context.delayed_retry(1_000)
+        consumer.close()
+
+    def test_raises_when_presettled(self, consuming):
+        handler = RecordingHandler()
+        consumer = consuming.build(handler, settle_strategy=ConsumerSettleStrategy.PRESETTLED)
+        consuming.deliver()
+        handler.wait(1)
+        context = handler.contexts[0]
+        with pytest.raises(ConsumerError, match="presettled"):
+            context.delayed_retry(1_000)
+        consumer.close()
+
+
+class TestConsumerTimeout:
+    """step_130: the ``rabbitmq:consumer-timeout`` attach property and the broker-initiated release."""
+
+    def test_consumer_timeout_sets_the_attach_property(self, consuming):
+        consumer = consuming.build(RecordingHandler(), consumer_timeout=90_000)
+        assert consuming.attach.properties[RABBITMQ_CONSUMER_TIMEOUT_PROPERTY] == 90_000
+        consumer.close()
+
+    def test_consumer_timeout_accepts_a_timedelta(self, consuming):
+        consumer = consuming.build(RecordingHandler(), consumer_timeout=timedelta(seconds=3))
+        assert consuming.attach.properties[RABBITMQ_CONSUMER_TIMEOUT_PROPERTY] == 3_000
+        consumer.close()
+
+    def test_no_consumer_timeout_leaves_the_attach_properties_unset(self, consuming):
+        consumer = consuming.build(RecordingHandler())
+        assert consuming.attach.properties is None
+        consumer.close()
+
+    def test_a_consumer_without_a_handler_watches_for_no_release(self, consuming):
+        consumer = consuming.build(RecordingHandler())
+        assert consumer._link._release_handler is None
+        assert consumer._release_loop is None
+        consumer.close()
+
+    def test_a_broker_initiated_release_reaches_the_handler(self, consuming):
+        released = []
+
+        def on_release(context, message):
+            released.append((context, message))
+
+        handler = RecordingHandler()
+        consumer = consuming.build(handler, on_delivery_release=on_release, credits=1)
+        delivery_id = consuming.deliver("held-too-long")
+        handler.wait(1)
+        consuming.release(delivery_id)
+
+        def _released():
+            return len(released) == 1
+
+        deadline = time.monotonic() + HANDLER_TIMEOUT
+        while time.monotonic() < deadline and not _released():
+            time.sleep(0.02)
+        assert _released(), "on_delivery_release was never called"
+        context, message = released[0]
+        assert isinstance(context, TimeoutContext)
+        assert context.delivery_id == delivery_id
+        assert message.body_as_string() == "held-too-long"
+        consumer.close()
+
+    def test_accept_on_the_timeout_context_settles_and_unlocks(self, consuming):
+        released = []
+        handler = RecordingHandler()
+        consumer = consuming.build(
+            handler, on_delivery_release=lambda context, message: released.append(context), credits=1
+        )
+        delivery_id = consuming.deliver("held-too-long")
+        handler.wait(1)
+        consuming.release(delivery_id)
+
+        deadline = time.monotonic() + HANDLER_TIMEOUT
+        while time.monotonic() < deadline and not released:
+            time.sleep(0.02)
+        assert released, "on_delivery_release was never called"
+        released[0].accept()
+        disposition = consuming.next_disposition()
+        assert disposition.role is True
+        assert disposition.first == delivery_id
+        assert isinstance(disposition.state, Accepted)
+        assert consumer.unsettled_message_count == 0
+        with pytest.raises(ConsumerError, match="already been settled"):
+            released[0].accept()
+        consumer.close()
+
+    @pytest.mark.parametrize(
+        "call",
+        [
+            lambda context: context.discard(),
+            lambda context: context.requeue(),
+            lambda context: context.delayed_retry(1_000),
+        ],
+    )
+    def test_only_accept_is_valid_on_a_timeout_context(self, consuming, call):
+        released = []
+        handler = RecordingHandler()
+        consumer = consuming.build(
+            handler, on_delivery_release=lambda context, message: released.append(context), credits=1
+        )
+        delivery_id = consuming.deliver("held-too-long")
+        handler.wait(1)
+        consuming.release(delivery_id)
+
+        deadline = time.monotonic() + HANDLER_TIMEOUT
+        while time.monotonic() < deadline and not released:
+            time.sleep(0.02)
+        assert released, "on_delivery_release was never called"
+        with pytest.raises(ConsumerError, match="only accept\\(\\) is valid"):
+            call(released[0])
+        consuming.expect_no_disposition()
+        consumer.close()
+
+    def test_the_original_context_is_settled_once_the_broker_releases_it(self, consuming):
+        handler = RecordingHandler()
+        consumer = consuming.build(handler, on_delivery_release=lambda context, message: None, credits=1)
+        delivery_id = consuming.deliver("held-too-long")
+        handler.wait(1)
+        original_context = handler.contexts[0]
+        consuming.release(delivery_id)
+
+        def _marked_settled():
+            return original_context.is_settled
+
+        deadline = time.monotonic() + HANDLER_TIMEOUT
+        while time.monotonic() < deadline and not _marked_settled():
+            time.sleep(0.02)
+        assert _marked_settled(), "the original context was never marked settled"
+        with pytest.raises(ConsumerError, match="already been settled"):
+            original_context.accept()
+        consuming.expect_no_disposition()
+        consumer.close()
+
+    def test_a_receiver_role_disposition_is_not_mistaken_for_a_release(self, consuming):
+        released = []
+        handler = RecordingHandler()
+        consumer = consuming.build(
+            handler, on_delivery_release=lambda context, message: released.append(context), credits=1
+        )
+        delivery_id = consuming.deliver("held-too-long")
+        handler.wait(1)
+        # An echo of this client's own settlement carries the receiver's role,
+        # not the broker's, and must never trigger the release handler.
+        consuming.broker.send(
+            consuming.channel,
+            Disposition(role=True, first=delivery_id, last=delivery_id, settled=True, state=Released()),
+        )
+        time.sleep(QUIET_PERIOD)
+        assert released == []
         consumer.close()
 
 

@@ -141,6 +141,7 @@ ARG_QUORUM_TARGET_GROUP_SIZE = "x-quorum-target-group-size"
 ARG_DELAYED_RETRY_TYPE = "x-delayed-retry-type"
 ARG_DELAYED_RETRY_MIN = "x-delayed-retry-min"
 ARG_DELAYED_RETRY_MAX = "x-delayed-retry-max"
+ARG_CONSUMER_TIMEOUT = "x-consumer-timeout"
 ARG_MAX_PRIORITY = "x-max-priority"
 ARG_QUEUE_MODE = "x-queue-mode"
 ARG_QUEUE_VERSION = "x-queue-version"
@@ -1512,6 +1513,21 @@ class QuorumQueueSpecification:
         """
         value = _require_positive(ARG_DELAYED_RETRY_MAX, _milliseconds(delayed_retry_max))
         self._parent._set_argument(ARG_DELAYED_RETRY_MAX, Long(value))
+        return self
+
+    def consumer_timeout(self, timeout: int | timedelta) -> QuorumQueueSpecification:
+        """Set ``x-consumer-timeout``, in milliseconds or as a timedelta (step_130 §1).
+
+        Every consumer later attached to this queue is bound by this default
+        unless its own ``attach`` carries the per-consumer override
+        (:meth:`~.consumer.QuorumConsumerOptions.consumer_timeout`, step_130 §2),
+        which always wins for that one link.
+
+        Raises:
+            ValidationError: If it is not within ``1``..:data:`TEN_YEARS_MS`.
+        """
+        value = _require_within(ARG_CONSUMER_TIMEOUT, _milliseconds(timeout), 1, TEN_YEARS_MS)
+        self._parent._set_argument(ARG_CONSUMER_TIMEOUT, Long(value))
         return self
 
 

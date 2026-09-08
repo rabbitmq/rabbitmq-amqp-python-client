@@ -36,10 +36,11 @@ from __future__ import annotations
 
 import re
 import threading
+import time
 import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
@@ -48,8 +49,10 @@ from .constants import (
     AMQP_APPLICATION_PROPERTIES_FILTER,
     AMQP_PROPERTIES_FILTER,
     AMQP_SQL_FILTER,
+    DELIVERY_TIME_ANNOTATION,
     DIRECT_REPLY_TO_CAPABILITY,
     RABBITMQ_ACTIVE_PROPERTY,
+    RABBITMQ_CONSUMER_TIMEOUT_PROPERTY,
     SQL_FILTER_NAME,
     STREAM_FILTER_VALUES_FILTER,
     STREAM_MATCH_UNFILTERED_FILTER,
@@ -83,6 +86,7 @@ from .wire import (
     Source,
     Symbol,
     Timestamp,
+    Uint,
 )
 
 if TYPE_CHECKING:
@@ -105,6 +109,12 @@ DELIVERY_LOOP_JOIN_TIMEOUT_SECONDS = 5.0
 #: Prefix every annotation key a caller attaches to an outcome must carry (§4).
 ANNOTATION_KEY_PREFIX = "x-"
 
+#: Largest value ``rabbitmq:consumer-timeout`` can carry (step_130 §2): the
+#: attach property is a single AMQP ``uint`` field, unlike the queue-level
+#: ``x-consumer-timeout`` argument (management.py's ``TEN_YEARS_MS`` bound),
+#: which is an unrestricted-width ``long``.
+MAX_CONSUMER_TIMEOUT_MS = 0xFFFFFFFF
+
 #: What a relative-interval offset must look like (step_080 §1.1): a count
 #: followed by one of years, months, days, hours, minutes or seconds.
 STREAM_INTERVAL_PATTERN = re.compile(r"^[0-9]+[YMDhms]$")
@@ -123,6 +133,12 @@ MessageHandler = Callable[["Context", Message], None]
 #: quorum queue (step_090 §3). Exceptions escaping it are logged and never
 #: propagate.
 SingleActiveConsumerStateHandler = Callable[["Consumer", bool], None]
+
+#: Called as ``handler(context, message)`` once per delivery the broker
+#: force-releases past this consumer's ``rabbitmq:consumer-timeout``
+#: (step_130 §4). Exceptions escaping it are logged by the release loop and
+#: never propagate.
+DeliveryReleaseHandler = Callable[["TimeoutContext", Message], None]
 
 
 def parse_active_flag(value: Any) -> bool:
@@ -369,6 +385,13 @@ def _refusal_error(refusal: LinkRefusal) -> ConsumerError:
     return ConsumerError(refusal.describe())
 
 
+def _delay_milliseconds(delay: int | timedelta) -> int:
+    """Normalise a delay given as milliseconds or a :class:`~datetime.timedelta` (step_120 §1)."""
+    if isinstance(delay, timedelta):
+        return int(delay.total_seconds() * 1000)
+    return int(delay)
+
+
 def _validated_annotations(annotations: Mapping[str, Any]) -> dict[str, Any]:
     """Return ``annotations`` as a plain dict, refusing keys the broker would not accept.
 
@@ -503,6 +526,41 @@ class Context:
             )
         )
 
+    def delayed_retry(self, delay: int | timedelta, delivery_failed: bool = False) -> None:
+        """Requeue the delivery with a per-message redelivery delay (step_120 §1-§2).
+
+        Pure sugar over :meth:`requeue`: stamps ``x-opt-delivery-time`` (the
+        current time plus ``delay``, as an AMQP ``long`` of milliseconds since the
+        Unix epoch) into the message's annotations. RabbitMQ (quorum queues only,
+        4.3+) holds the redelivery back until at least that point in time has
+        passed; requires none of the queue-level ``x-delayed-retry-*`` arguments
+        (step_001_management.md §5.4) and works alongside them if both are set. A
+        broker/queue type that does not recognise the annotation simply ignores
+        it and redelivers immediately.
+
+        Args:
+            delay: How long to hold the redelivery back, in milliseconds or as a
+                :class:`~datetime.timedelta`.
+            delivery_failed: Same meaning as on :meth:`requeue`.
+
+        Raises:
+            ConsumerError: If the delivery is already settled, was presettled, or
+                the consumer is closed.
+        """
+        delivery_time_ms = int(time.time() * 1000) + _delay_milliseconds(delay)
+        self.requeue({DELIVERY_TIME_ANNOTATION: delivery_time_ms}, delivery_failed)
+
+    def _mark_broker_settled(self) -> None:
+        """Mark this delivery settled without sending anything (step_130 §4).
+
+        Called when the broker's own release ``disposition`` is observed for this
+        delivery before this client settled it (consumer-timeout,
+        :class:`TimeoutContext`) — the broker already settled it, so a later call
+        here must raise instead of sending a second, stale disposition.
+        """
+        with self._lock:
+            self._settled = True
+
     def _settle(self, state: DeliveryState) -> None:
         """Claim the one settlement this context allows, then send it."""
         if self._presettled:
@@ -514,6 +572,78 @@ class Context:
                 raise ConsumerError(f"delivery {self._delivery_id} has already been settled")
             self._settled = True
         self._consumer._settle(self._delivery_id, state)
+
+
+class TimeoutContext:
+    """Settles a delivery the broker force-released via consumer-timeout (step_130 §4).
+
+    Handed to the ``on_delivery_release`` handler once per broker-initiated
+    release (:meth:`QuorumConsumerOptions.on_delivery_release`). Only
+    :meth:`accept` is valid: discarding, requeueing or delaying a delivery the
+    broker has already unilaterally taken back is meaningless, since the
+    broker's decision was not made in response to anything this client sent.
+    Calling :meth:`accept` is what lifts the broker's block on further delivery
+    to this link.
+    """
+
+    def __init__(self, consumer: Consumer, delivery_id: int) -> None:
+        """Bind a context to one broker-released delivery.
+
+        Args:
+            consumer: The consumer whose link the broker released a delivery on.
+            delivery_id: Delivery-id the broker reported as released.
+        """
+        self._consumer = consumer
+        self._delivery_id = delivery_id
+        self._lock = threading.Lock()
+        self._settled = False
+
+    @property
+    def delivery_id(self) -> int:
+        """The delivery-id this context settles."""
+        return self._delivery_id
+
+    @property
+    def is_settled(self) -> bool:
+        """Whether :meth:`accept` already ran."""
+        with self._lock:
+            return self._settled
+
+    def accept(self) -> None:
+        """Acknowledge the release, unlocking the consumer for further delivery.
+
+        Raises:
+            ConsumerError: If already settled, or the consumer is closed.
+        """
+        with self._lock:
+            if self._settled:
+                raise ConsumerError(f"delivery {self._delivery_id} has already been settled")
+            self._settled = True
+        self._consumer._settle(self._delivery_id, Accepted())
+
+    def discard(self, annotations: Mapping[str, Any] | None = None) -> None:
+        """Always raise: discarding a broker-released delivery is not meaningful.
+
+        Raises:
+            ConsumerError: Always.
+        """
+        raise ConsumerError(f"delivery {self._delivery_id} was released by consumer-timeout: only accept() is valid")
+
+    def requeue(self, annotations: Mapping[str, Any] | None = None, delivery_failed: bool = False) -> None:
+        """Always raise: requeueing a broker-released delivery is not meaningful.
+
+        Raises:
+            ConsumerError: Always.
+        """
+        raise ConsumerError(f"delivery {self._delivery_id} was released by consumer-timeout: only accept() is valid")
+
+    def delayed_retry(self, delay: int | timedelta, delivery_failed: bool = False) -> None:
+        """Always raise: delaying a broker-released delivery is not meaningful.
+
+        Raises:
+            ConsumerError: Always.
+        """
+        raise ConsumerError(f"delivery {self._delivery_id} was released by consumer-timeout: only accept() is valid")
 
 
 class Consumer:
@@ -543,6 +673,8 @@ class Consumer:
         settle_strategy: ConsumerSettleStrategy = ConsumerSettleStrategy.EXPLICIT_SETTLE,
         single_active_consumer_handler: SingleActiveConsumerStateHandler | None = None,
         stream_filter: Mapping[str, Any] | None = None,
+        consumer_timeout_ms: int | None = None,
+        on_delivery_release: DeliveryReleaseHandler | None = None,
     ) -> None:
         """Create an unattached consumer; :meth:`open` attaches its link.
 
@@ -563,6 +695,13 @@ class Consumer:
                 (step_090 §3). Without one, the status is never watched for.
             stream_filter: Already-built ``source.filter`` entries to attach with
                 (step_080 §1), as :func:`stream_filter_set` returns them.
+            consumer_timeout_ms: ``rabbitmq:consumer-timeout`` attach property, in
+                milliseconds, or ``None`` to leave it unset and defer to whatever
+                queue-level ``x-consumer-timeout`` default applies (step_130 §2).
+            on_delivery_release: Callback invoked once per delivery the broker
+                force-releases past this timeout (step_130 §4). Without one, the
+                broker's release/block still happens, but this client never
+                learns about it or lifts the block.
         """
         self._connection = connection
         self._session = session
@@ -574,6 +713,8 @@ class Consumer:
         self._single_active_consumer_handler = single_active_consumer_handler
         self._stream_filter = None if stream_filter is None else dict(stream_filter)
         self._last_stream_offset: int | None = None
+        self._consumer_timeout_ms = consumer_timeout_ms
+        self._on_delivery_release_handler = on_delivery_release
         self._logger = _logger
         self._lock = threading.RLock()
         self._closed = False
@@ -585,6 +726,9 @@ class Consumer:
         self._delivery_loop: threading.Thread | None = None
         self._states: Queue[bool] = Queue()
         self._notification_loop: threading.Thread | None = None
+        self._pending_by_delivery_id: dict[int, tuple[Context, Message]] = {}
+        self._releases: Queue[tuple[TimeoutContext, Message]] = Queue()
+        self._release_loop: threading.Thread | None = None
 
     # --- public surface -------------------------------------------------
 
@@ -675,6 +819,7 @@ class Consumer:
         self._attach_link()
         self._start_delivery_loop()
         self._start_notification_loop()
+        self._start_release_loop()
         self._connection._register_consumer(self)
         self._logger.debug("consumer %r attached to queue %r", self.id, self._queue)
 
@@ -748,6 +893,11 @@ class Consumer:
             if self._settle_strategy is ConsumerSettleStrategy.DIRECT_REPLY_TO
             else _consumer_source(self._address, self._effective_stream_filter())
         )
+        attach_properties = (
+            None
+            if self._consumer_timeout_ms is None
+            else {RABBITMQ_CONSUMER_TIMEOUT_PROPERTY: self._consumer_timeout_ms}
+        )
         self._link.attach(
             self._session,
             source=source,
@@ -759,6 +909,7 @@ class Consumer:
                 else SND_SETTLE_MODE_SETTLED
             ),
             rcv_settle_mode=RCV_SETTLE_MODE_FIRST,
+            properties=attach_properties,
         )
         if self._settle_strategy is ConsumerSettleStrategy.DIRECT_REPLY_TO:
             self._resolve_direct_reply_to_address()
@@ -768,6 +919,10 @@ class Consumer:
             # the status. The link replays whatever it buffered before this call,
             # which is what closes step_090 §3's race.
             self._link.on_flow_properties(self._observe_flow_properties)
+        if self._on_delivery_release_handler is not None:
+            # Registered before the initial flow, same as above: a release could
+            # in principle arrive as soon as the link is attached (step_130 §3).
+            self._link.on_release(self._handle_broker_release)
         try:
             self._link.flow(0 if self._paused else self._initial_credits)
         except BaseException:
@@ -848,6 +1003,21 @@ class Consumer:
         )
         self._notification_loop.start()
 
+    def _start_release_loop(self) -> None:
+        """Start the thread that hands broker-initiated releases to their handler (step_130 §4).
+
+        Only a consumer that registered ``on_delivery_release`` gets this
+        thread; an ordinary one costs nothing.
+        """
+        if self._on_delivery_release_handler is None:
+            return
+        self._release_loop = threading.Thread(
+            target=self._run_release_loop,
+            name=f"amqp-{self._name}-release",
+            daemon=True,
+        )
+        self._release_loop.start()
+
     def _reattach(self, session: Session) -> None:
         """Attach a fresh receiver link on ``session`` after a reconnect (step_040 §3.3).
 
@@ -875,6 +1045,9 @@ class Consumer:
             self._session = session
             self._link = ReceiverLink(self._name)
             self._unsettled = 0
+            # The old link's unsettled deliveries, and whatever the broker might
+            # have released on it, are moot once that link is gone.
+            self._pending_by_delivery_id = {}
             if self._settle_strategy is ConsumerSettleStrategy.DIRECT_REPLY_TO:
                 # The pseudo-queue is session-scoped (step_060_consumer_strategy.md
                 # §3.3 point 5): it dies with the old session, and the fresh attach
@@ -885,6 +1058,7 @@ class Consumer:
         self._stopped.clear()
         self._start_delivery_loop()
         self._start_notification_loop()
+        self._start_release_loop()
         self._logger.debug("consumer %r re-attached to queue %r", self.id, self._queue)
 
     def _run_delivery_loop(self) -> None:
@@ -911,6 +1085,51 @@ class Consumer:
                 continue
             self._notify(is_active)
         self._logger.debug("the notification loop of consumer %r stopped", self.id)
+
+    def _run_release_loop(self) -> None:
+        """Hand every broker-initiated release to its handler until stopped (step_130 §4)."""
+        while not self._stopped.is_set():
+            try:
+                context, message = self._releases.get(timeout=DELIVERY_POLL_INTERVAL_SECONDS)
+            except Empty:
+                continue
+            self._dispatch_release(context, message)
+        self._logger.debug("the release loop of consumer %r stopped", self.id)
+
+    def _dispatch_release(self, context: TimeoutContext, message: Message) -> None:
+        """Invoke ``on_delivery_release`` for one broker-released delivery, absorbing whatever it raises."""
+        handler = self._on_delivery_release_handler
+        if handler is None:
+            return
+        try:
+            handler(context, message)
+        except Exception:  # a bad handler must not stop the next release (step_130 §4)
+            self._logger.exception("the delivery-release handler of consumer %r raised", self.id)
+
+    def _handle_broker_release(self, first: int, last: int) -> None:
+        """Correlate a broker-initiated release with its pending delivery (step_130 §3).
+
+        Runs on the connection's frame-reader thread: only looks up and marks
+        state, then hands off to the release loop, exactly as
+        :meth:`_observe_flow_properties` only parses and enqueues.
+
+        Args:
+            first: First delivery-id of the released range, inclusive.
+            last: Last delivery-id of the released range, inclusive.
+        """
+        releases: list[tuple[TimeoutContext, Message]] = []
+        with self._lock:
+            for delivery_id in range(first, last + 1):
+                entry = self._pending_by_delivery_id.pop(delivery_id, None)
+                if entry is None:
+                    # Already settled by the handler before the broker's release
+                    # arrived, or not a delivery this consumer is tracking.
+                    continue
+                context, message = entry
+                context._mark_broker_settled()
+                releases.append((TimeoutContext(self, delivery_id), message))
+        for release in releases:
+            self._releases.put(release)
 
     def _observe_flow_properties(self, properties: Mapping[Any, Any]) -> None:
         """Queue the ``rabbitmq:active`` status carried by one ``flow`` (step_090 §1).
@@ -956,6 +1175,10 @@ class Consumer:
                 self._replenish_credit()
             else:
                 self._unsettled += 1
+                if self._on_delivery_release_handler is not None:
+                    # Only tracked when the feature is actually in use (step_130
+                    # §4) — an ordinary consumer pays nothing for this.
+                    self._pending_by_delivery_id[delivery.delivery_id] = (context, delivery.message)
         try:
             self._handler(context, delivery.message)
         except Exception:  # a bad handler invocation must not stop delivery (§3.2)
@@ -973,6 +1196,7 @@ class Consumer:
             self._require_open()
             self._link.settle(delivery_id, state)
             self._unsettled = max(0, self._unsettled - 1)
+            self._pending_by_delivery_id.pop(delivery_id, None)
             self._replenish_credit()
 
     def _replenish_credit(self) -> None:
@@ -992,9 +1216,10 @@ class Consumer:
             self._logger.warning("consumer %r could not replenish link credit: %s", self.id, error)
 
     def _join_loops(self) -> None:
-        """Wait for both of this consumer's loops to notice they must stop."""
+        """Wait for every one of this consumer's loops to notice they must stop."""
         self._join_loop(self._delivery_loop, "delivery loop")
         self._join_loop(self._notification_loop, "notification loop")
+        self._join_loop(self._release_loop, "release loop")
 
     def _join_loop(self, thread: threading.Thread | None, description: str) -> None:
         """Wait for one loop thread to stop, unless it never started or we are it.
@@ -1058,6 +1283,8 @@ class ConsumerBuilder:
         self._settle_strategy = ConsumerSettleStrategy.EXPLICIT_SETTLE
         self._single_active_consumer_handler: SingleActiveConsumerStateHandler | None = None
         self._stream = StreamConfiguration()
+        self._consumer_timeout_ms: int | None = None
+        self._on_delivery_release_handler: DeliveryReleaseHandler | None = None
 
     # --- setters --------------------------------------------------------
 
@@ -1221,6 +1448,8 @@ class ConsumerBuilder:
             settle_strategy=strategy,
             single_active_consumer_handler=self._single_active_consumer_handler,
             stream_filter=stream_filter,
+            consumer_timeout_ms=self._consumer_timeout_ms,
+            on_delivery_release=self._on_delivery_release_handler,
         )
         consumer.open()
         return consumer
@@ -1272,6 +1501,53 @@ class QuorumConsumerOptions:
             This view.
         """
         self._parent._single_active_consumer_handler = handler
+        return self
+
+    def consumer_timeout(self, timeout: int | timedelta) -> QuorumConsumerOptions:
+        """Set the ``rabbitmq:consumer-timeout`` attach property for this consumer (step_130 §2).
+
+        Overrides whatever queue-level ``x-consumer-timeout`` default
+        (:meth:`~.management.QuorumQueueSpecification.consumer_timeout`,
+        step_130 §1) applies to this queue, for this one link only.
+
+        Args:
+            timeout: The timeout, in milliseconds or as a
+                :class:`~datetime.timedelta`.
+
+        Returns:
+            This view.
+
+        Raises:
+            ValidationError: If not within ``1``..:data:`MAX_CONSUMER_TIMEOUT_MS`
+                — the widest value the underlying AMQP ``uint`` attach-property
+                field can carry.
+        """
+        milliseconds = _delay_milliseconds(timeout)
+        if not 1 <= milliseconds <= MAX_CONSUMER_TIMEOUT_MS:
+            raise ValidationError(f"consumer_timeout must be in 1..{MAX_CONSUMER_TIMEOUT_MS}, got {milliseconds}")
+        # Must be encoded as an AMQP uint, not the plain (signed) int/long
+        # encode_value() would otherwise infer — RabbitMQ 4.3.5 silently
+        # ignores rabbitmq:consumer-timeout when it isn't a uint on the wire.
+        self._parent._consumer_timeout_ms = Uint(milliseconds)
+        return self
+
+    def on_delivery_release(self, handler: DeliveryReleaseHandler) -> QuorumConsumerOptions:
+        """Register the callback invoked when the broker force-releases a timed-out delivery (step_130 §4).
+
+        Args:
+            handler: Called as ``handler(context, message)`` on the consumer's
+                own release thread, once per delivery the broker reports
+                ``released`` for on this link without this client itself having
+                settled it. It must catch its own exceptions: anything escaping
+                it is only logged (step_130 §4). Calling this again replaces the
+                previously registered handler. Registering it is what makes the
+                client watch for the broker's release at all — without it, the
+                broker's block on further delivery to this link is never lifted.
+
+        Returns:
+            This view.
+        """
+        self._parent._on_delivery_release_handler = handler
         return self
 
 
@@ -1470,6 +1746,7 @@ __all__ = [
     "ConsumerBuilder",
     "ConsumerSettleStrategy",
     "Context",
+    "DeliveryReleaseHandler",
     "MessageHandler",
     "QuorumConsumerOptions",
     "SingleActiveConsumerStateHandler",
@@ -1478,6 +1755,7 @@ __all__ = [
     "StreamOffset",
     "StreamOffsetSpecification",
     "StreamOptions",
+    "TimeoutContext",
     "parse_active_flag",
     "stream_filter_set",
     "stream_offset_filter_value",
