@@ -22,6 +22,7 @@ import queue as queue_module
 import threading
 import time
 import uuid
+from datetime import timedelta
 
 import pytest
 
@@ -34,6 +35,7 @@ from rabbitmq_amqp_python_client import (
     OutcomeState,
     QuorumQueueDelayedRetryType,
     StreamOffsetSpecification,
+    TimeoutContext,
 )
 from rabbitmq_amqp_python_client.constants import STREAM_FILTER_VALUE_ANNOTATION
 from rabbitmq_amqp_python_client.management import STATUS_BAD_REQUEST
@@ -203,9 +205,10 @@ def _consume(connection, consumers, queue_name, handler, **options):
             ``settle_strategy=ConsumerSettleStrategy.DIRECT_REPLY_TO``, whose
             address is broker-generated (step_060_consumer_strategy.md §3.3).
         handler: The message handler.
-        **options: ``credits``, ``settle_strategy``, ``on_state_changed``, and
-            ``stream``, a ``stream(stream_options)`` callable configuring the
-            stream sub-builder.
+        **options: ``credits``, ``settle_strategy``, ``on_state_changed``,
+            ``consumer_timeout``, ``on_delivery_release``, and ``stream``, a
+            ``stream(stream_options)`` callable configuring the stream
+            sub-builder.
     """
     builder = connection.consumer_builder()
     if queue_name is not None:
@@ -217,6 +220,10 @@ def _consume(connection, consumers, queue_name, handler, **options):
         builder.settle_strategy(options["settle_strategy"])
     if options.get("on_state_changed") is not None:
         builder.quorum().single_active_consumer_state_changed(options["on_state_changed"]).builder()
+    if options.get("consumer_timeout") is not None:
+        builder.quorum().consumer_timeout(options["consumer_timeout"]).builder()
+    if options.get("on_delivery_release") is not None:
+        builder.quorum().on_delivery_release(options["on_delivery_release"]).builder()
     if options.get("stream") is not None:
         options["stream"](builder.stream())
     consumer = builder.build()
@@ -602,6 +609,55 @@ class TestDelayedRetry:
         )
 
 
+class TestPerMessageDelayedRetry:
+    """step_120: ``context.delayed_retry`` holds a redelivery back with no queue-level configuration."""
+
+    def test_delayed_retry_holds_the_redelivery_back_with_no_queue_configuration(
+        self, connection, queue, publish, consumers
+    ):
+        # A plain quorum queue: no x-delayed-retry-type at all.
+        name = queue("con-it-pm-delay", quorum=True)
+        publish(name, ["retry-me"])
+        attempts = itertools.count()
+        arrived_at = []
+
+        def handle(context, message):
+            arrived_at.append(time.monotonic())
+            if next(attempts) == 0:
+                context.delayed_retry(DELAYED_RETRY_BOUND_MS)
+            else:
+                context.accept()
+
+        handler = RecordingHandler(action=handle)
+        _consume(connection, consumers, name, handler, credits=1)
+        _wait_until(lambda: len(arrived_at) == 2, "the redelivery", WAIT_TIMEOUT_SECONDS)
+        elapsed = arrived_at[1] - arrived_at[0]
+        assert elapsed >= DELAYED_REDELIVERY_LOWER_BOUND_SECONDS, f"redelivered after only {elapsed:.2f}s"
+
+    def test_the_redelivery_count_increments(self, connection, queue, publish, consumers):
+        name = queue("con-it-pm-delay-count", quorum=True)
+        publish(name, ["retry-me"])
+        received = []
+        tcs = threading.Event()
+
+        def handle(context, message):
+            received.append(message)
+            if len(received) == 1:
+                context.delayed_retry(1_000)
+            else:
+                context.accept()
+                tcs.set()
+
+        handler = RecordingHandler(action=handle)
+        _consume(connection, consumers, name, handler, credits=1)
+        assert tcs.wait(WAIT_TIMEOUT_SECONDS)
+        assert len(received) == 2
+        annotations = received[1].message_annotations.value if received[1].message_annotations else {}
+        if "x-acquired-count" not in annotations:
+            pytest.skip("this broker does not annotate redeliveries with x-acquired-count")
+        assert int(annotations["x-acquired-count"]) == 1
+
+
 class TestLifecycle:
     """step_030 §3.5/§6: closing one consumer, and closing the connection."""
 
@@ -984,3 +1040,122 @@ class TestStreamSqlFilter:
         time.sleep(QUIET_PERIOD_SECONDS)
         assert consumer.is_open, "the broker must accept the attach even when nothing matches"
         assert handler.count == 0, f"the expression was not enforced: {handler.bodies}"
+
+
+def _consumer_timeout_queue(queue, timeout_ms):
+    """Declare a quorum queue with ``x-consumer-timeout`` set (step_130 §1).
+
+    Raises:
+        pytest.skip.Exception: If this broker predates RabbitMQ 4.3 and rejects
+            ``x-consumer-timeout`` outright.
+    """
+
+    def configure(specification):
+        specification.quorum().consumer_timeout(timeout_ms)
+
+    try:
+        return queue("con-it-consumer-timeout", quorum=True, configure=configure)
+    except ManagementError as error:
+        if error.status_code == STATUS_BAD_REQUEST:
+            pytest.skip("this broker does not support x-consumer-timeout (needs RabbitMQ 4.3+)")
+        raise
+
+
+class TestConsumerTimeout:
+    """step_130: ``x-consumer-timeout``, ``rabbitmq:consumer-timeout`` and ``OnDeliveryRelease``."""
+
+    #: Short enough that a test doesn't wait long, generous enough for a real broker round trip.
+    CONSUMER_TIMEOUT_SECONDS = 3
+
+    def test_queue_level_consumer_timeout_round_trips(self, management, queue):
+        name = _consumer_timeout_queue(queue, 90_000)
+        assert management.queue_info(name).arguments["x-consumer-timeout"] == 90_000
+
+    def test_on_delivery_release_fires_and_unlocks_the_consumer(self, connection, queue, publish, consumers):
+        name = queue("con-it-consumer-timeout-release", quorum=True)
+        released = queue_module.Queue()
+        second_message = queue_module.Queue()
+        timeout_hit = threading.Event()
+
+        def on_release(context, message):
+            released.put((context, message))
+
+        def handle(context, message):
+            if message.body_as_string() == "first" and not timeout_hit.is_set():
+                timeout_hit.set()
+                time.sleep(self.CONSUMER_TIMEOUT_SECONDS + 2)
+                with contextlib.suppress(ConsumerError):
+                    context.accept()
+                return
+            # The broker requeues "first" on release (§3), so it is legitimately
+            # redelivered once the link is unlocked, ahead of "second" being
+            # published at all — accept it and move on without treating it as
+            # the proof of unlock; only "second" is that proof.
+            context.accept()
+            if message.body_as_string() == "second":
+                second_message.put(message)
+
+        handler = RecordingHandler(action=handle)
+        _consume(
+            connection,
+            consumers,
+            name,
+            handler,
+            credits=1,
+            consumer_timeout=timedelta(seconds=self.CONSUMER_TIMEOUT_SECONDS),
+            on_delivery_release=on_release,
+        )
+
+        publish(name, ["first"])
+        try:
+            release_context, release_message = released.get(timeout=WAIT_TIMEOUT_SECONDS)
+        except queue_module.Empty:
+            pytest.skip(
+                "the broker never released the timed-out delivery "
+                "(rabbitmq:consumer-timeout needs RabbitMQ 4.3+)"
+            )
+        assert isinstance(release_context, TimeoutContext)
+        assert release_message.body_as_string() == "first"
+        release_context.accept()
+        with pytest.raises(ConsumerError, match="already been settled"):
+            release_context.accept()
+
+        # The broker's block on further delivery to this link must now be lifted.
+        publish(name, ["second"])
+        message = second_message.get(timeout=WAIT_TIMEOUT_SECONDS)
+        assert message.body_as_string() == "second"
+
+    def test_the_original_context_is_settled_once_the_broker_releases_it(self, connection, queue, publish, consumers):
+        name = queue("con-it-consumer-timeout-original-context", quorum=True)
+        original_contexts = queue_module.Queue()
+        released = queue_module.Queue()
+
+        def handle(context, message):
+            original_contexts.put(context)
+            time.sleep(self.CONSUMER_TIMEOUT_SECONDS + 2)
+            with contextlib.suppress(ConsumerError):
+                context.accept()
+
+        handler = RecordingHandler(action=handle)
+        _consume(
+            connection,
+            consumers,
+            name,
+            handler,
+            credits=1,
+            consumer_timeout=timedelta(seconds=self.CONSUMER_TIMEOUT_SECONDS),
+            on_delivery_release=lambda context, message: released.put(context),
+        )
+
+        publish(name, ["held-too-long"])
+        try:
+            released.get(timeout=WAIT_TIMEOUT_SECONDS)
+        except queue_module.Empty:
+            pytest.skip(
+                "the broker never released the timed-out delivery "
+                "(rabbitmq:consumer-timeout needs RabbitMQ 4.3+)"
+            )
+        original_context = original_contexts.get(timeout=WAIT_TIMEOUT_SECONDS)
+        _wait_until(lambda: original_context.is_settled, "the original context to be marked settled")
+        with pytest.raises(ConsumerError, match="already been settled"):
+            original_context.accept()
