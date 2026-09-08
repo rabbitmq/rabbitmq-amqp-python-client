@@ -627,9 +627,7 @@ class TimeoutContext:
         Raises:
             ConsumerError: Always.
         """
-        raise ConsumerError(
-            f"delivery {self._delivery_id} was released by consumer-timeout: only accept() is valid"
-        )
+        raise ConsumerError(f"delivery {self._delivery_id} was released by consumer-timeout: only accept() is valid")
 
     def requeue(self, annotations: Mapping[str, Any] | None = None, delivery_failed: bool = False) -> None:
         """Always raise: requeueing a broker-released delivery is not meaningful.
@@ -637,9 +635,7 @@ class TimeoutContext:
         Raises:
             ConsumerError: Always.
         """
-        raise ConsumerError(
-            f"delivery {self._delivery_id} was released by consumer-timeout: only accept() is valid"
-        )
+        raise ConsumerError(f"delivery {self._delivery_id} was released by consumer-timeout: only accept() is valid")
 
     def delayed_retry(self, delay: int | timedelta, delivery_failed: bool = False) -> None:
         """Always raise: delaying a broker-released delivery is not meaningful.
@@ -647,9 +643,7 @@ class TimeoutContext:
         Raises:
             ConsumerError: Always.
         """
-        raise ConsumerError(
-            f"delivery {self._delivery_id} was released by consumer-timeout: only accept() is valid"
-        )
+        raise ConsumerError(f"delivery {self._delivery_id} was released by consumer-timeout: only accept() is valid")
 
 
 class Consumer:
@@ -1530,9 +1524,7 @@ class QuorumConsumerOptions:
         """
         milliseconds = _delay_milliseconds(timeout)
         if not 1 <= milliseconds <= MAX_CONSUMER_TIMEOUT_MS:
-            raise ValidationError(
-                f"consumer_timeout must be in 1..{MAX_CONSUMER_TIMEOUT_MS}, got {milliseconds}"
-            )
+            raise ValidationError(f"consumer_timeout must be in 1..{MAX_CONSUMER_TIMEOUT_MS}, got {milliseconds}")
         # Must be encoded as an AMQP uint, not the plain (signed) int/long
         # encode_value() would otherwise infer — RabbitMQ 4.3.5 silently
         # ignores rabbitmq:consumer-timeout when it isn't a uint on the wire.

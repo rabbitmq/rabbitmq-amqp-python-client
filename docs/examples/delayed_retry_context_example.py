@@ -85,7 +85,9 @@ def delayed_retry_context() -> None:
 
             elapsed = arrived_at[1] - arrived_at[0]
             logger.info("the redelivery arrived after %.2fs (requested delay was %.2fs)", elapsed, DELAY_SECONDS)
-            assert elapsed >= DELAY_SECONDS * 0.5, f"delayed_retry should have held the redelivery back, took {elapsed:.2f}s"
+            assert elapsed >= DELAY_SECONDS * 0.5, (
+                f"delayed_retry should have held the redelivery back, took {elapsed:.2f}s"
+            )
         finally:
             consumer.close()
 

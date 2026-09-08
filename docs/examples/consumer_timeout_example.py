@@ -61,7 +61,11 @@ def consumer_timeout() -> None:
         timeout_triggered = False
 
         def on_delivery_release(context: TimeoutContext, message: Message) -> None:
-            logger.info("broker released %r past the %.1fs consumer-timeout; accepting", message.body_as_string(), CONSUMER_TIMEOUT_SECONDS)
+            logger.info(
+                "broker released %r past the %.1fs consumer-timeout; accepting",
+                message.body_as_string(),
+                CONSUMER_TIMEOUT_SECONDS,
+            )
             context.accept()
             released.append((context, message))
 

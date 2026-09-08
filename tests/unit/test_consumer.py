@@ -1205,9 +1205,7 @@ class TestConsumerTimeout:
 
     def test_the_original_context_is_settled_once_the_broker_releases_it(self, consuming):
         handler = RecordingHandler()
-        consumer = consuming.build(
-            handler, on_delivery_release=lambda context, message: None, credits=1
-        )
+        consumer = consuming.build(handler, on_delivery_release=lambda context, message: None, credits=1)
         delivery_id = consuming.deliver("held-too-long")
         handler.wait(1)
         original_context = handler.contexts[0]

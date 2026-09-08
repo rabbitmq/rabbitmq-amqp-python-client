@@ -1111,8 +1111,7 @@ class TestConsumerTimeout:
             release_context, release_message = released.get(timeout=WAIT_TIMEOUT_SECONDS)
         except queue_module.Empty:
             pytest.skip(
-                "the broker never released the timed-out delivery "
-                "(rabbitmq:consumer-timeout needs RabbitMQ 4.3+)"
+                "the broker never released the timed-out delivery (rabbitmq:consumer-timeout needs RabbitMQ 4.3+)"
             )
         assert isinstance(release_context, TimeoutContext)
         assert release_message.body_as_string() == "first"
@@ -1152,8 +1151,7 @@ class TestConsumerTimeout:
             released.get(timeout=WAIT_TIMEOUT_SECONDS)
         except queue_module.Empty:
             pytest.skip(
-                "the broker never released the timed-out delivery "
-                "(rabbitmq:consumer-timeout needs RabbitMQ 4.3+)"
+                "the broker never released the timed-out delivery (rabbitmq:consumer-timeout needs RabbitMQ 4.3+)"
             )
         original_context = original_contexts.get(timeout=WAIT_TIMEOUT_SECONDS)
         _wait_until(lambda: original_context.is_settled, "the original context to be marked settled")
