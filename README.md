@@ -3,6 +3,7 @@ This library is meant to be used with RabbitMQ `4.x`.
 
 ## Version 2.0 is coming
 
+Version 1.0 will be deprecated in the November 2026. 
 Please follow the [version 2.0](https://github.com/rabbitmq/rabbitmq-amqp-python-client/discussions/123)
 Consider upgrading the library to version 2.0. Check the [2.x releases](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases)  
 
