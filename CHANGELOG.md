@@ -6,6 +6,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [[1.0.1](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v1.0.1)]
+
+## 1.0.1 - 2026-09-01
+- [Release 1.0.1](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v1.0.1)
+
+### Fixed
+- Redact password in log statement by @greenbigfrog in [#130](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/130)
+
+
 ## [[1.0.0](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v1.0.0)]
 
 ## 1.0.0 - 2026-07-20
