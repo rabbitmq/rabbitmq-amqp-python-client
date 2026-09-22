@@ -490,7 +490,7 @@ class TestReceive:
         receiver = _attached_receiver(broker, session)
         receiver.flow(5)
         broker.send_transfer(session.channel, receiver.handle, Message("first").encode(), delivery_id=0)
-        _poll(lambda: not receiver._deliveries.empty())
+        _poll(lambda: receiver.buffered_delivery_count > 0)
         broker.drop_connection()
         assert receiver.receive(timeout=1.0).message.body_as_string() == "first"
         with pytest.raises(ProtocolError):
