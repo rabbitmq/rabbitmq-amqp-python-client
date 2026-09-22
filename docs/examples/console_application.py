@@ -10,6 +10,15 @@ both confirmed and consumed, so this doubles as a scriptable smoke test::
     python3 docs/examples/console_application.py --messages 500 --queue-type quorum
     python3 docs/examples/console_application.py --help
 
+Every flag also has an ``AMQP_*`` environment variable that sets its default
+(a flag given on the command line always wins); see each flag's ``--help``
+text for its variable's name. That is what lets docs/examples/docker/Dockerfile
+run this script as a container configured entirely through ``docker run -e``,
+with nothing broker-specific baked into the image::
+
+    docker build -f docs/examples/docker/Dockerfile -t console-application .
+    docker run --rm -e AMQP_HOST=rabbitmq -e AMQP_MESSAGES=500 console-application
+
 This program adds nothing to the client's public surface: it is built entirely
 out of :class:`~rabbitmq_amqp_python_client.Connection`,
 :class:`~rabbitmq_amqp_python_client.Management`,
@@ -33,6 +42,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import ssl
 import sys
 import threading
@@ -44,9 +54,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
 
 # Make the client importable when this example is run straight from a checkout,
-# with neither the package installed nor PYTHONPATH set.
-_SOURCE_ROOT = Path(__file__).resolve().parents[2]
-if _SOURCE_ROOT.is_dir() and str(_SOURCE_ROOT) not in sys.path:
+# with neither the package installed nor PYTHONPATH set. Guarded by a length
+# check because a containerized copy of this script (see docs/examples/docker/)
+# lives too shallow in the image's filesystem for a third parent to exist.
+_RESOLVED_PARENTS = Path(__file__).resolve().parents
+_SOURCE_ROOT = _RESOLVED_PARENTS[2] if len(_RESOLVED_PARENTS) > 2 else None
+if _SOURCE_ROOT is not None and _SOURCE_ROOT.is_dir() and str(_SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(_SOURCE_ROOT))
 
 from rabbitmq_amqp_python_client import (  # noqa: E402 - after the sys.path bootstrap above
@@ -92,6 +105,79 @@ QUEUE_TYPES = (QUEUE_TYPE_CLASSIC, QUEUE_TYPE_QUORUM, QUEUE_TYPE_STREAM)
 
 #: Prefix of the queue name generated when ``--queue`` is not given.
 GENERATED_QUEUE_PREFIX = "console-app-"
+
+# --- environment overrides (§2) -----------------------------------------
+#
+# Every flag below also reads an ``AMQP_*`` environment variable as its
+# default, before argparse's own default applies; a flag given on the command
+# line always wins. This is what lets docs/examples/docker/Dockerfile
+# configure a run entirely through ``docker run -e``, with no broker detail
+# baked into the image.
+
+_ENV_TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
+_ENV_FALSE_VALUES = frozenset({"0", "false", "no", "off"})
+
+
+def _env_str(name: str, default: str) -> str:
+    """Return the string environment variable ``name``, or ``default`` if unset."""
+    return os.environ.get(name, default)
+
+
+def _env_optional_int(name: str) -> int | None:
+    """Return ``name`` parsed as an int, or ``None`` if unset.
+
+    Raises:
+        OptionsError: If ``name`` is set but is not a valid integer.
+    """
+    value = os.environ.get(name)
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        raise OptionsError(f"{name}={value!r} is not a valid integer") from None
+
+
+def _env_int(name: str, default: int) -> int:
+    """Return ``name`` parsed as an int, or ``default`` if unset."""
+    value = _env_optional_int(name)
+    return default if value is None else value
+
+
+def _env_float(name: str, default: float) -> float:
+    """Return ``name`` parsed as a float, or ``default`` if unset.
+
+    Raises:
+        OptionsError: If ``name`` is set but is not a valid float.
+    """
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        raise OptionsError(f"{name}={value!r} is not a valid float") from None
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    """Return the boolean ``name`` is set to, or ``default`` if unset.
+
+    Accepts ``1``/``true``/``yes``/``on`` and ``0``/``false``/``no``/``off``,
+    case-insensitively.
+
+    Raises:
+        OptionsError: If ``name`` is set to anything else.
+    """
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in _ENV_TRUE_VALUES:
+        return True
+    if normalized in _ENV_FALSE_VALUES:
+        return False
+    raise OptionsError(f"{name}={value!r} is not a valid boolean (true/false, yes/no, on/off, 1/0)")
+
 
 # --- timing -------------------------------------------------------------
 
@@ -169,8 +255,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     Returns:
         A parser whose defaults match :class:`Options`', except for ``--queue``,
-        which is generated per run by :func:`parse_args`.
+        which is generated per run by :func:`parse_args`. Every default is first
+        read from its ``AMQP_*`` environment variable, falling back to
+        :class:`Options`' own default when that variable is unset.
+
+    Raises:
+        OptionsError: If an ``AMQP_*`` environment variable is set to a value
+            its flag cannot accept — the same rejection :func:`parse_args`
+            raises for a bad command-line value, just discovered earlier.
     """
+    queue_type_default = _env_str("AMQP_QUEUE_TYPE", QUEUE_TYPE_CLASSIC)
+    if queue_type_default not in QUEUE_TYPES:
+        raise OptionsError(f"AMQP_QUEUE_TYPE={queue_type_default!r} must be one of {', '.join(QUEUE_TYPES)}")
+
     parser = argparse.ArgumentParser(
         prog="console_application.py",
         description="Publish and consume messages against one RabbitMQ queue, then report what happened.",
@@ -179,52 +276,87 @@ def build_parser() -> argparse.ArgumentParser:
         "-n",
         "--messages",
         type=int,
-        default=DEFAULT_MESSAGE_COUNT,
-        help="how many messages to publish (default: %(default)s); 0 is rejected",
+        default=_env_int("AMQP_MESSAGES", DEFAULT_MESSAGE_COUNT),
+        help="how many messages to publish (default: %(default)s, env: AMQP_MESSAGES); 0 is rejected",
     )
     parser.add_argument(
         "--queue-type",
         choices=QUEUE_TYPES,
-        default=QUEUE_TYPE_CLASSIC,
-        help="which queue sub-builder declares the queue (default: %(default)s)",
+        default=queue_type_default,
+        help="which queue sub-builder declares the queue (default: %(default)s, env: AMQP_QUEUE_TYPE)",
     )
-    parser.add_argument("--queue", default="", help="queue name (default: a generated console-app-* name)")
-    parser.add_argument("--keep-queue", action="store_true", help="do not delete the queue during teardown")
+    parser.add_argument(
+        "--queue",
+        default=_env_str("AMQP_QUEUE", ""),
+        help="queue name (default: a generated console-app-* name, env: AMQP_QUEUE)",
+    )
+    parser.add_argument(
+        "--keep-queue",
+        action="store_true",
+        default=_env_bool("AMQP_KEEP_QUEUE", False),
+        help="do not delete the queue during teardown (env: AMQP_KEEP_QUEUE)",
+    )
     parser.add_argument(
         "--consume-timeout",
         type=float,
-        default=DEFAULT_CONSUME_TIMEOUT_SECONDS,
-        help="seconds to wait for consumption to catch up (default: %(default)s)",
+        default=_env_float("AMQP_CONSUME_TIMEOUT", DEFAULT_CONSUME_TIMEOUT_SECONDS),
+        help="seconds to wait for consumption to catch up (default: %(default)s, env: AMQP_CONSUME_TIMEOUT)",
     )
     parser.add_argument(
         "--publish-timeout",
         type=float,
-        default=DEFAULT_PUBLISH_TIMEOUT_SECONDS,
-        help="per-call publish timeout, in seconds (default: %(default)s)",
+        default=_env_float("AMQP_PUBLISH_TIMEOUT", DEFAULT_PUBLISH_TIMEOUT_SECONDS),
+        help="per-call publish timeout, in seconds (default: %(default)s, env: AMQP_PUBLISH_TIMEOUT)",
     )
     parser.add_argument(
         "--stats-interval",
         type=float,
-        default=DEFAULT_STATS_INTERVAL_SECONDS,
-        help="seconds between periodic stats blocks (default: %(default)s)",
+        default=_env_float("AMQP_STATS_INTERVAL", DEFAULT_STATS_INTERVAL_SECONDS),
+        help="seconds between periodic stats blocks (default: %(default)s, env: AMQP_STATS_INTERVAL)",
     )
-    parser.add_argument("--host", default="localhost", help="broker host (default: %(default)s)")
-    parser.add_argument("--port", type=int, default=None, help="broker port (default: 5672, or 5671 with --tls)")
-    parser.add_argument("--user", default="guest", help="SASL PLAIN username (default: %(default)s)")
-    parser.add_argument("--password", default="guest", help="SASL PLAIN password (default: %(default)s)")
-    parser.add_argument("--vhost", default="/", help="virtual host (default: %(default)s)")
-    parser.add_argument("--tls", action="store_true", help="wrap the connection in TLS")
+    parser.add_argument(
+        "--host",
+        default=_env_str("AMQP_HOST", "localhost"),
+        help="broker host (default: %(default)s, env: AMQP_HOST)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=_env_optional_int("AMQP_PORT"),
+        help="broker port (default: 5672, or 5671 with --tls; env: AMQP_PORT)",
+    )
+    parser.add_argument(
+        "--user",
+        default=_env_str("AMQP_USER", "guest"),
+        help="SASL PLAIN username (default: %(default)s, env: AMQP_USER)",
+    )
+    parser.add_argument(
+        "--password",
+        default=_env_str("AMQP_PASSWORD", "guest"),
+        help="SASL PLAIN password (default: %(default)s, env: AMQP_PASSWORD)",
+    )
+    parser.add_argument(
+        "--vhost",
+        default=_env_str("AMQP_VHOST", "/"),
+        help="virtual host (default: %(default)s, env: AMQP_VHOST)",
+    )
+    parser.add_argument(
+        "--tls",
+        action="store_true",
+        default=_env_bool("AMQP_TLS", False),
+        help="wrap the connection in TLS (env: AMQP_TLS)",
+    )
     parser.add_argument(
         "--recovery",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="auto-reconnect after an unexpected disconnect (default: enabled)",
+        default=_env_bool("AMQP_RECOVERY", True),
+        help="auto-reconnect after an unexpected disconnect (default: enabled, env: AMQP_RECOVERY)",
     )
     parser.add_argument(
         "--recovery-topology",
         action=argparse.BooleanOptionalAction,
-        default=False,
-        help="redeclare recorded topology after a reconnect (default: disabled)",
+        default=_env_bool("AMQP_RECOVERY_TOPOLOGY", False),
+        help="redeclare recorded topology after a reconnect (default: disabled, env: AMQP_RECOVERY_TOPOLOGY)",
     )
     return parser
 
