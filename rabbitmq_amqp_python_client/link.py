@@ -809,6 +809,21 @@ class ReceiverLink(Link):
             drain=drain,
         )
 
+    def flow_with_outstanding_window(self, initial_credits: int, reclaimed_delivery_count: int) -> None:
+        """Grant the remaining window from one consistent received-deliveries snapshot."""
+        session = self._require_attached()
+        with self._cond:
+            delivery_count = self._delivery_count
+            outstanding = max(0, delivery_count - reclaimed_delivery_count)
+            link_credit = max(0, initial_credits - outstanding)
+            self._credit = link_credit
+        session.send_flow(
+            handle=self.handle,
+            delivery_count=delivery_count,
+            link_credit=link_credit,
+            drain=False,
+        )
+
     def receive(self, timeout: float | None = None) -> Delivery | None:
         """Block until the next delivery is fully reassembled.
 

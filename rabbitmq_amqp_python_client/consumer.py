@@ -720,6 +720,7 @@ class Consumer:
         self._closed = False
         self._paused = False
         self._unsettled = 0
+        self._reclaimed_delivery_count = 0
         self._stopped = threading.Event()
         self._name = f"{CONSUMER_LINK_PREFIX}-{uuid.uuid4().hex}"
         self._link = ReceiverLink(self._name)
@@ -856,7 +857,7 @@ class Consumer:
             if not self._paused:
                 return
             self._paused = False
-            self._link.flow(max(0, self._initial_credits - self._outstanding_delivery_count()))
+            self._link.flow_with_outstanding_window(self._initial_credits, self._reclaimed_delivery_count)
         self._logger.debug("consumer %r unpaused", self.id)
 
     def close(self) -> None:
@@ -1048,6 +1049,7 @@ class Consumer:
             self._session = session
             self._link = ReceiverLink(self._name)
             self._unsettled = 0
+            self._reclaimed_delivery_count = 0
             # The old link's unsettled deliveries, and whatever the broker might
             # have released on it, are moot once that link is gone.
             self._pending_by_delivery_id = {}
@@ -1175,6 +1177,7 @@ class Consumer:
                 # step_060_consumer_strategy.md §3.2/§3.3: no settlement will ever
                 # follow, so the credit is reclaimed at handoff rather than after
                 # the handler returns.
+                self._reclaimed_delivery_count += 1
                 self._replenish_credit()
             else:
                 self._unsettled += 1
@@ -1199,6 +1202,7 @@ class Consumer:
             self._require_open()
             self._link.settle(delivery_id, state)
             self._unsettled = max(0, self._unsettled - 1)
+            self._reclaimed_delivery_count += 1
             self._pending_by_delivery_id.pop(delivery_id, None)
             self._replenish_credit()
 
@@ -1220,10 +1224,6 @@ class Consumer:
             self._link.flow(max(0, self._initial_credits - self._unsettled))
         except AMQPError as error:  # the settlement itself succeeded; only credit is lost
             self._logger.warning("consumer %r could not replenish link credit: %s", self.id, error)
-
-    def _outstanding_delivery_count(self) -> int:
-        """Deliveries received but not yet settled, including the link's own queue."""
-        return self._unsettled + self._link.buffered_delivery_count
 
     def _join_loops(self) -> None:
         """Wait for every one of this consumer's loops to notice they must stop."""

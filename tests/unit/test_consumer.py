@@ -827,6 +827,34 @@ class TestPause:
         blocked.set()
         consumer.close()
 
+    def test_unpause_counts_a_delivery_between_receive_and_dispatch(self, consuming, monkeypatch):
+        entered_dispatch = threading.Event()
+        release_dispatch = threading.Event()
+        consumer = consuming.build(RecordingHandler(), credits=CREDITS)
+        consuming.next_flow()
+        consumer.pause()
+        assert consuming.next_flow().link_credit == 0
+
+        original_dispatch = consumer._dispatch
+
+        def delayed_dispatch(delivery):
+            entered_dispatch.set()
+            assert release_dispatch.wait(HANDLER_TIMEOUT)
+            original_dispatch(delivery)
+
+        monkeypatch.setattr(consumer, "_dispatch", delayed_dispatch)
+
+        consuming.deliver("queued while paused")
+        assert entered_dispatch.wait(HANDLER_TIMEOUT)
+
+        consumer.unpause()
+        flow = consuming.next_flow()
+        assert flow.link_credit == CREDITS - 1
+        assert flow.delivery_count == 1
+
+        release_dispatch.set()
+        consumer.close()
+
     def test_an_in_flight_delivery_still_reaches_the_handler_while_paused(self, consuming):
         handler = RecordingHandler(action=lambda context, message: context.accept())
         consumer = consuming.build(handler, credits=CREDITS)
