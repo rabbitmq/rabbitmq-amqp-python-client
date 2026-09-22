@@ -16,7 +16,6 @@ which is documented as having to return promptly.
 
 from __future__ import annotations
 
-import queue
 import threading
 import time
 import uuid
@@ -758,7 +757,7 @@ class ReceiverLink(Link):
             detach_timeout: Seconds to wait for the peer's ``detach``.
         """
         super().__init__(name, attach_timeout=attach_timeout, detach_timeout=detach_timeout)
-        self._deliveries: queue.Queue[Delivery] = queue.Queue()
+        self._deliveries: deque[Delivery] = deque()
         self._credit = 0
         self._delivery_count = 0
         self._available = 0
@@ -777,6 +776,12 @@ class ReceiverLink(Link):
     def delivery_count(self) -> int:
         """Number of complete deliveries received on this link."""
         return self._delivery_count
+
+    @property
+    def buffered_delivery_count(self) -> int:
+        """Complete deliveries received but not yet drained by :meth:`receive`."""
+        with self._cond:
+            return len(self._deliveries)
 
     @property
     def available(self) -> int:
@@ -804,6 +809,21 @@ class ReceiverLink(Link):
             drain=drain,
         )
 
+    def flow_with_outstanding_window(self, initial_credits: int, reclaimed_delivery_count: int) -> None:
+        """Grant the remaining window from one consistent received-deliveries snapshot."""
+        session = self._require_attached()
+        with self._cond:
+            delivery_count = self._delivery_count
+            outstanding = max(0, delivery_count - reclaimed_delivery_count)
+            link_credit = max(0, initial_credits - outstanding)
+            self._credit = link_credit
+        session.send_flow(
+            handle=self.handle,
+            delivery_count=delivery_count,
+            link_credit=link_credit,
+            drain=False,
+        )
+
     def receive(self, timeout: float | None = None) -> Delivery | None:
         """Block until the next delivery is fully reassembled.
 
@@ -820,23 +840,17 @@ class ReceiverLink(Link):
         """
         deadline = None if timeout is None else time.monotonic() + timeout
         while True:
-            try:
-                return self._deliveries.get_nowait()
-            except queue.Empty:
-                pass
             with self._cond:
-                failure = self._failure
-            if failure is not None:
-                raise failure
-            remaining = RECEIVE_POLL_INTERVAL_SECONDS
-            if deadline is not None:
-                remaining = min(remaining, deadline - time.monotonic())
-                if remaining <= 0:
-                    return None
-            try:
-                return self._deliveries.get(timeout=remaining)
-            except queue.Empty:
-                continue
+                if self._deliveries:
+                    return self._deliveries.popleft()
+                if self._failure is not None:
+                    raise self._failure
+                remaining = RECEIVE_POLL_INTERVAL_SECONDS
+                if deadline is not None:
+                    remaining = min(remaining, deadline - time.monotonic())
+                    if remaining <= 0:
+                        return None
+                self._cond.wait(timeout=remaining)
 
     def settle(self, delivery_id: int, state: DeliveryState) -> None:
         """Settle one delivery with ``state``.
@@ -965,7 +979,9 @@ class ReceiverLink(Link):
             self._logger.error("dropping undecodable delivery on link %r: %s", self.name, error)
             return
         delivery_id = first.delivery_id if first.delivery_id is not None else -1
-        self._deliveries.put(Delivery(delivery_id=delivery_id, message=message, settled=bool(first.settled)))
+        with self._cond:
+            self._deliveries.append(Delivery(delivery_id=delivery_id, message=message, settled=bool(first.settled)))
+            self._cond.notify_all()
 
     def _invoke_flow_handler(self, handler: Callable[[dict[Any, Any]], None], properties: dict[Any, Any]) -> None:
         """Call a user flow handler without letting it break the reader thread."""

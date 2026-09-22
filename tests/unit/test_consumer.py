@@ -714,6 +714,42 @@ class TestCreditReplenishment:
         blocked.set()
         consumer.close()
 
+    def test_settling_one_of_several_outstanding_grants_only_the_backlog_delta(self, consuming):
+        """Regression for #136: a single settlement must not reopen the whole
+        ``initial_credits`` window while other deliveries are still unsettled,
+        or ``initial_credits`` more deliveries get let in per settlement."""
+        blocked = threading.Event()
+        handler = RecordingHandler(action=lambda context, message: blocked.wait(HANDLER_TIMEOUT))
+        consumer = consuming.build(handler, credits=CREDITS)
+        assert consuming.next_flow().link_credit == CREDITS
+
+        consuming.deliver("m-0")
+        handler.wait()
+
+        for index in range(1, CREDITS):
+            consuming.deliver(f"m-{index}")
+
+        deadline = time.monotonic() + HANDLER_TIMEOUT
+        while time.monotonic() < deadline:
+            if consumer._link.buffered_delivery_count == CREDITS - 1:
+                break
+            time.sleep(0.02)
+        else:
+            raise AssertionError("expected later deliveries to queue on the receiver link")
+
+        assert handler.call_count == 1
+        consuming.expect_no_flow()  # nothing settled yet, so no credit is granted
+
+        handler.contexts[0].accept()
+        flow = consuming.next_flow()
+        # One delivery was settled, but the remaining ones are still buffered on
+        # the receiver link, so the grant must close exactly that gap rather
+        # than reopening the whole initial credit window.
+        assert flow.link_credit == 1
+        assert flow.delivery_count == CREDITS
+        blocked.set()
+        consumer.close()
+
 
 class TestPause:
     """step_030 §3.4: credit is held at zero while paused, restored on unpause."""
@@ -769,6 +805,68 @@ class TestPause:
 
         consumer.unpause()
         assert consuming.next_flow().link_credit == CREDITS
+        consumer.close()
+
+    def test_unpause_with_a_backlog_grants_only_the_remaining_credit(self, consuming):
+        """Regression for #136 at the unpause call site: deliveries already
+        on the wire while paused still arrive and stay unsettled, so unpause
+        must reduce the credit it hands back by that backlog, exactly like a
+        settlement does, instead of reopening the whole window."""
+        blocked = threading.Event()
+        handler = RecordingHandler(action=lambda context, message: blocked.wait(HANDLER_TIMEOUT))
+        consumer = consuming.build(handler, credits=CREDITS)
+        consuming.next_flow()
+
+        consumer.pause()
+        assert consuming.next_flow().link_credit == 0
+
+        for index in range(CREDITS - 1):
+            consuming.deliver(f"m-{index}")
+        handler.wait()
+
+        deadline = time.monotonic() + HANDLER_TIMEOUT
+        while time.monotonic() < deadline:
+            if consumer._link.buffered_delivery_count == CREDITS - 2:
+                break
+            time.sleep(0.02)
+        else:
+            raise AssertionError("expected paused deliveries to remain buffered on the receiver link")
+
+        consumer.unpause()
+        flow = consuming.next_flow()
+        # One delivery is blocked in the handler and the rest are still queued on
+        # the receiver link, so unpause must subtract both from the returned
+        # window rather than looking only at the handler-visible unsettled count.
+        assert flow.link_credit == 1
+        blocked.set()
+        consumer.close()
+
+    def test_unpause_counts_a_delivery_between_receive_and_dispatch(self, consuming, monkeypatch):
+        entered_dispatch = threading.Event()
+        release_dispatch = threading.Event()
+        consumer = consuming.build(RecordingHandler(), credits=CREDITS)
+        consuming.next_flow()
+        consumer.pause()
+        assert consuming.next_flow().link_credit == 0
+
+        original_dispatch = consumer._dispatch
+
+        def delayed_dispatch(delivery):
+            entered_dispatch.set()
+            assert release_dispatch.wait(HANDLER_TIMEOUT)
+            original_dispatch(delivery)
+
+        monkeypatch.setattr(consumer, "_dispatch", delayed_dispatch)
+
+        consuming.deliver("queued while paused")
+        assert entered_dispatch.wait(HANDLER_TIMEOUT)
+
+        consumer.unpause()
+        flow = consuming.next_flow()
+        assert flow.link_credit == CREDITS - 1
+        assert flow.delivery_count == 1
+
+        release_dispatch.set()
         consumer.close()
 
     def test_an_in_flight_delivery_still_reaches_the_handler_while_paused(self, consuming):
