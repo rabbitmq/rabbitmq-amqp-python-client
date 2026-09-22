@@ -1207,21 +1207,23 @@ class Consumer:
             self._replenish_credit()
 
     def _replenish_credit(self) -> None:
-        """Top up credit, keeping ``credit + unsettled`` at ``initial_credits`` (§3.3).
+        """Top up credit, keeping the outstanding-deliveries window at ``initial_credits`` (§3.3).
 
         A ``flow`` grants credit as an absolute link-credit value alongside the
         receiver's delivery-count, which already reflects every delivery received
         so far, settled or not. Re-granting the raw ``initial_credits`` on every
         settle would therefore reopen the whole window each time instead of
         advancing it by one, letting ``initial_credits`` more deliveries in per
-        settlement. Subtracting the current backlog is what keeps the bound
-        exact. A paused consumer grants nothing — :meth:`unpause` restores the
-        credit in one go instead. Must be called with the consumer's lock held.
+        settlement. The grant therefore has to subtract every delivery the link
+        has received and not yet reclaimed, including transfers still buffered on
+        the receiver link before they reach the handler. A paused consumer grants
+        nothing — :meth:`unpause` restores the credit in one go instead. Must be
+        called with the consumer's lock held.
         """
         if self._paused or self._closed:
             return
         try:
-            self._link.flow(max(0, self._initial_credits - self._unsettled))
+            self._link.flow_with_outstanding_window(self._initial_credits, self._reclaimed_delivery_count)
         except AMQPError as error:  # the settlement itself succeeded; only credit is lost
             self._logger.warning("consumer %r could not replenish link credit: %s", self.id, error)
 

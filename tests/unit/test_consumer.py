@@ -718,22 +718,36 @@ class TestCreditReplenishment:
         """Regression for #136: a single settlement must not reopen the whole
         ``initial_credits`` window while other deliveries are still unsettled,
         or ``initial_credits`` more deliveries get let in per settlement."""
-        handler = RecordingHandler()
+        blocked = threading.Event()
+        handler = RecordingHandler(action=lambda context, message: blocked.wait(HANDLER_TIMEOUT))
         consumer = consuming.build(handler, credits=CREDITS)
         assert consuming.next_flow().link_credit == CREDITS
 
-        for index in range(CREDITS):
+        consuming.deliver("m-0")
+        handler.wait()
+
+        for index in range(1, CREDITS):
             consuming.deliver(f"m-{index}")
-        handler.wait(CREDITS)
+
+        deadline = time.monotonic() + HANDLER_TIMEOUT
+        while time.monotonic() < deadline:
+            if consumer._link.buffered_delivery_count == CREDITS - 1:
+                break
+            time.sleep(0.02)
+        else:
+            raise AssertionError("expected later deliveries to queue on the receiver link")
+
+        assert handler.call_count == 1
         consuming.expect_no_flow()  # nothing settled yet, so no credit is granted
 
         handler.contexts[0].accept()
         flow = consuming.next_flow()
-        # CREDITS deliveries are outstanding and only one was just settled, so
-        # the grant must close exactly that gap, not repeat the full window.
+        # One delivery was settled, but the remaining ones are still buffered on
+        # the receiver link, so the grant must close exactly that gap rather
+        # than reopening the whole initial credit window.
         assert flow.link_credit == 1
         assert flow.delivery_count == CREDITS
-        assert consumer.unsettled_message_count == CREDITS - 1
+        blocked.set()
         consumer.close()
 
 
