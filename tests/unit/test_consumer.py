@@ -714,6 +714,28 @@ class TestCreditReplenishment:
         blocked.set()
         consumer.close()
 
+    def test_settling_one_of_several_outstanding_grants_only_the_backlog_delta(self, consuming):
+        """Regression for #136: a single settlement must not reopen the whole
+        ``initial_credits`` window while other deliveries are still unsettled,
+        or ``initial_credits`` more deliveries get let in per settlement."""
+        handler = RecordingHandler()
+        consumer = consuming.build(handler, credits=CREDITS)
+        assert consuming.next_flow().link_credit == CREDITS
+
+        for index in range(CREDITS):
+            consuming.deliver(f"m-{index}")
+        handler.wait(CREDITS)
+        consuming.expect_no_flow()  # nothing settled yet, so no credit is granted
+
+        handler.contexts[0].accept()
+        flow = consuming.next_flow()
+        # CREDITS deliveries are outstanding and only one was just settled, so
+        # the grant must close exactly that gap, not repeat the full window.
+        assert flow.link_credit == 1
+        assert flow.delivery_count == CREDITS
+        assert consumer.unsettled_message_count == CREDITS - 1
+        consumer.close()
+
 
 class TestPause:
     """step_030 §3.4: credit is held at zero while paused, restored on unpause."""
@@ -769,6 +791,29 @@ class TestPause:
 
         consumer.unpause()
         assert consuming.next_flow().link_credit == CREDITS
+        consumer.close()
+
+    def test_unpause_with_a_backlog_grants_only_the_remaining_credit(self, consuming):
+        """Regression for #136 at the unpause call site: deliveries already
+        on the wire while paused still arrive and stay unsettled, so unpause
+        must reduce the credit it hands back by that backlog, exactly like a
+        settlement does, instead of reopening the whole window."""
+        handler = RecordingHandler()
+        consumer = consuming.build(handler, credits=CREDITS)
+        consuming.next_flow()
+
+        for index in range(CREDITS - 1):
+            consuming.deliver(f"m-{index}")
+        handler.wait(CREDITS - 1)
+
+        consumer.pause()
+        assert consuming.next_flow().link_credit == 0
+
+        consumer.unpause()
+        flow = consuming.next_flow()
+        # CREDITS - 1 deliveries are still unsettled; granting the raw
+        # CREDITS again would let the sender push CREDITS more on top of them.
+        assert flow.link_credit == 1
         consumer.close()
 
     def test_an_in_flight_delivery_still_reaches_the_handler_while_paused(self, consuming):

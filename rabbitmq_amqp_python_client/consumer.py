@@ -841,9 +841,12 @@ class Consumer:
         self._logger.debug("consumer %r paused", self.id)
 
     def unpause(self) -> None:
-        """Restore the outstanding credit to ``initial_credits`` (§3.4).
+        """Restore outstanding credit to ``initial_credits`` minus any backlog (§3.4).
 
-        A no-op when not paused.
+        Deliveries already on the wire while paused still arrive and count
+        against ``initial_credits``, so the same ``credit + unsettled`` bound
+        used by :meth:`_replenish_credit` applies here too. A no-op when not
+        paused.
 
         Raises:
             ConsumerError: If the consumer is closed.
@@ -853,7 +856,7 @@ class Consumer:
             if not self._paused:
                 return
             self._paused = False
-            self._link.flow(self._initial_credits)
+            self._link.flow(max(0, self._initial_credits - self._unsettled))
         self._logger.debug("consumer %r unpaused", self.id)
 
     def close(self) -> None:
@@ -1200,18 +1203,21 @@ class Consumer:
             self._replenish_credit()
 
     def _replenish_credit(self) -> None:
-        """Grant one more credit, keeping the outstanding total at ``initial_credits``.
+        """Top up credit, keeping ``credit + unsettled`` at ``initial_credits`` (§3.3).
 
-        A ``flow`` carries the receiver's delivery-count, so re-granting
-        ``initial_credits`` against a count that has advanced by one delivery is
-        exactly the ``+1`` §3.3 asks for. A paused consumer grants nothing —
-        :meth:`unpause` restores the credit in one go instead. Must be called
-        with the consumer's lock held.
+        A ``flow`` grants credit as an absolute link-credit value alongside the
+        receiver's delivery-count, which already reflects every delivery received
+        so far, settled or not. Re-granting the raw ``initial_credits`` on every
+        settle would therefore reopen the whole window each time instead of
+        advancing it by one, letting ``initial_credits`` more deliveries in per
+        settlement. Subtracting the current backlog is what keeps the bound
+        exact. A paused consumer grants nothing — :meth:`unpause` restores the
+        credit in one go instead. Must be called with the consumer's lock held.
         """
         if self._paused or self._closed:
             return
         try:
-            self._link.flow(self._initial_credits)
+            self._link.flow(max(0, self._initial_credits - self._unsettled))
         except AMQPError as error:  # the settlement itself succeeded; only credit is lost
             self._logger.warning("consumer %r could not replenish link credit: %s", self.id, error)
 
