@@ -798,22 +798,33 @@ class TestPause:
         on the wire while paused still arrive and stay unsettled, so unpause
         must reduce the credit it hands back by that backlog, exactly like a
         settlement does, instead of reopening the whole window."""
-        handler = RecordingHandler()
+        blocked = threading.Event()
+        handler = RecordingHandler(action=lambda context, message: blocked.wait(HANDLER_TIMEOUT))
         consumer = consuming.build(handler, credits=CREDITS)
         consuming.next_flow()
-
-        for index in range(CREDITS - 1):
-            consuming.deliver(f"m-{index}")
-        handler.wait(CREDITS - 1)
 
         consumer.pause()
         assert consuming.next_flow().link_credit == 0
 
+        for index in range(CREDITS - 1):
+            consuming.deliver(f"m-{index}")
+        handler.wait()
+
+        deadline = time.monotonic() + HANDLER_TIMEOUT
+        while time.monotonic() < deadline:
+            if consumer._link.buffered_delivery_count == CREDITS - 2:
+                break
+            time.sleep(0.02)
+        else:
+            raise AssertionError("expected paused deliveries to remain buffered on the receiver link")
+
         consumer.unpause()
         flow = consuming.next_flow()
-        # CREDITS - 1 deliveries are still unsettled; granting the raw
-        # CREDITS again would let the sender push CREDITS more on top of them.
+        # One delivery is blocked in the handler and the rest are still queued on
+        # the receiver link, so unpause must subtract both from the returned
+        # window rather than looking only at the handler-visible unsettled count.
         assert flow.link_credit == 1
+        blocked.set()
         consumer.close()
 
     def test_an_in_flight_delivery_still_reaches_the_handler_while_paused(self, consuming):

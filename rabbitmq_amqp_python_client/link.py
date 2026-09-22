@@ -759,6 +759,7 @@ class ReceiverLink(Link):
         """
         super().__init__(name, attach_timeout=attach_timeout, detach_timeout=detach_timeout)
         self._deliveries: queue.Queue[Delivery] = queue.Queue()
+        self._buffered_delivery_count = 0
         self._credit = 0
         self._delivery_count = 0
         self._available = 0
@@ -777,6 +778,12 @@ class ReceiverLink(Link):
     def delivery_count(self) -> int:
         """Number of complete deliveries received on this link."""
         return self._delivery_count
+
+    @property
+    def buffered_delivery_count(self) -> int:
+        """Complete deliveries received but not yet drained by :meth:`receive`."""
+        with self._cond:
+            return self._buffered_delivery_count
 
     @property
     def available(self) -> int:
@@ -821,9 +828,13 @@ class ReceiverLink(Link):
         deadline = None if timeout is None else time.monotonic() + timeout
         while True:
             try:
-                return self._deliveries.get_nowait()
+                delivery = self._deliveries.get_nowait()
             except queue.Empty:
                 pass
+            else:
+                with self._cond:
+                    self._buffered_delivery_count -= 1
+                return delivery
             with self._cond:
                 failure = self._failure
             if failure is not None:
@@ -834,9 +845,12 @@ class ReceiverLink(Link):
                 if remaining <= 0:
                     return None
             try:
-                return self._deliveries.get(timeout=remaining)
+                delivery = self._deliveries.get(timeout=remaining)
             except queue.Empty:
                 continue
+            with self._cond:
+                self._buffered_delivery_count -= 1
+            return delivery
 
     def settle(self, delivery_id: int, state: DeliveryState) -> None:
         """Settle one delivery with ``state``.
@@ -965,6 +979,8 @@ class ReceiverLink(Link):
             self._logger.error("dropping undecodable delivery on link %r: %s", self.name, error)
             return
         delivery_id = first.delivery_id if first.delivery_id is not None else -1
+        with self._cond:
+            self._buffered_delivery_count += 1
         self._deliveries.put(Delivery(delivery_id=delivery_id, message=message, settled=bool(first.settled)))
 
     def _invoke_flow_handler(self, handler: Callable[[dict[Any, Any]], None], properties: dict[Any, Any]) -> None:

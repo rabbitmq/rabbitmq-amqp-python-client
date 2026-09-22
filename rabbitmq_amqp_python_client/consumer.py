@@ -856,7 +856,7 @@ class Consumer:
             if not self._paused:
                 return
             self._paused = False
-            self._link.flow(max(0, self._initial_credits - self._unsettled))
+            self._link.flow(max(0, self._initial_credits - self._outstanding_delivery_count()))
         self._logger.debug("consumer %r unpaused", self.id)
 
     def close(self) -> None:
@@ -1220,6 +1220,10 @@ class Consumer:
             self._link.flow(max(0, self._initial_credits - self._unsettled))
         except AMQPError as error:  # the settlement itself succeeded; only credit is lost
             self._logger.warning("consumer %r could not replenish link credit: %s", self.id, error)
+
+    def _outstanding_delivery_count(self) -> int:
+        """Deliveries received but not yet settled, including the link's own queue."""
+        return self._unsettled + self._link.buffered_delivery_count
 
     def _join_loops(self) -> None:
         """Wait for every one of this consumer's loops to notice they must stop."""
