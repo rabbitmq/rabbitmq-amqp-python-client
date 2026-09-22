@@ -41,6 +41,7 @@ ENV AMQP_HOST=localhost \
     AMQP_STATS_INTERVAL=1 \
     AMQP_TLS=false \
     AMQP_RECOVERY=true \
-    AMQP_RECOVERY_TOPOLOGY=false
+    AMQP_RECOVERY_TOPOLOGY=false \
+    AMQP_QUEUE="clients-integration"
 
 ENTRYPOINT ["python", "console_application.py"]
