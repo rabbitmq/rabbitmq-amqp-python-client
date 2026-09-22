@@ -500,7 +500,47 @@ class TestDelivery:
             handler.wait(2)
         assert handler.bodies == ["bad", "good"]
         assert "handler is broken" in caplog.text
+        # Discarded, so it stops holding credit.
+        assert consuming.next_disposition().state == Rejected()
         assert consuming.next_disposition().state == Accepted()
+        consumer.close()
+
+    def test_a_raising_handler_hands_its_credit_back(self, consuming):
+        """Regression: without this the delivery keeps its credit for good, and
+        ``initial_credits`` raising handlers stop the consumer outright."""
+
+        def explode(context, message):
+            raise RuntimeError("handler is broken")
+
+        handler = RecordingHandler(action=explode)
+        consumer = consuming.build(handler, credits=CREDITS)
+        assert consuming.next_flow().link_credit == CREDITS
+
+        for index in range(CREDITS):
+            consuming.deliver(f"m-{index}")
+        handler.wait(CREDITS)
+
+        # One discard per delivery, so the window ends whole, not down by CREDITS.
+        for _ in range(CREDITS):
+            assert consuming.next_disposition().state == Rejected()
+        assert consumer.unsettled_message_count == 0
+        assert consuming.next_flow().link_credit > 0
+        consumer.close()
+
+    def test_a_handler_that_settled_before_raising_is_left_alone(self, consuming):
+        """The handler's own outcome wins: no second disposition is sent."""
+
+        def settle_then_explode(context, message):
+            context.accept()
+            raise RuntimeError("handler is broken")
+
+        handler = RecordingHandler(action=settle_then_explode)
+        consumer = consuming.build(handler, credits=CREDITS)
+        consuming.deliver("only")
+        handler.wait(1)
+
+        assert consuming.next_disposition().state == Accepted()
+        consuming.expect_no_disposition()
         consumer.close()
 
     def test_an_unsettled_delivery_is_counted(self, consuming):
