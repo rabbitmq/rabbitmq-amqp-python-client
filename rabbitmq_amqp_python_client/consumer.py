@@ -1189,6 +1189,16 @@ class Consumer:
             self._handler(context, delivery.message)
         except Exception:  # a bad handler invocation must not stop delivery (§3.2)
             self._logger.exception("the message handler of consumer %r raised", self.id)
+            try:
+                # A raising handler settles nothing, so the delivery would hold its
+                # credit for the life of the link, and ``initial_credits`` of them
+                # stop the consumer outright. Discarding hands that credit back, as
+                # the Java client does on this path.
+                context.discard()
+            except ConsumerError:  # already settled, presettled or closed: the credit is back, or moot
+                self._logger.debug("nothing left to discard on consumer %r", self.id)
+            except AMQPError as error:  # the link is gone, and the consumer with it
+                self._logger.debug("consumer %r could not discard after a raising handler: %s", self.id, error)
 
     def _settle(self, delivery_id: int, state: DeliveryState) -> None:
         """Send the ``disposition`` for one delivery and replenish its credit (§3.3).

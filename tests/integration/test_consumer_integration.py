@@ -299,6 +299,40 @@ class TestPause:
         assert sorted(handler.bodies[2:]) == [f"while-paused-{index}" for index in range(3)]
 
 
+class TestRaisingHandler:
+    """step_030 §3.2: a handler that raises must not cost the consumer its credit."""
+
+    #: Enough messages that a consumer which stops after a few failures is obvious.
+    RAISING_BATCH = 30
+
+    #: Deliveries whose handler raises, scattered through the batch.
+    RAISING_FAILURES = (2, 9, 16)
+
+    def test_scattered_handler_failures_do_not_stall_the_consumer(self, connection, queue, publish, consumers):
+        name = queue("con-it-raising")
+        publish(name, [str(index) for index in range(self.RAISING_BATCH)])
+
+        accepted = set()
+        lock = threading.Lock()
+
+        def raise_on_some(context, message):
+            index = int(message.body_as_string())
+            if index in self.RAISING_FAILURES:
+                raise RuntimeError(f"handler is broken for {index}")
+            context.accept()
+            with lock:
+                accepted.add(index)
+
+        handler = RecordingHandler(action=raise_on_some)
+        _consume(connection, consumers, name, handler, credits=len(self.RAISING_FAILURES))
+
+        # Credit equals the number of failures, so a delivery that keeps its
+        # credit after a raise would stop the consumer before the batch ends.
+        expected = self.RAISING_BATCH - len(self.RAISING_FAILURES)
+        _wait_until(lambda: len(accepted) >= expected, f"{expected} deliveries to be accepted")
+        assert sorted(accepted) == [i for i in range(self.RAISING_BATCH) if i not in self.RAISING_FAILURES]
+
+
 class TestPresettled:
     """step_060_consumer_strategy.md §3.2/§7: the broker settles every delivery itself."""
 
