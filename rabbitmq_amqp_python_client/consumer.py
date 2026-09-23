@@ -1073,11 +1073,11 @@ class Consumer:
         """Hand every delivery to the handler until the consumer or the link stops (§3.2)."""
         while not self._stopped.is_set():
             try:
+                self._reject_undecodable()
                 delivery = self._link.receive(timeout=DELIVERY_POLL_INTERVAL_SECONDS)
             except AMQPError as error:
                 self._logger.debug("consumer %r stopped receiving: %s", self.id, error)
                 return
-            self._reject_undecodable()
             # Re-check after waking: a delivery that arrived during teardown must
             # not reach the handler (§3.5).
             if delivery is None or self._stopped.is_set():
@@ -1226,20 +1226,11 @@ class Consumer:
 
     def _reject_undecodable(self) -> None:
         """Reject every delivery the link could not decode, and take its credit back, as Java does."""
-        while True:
-            try:
-                delivery_id, settled = self._undecodable.get_nowait()
-            except Empty:
-                return
+        while not self._undecodable.empty():
+            delivery_id, settled = self._undecodable.get_nowait()
             with self._lock:
-                if self._closed:
-                    return
                 if not settled:
-                    try:
-                        self._link.settle(delivery_id, Rejected())
-                    except AMQPError as error:  # the link is gone, and the consumer with it
-                        self._logger.debug("consumer %r could not reject an undecodable delivery: %s", self.id, error)
-                        return
+                    self._link.settle(delivery_id, Rejected())
                 self._reclaimed_delivery_count += 1
                 self._replenish_credit()
 
