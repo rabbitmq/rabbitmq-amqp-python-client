@@ -766,6 +766,7 @@ class ReceiverLink(Link):
         self._flow_properties: deque[dict[Any, Any]] = deque(maxlen=max(1, flow_properties_buffer))
         self._flow_handler: Callable[[dict[Any, Any]], None] | None = None
         self._release_handler: Callable[[int, int], None] | None = None
+        self._undecodable_handler: Callable[[int, bool], None] | None = None
 
     @property
     def credit(self) -> int:
@@ -931,6 +932,17 @@ class ReceiverLink(Link):
         with self._cond:
             self._release_handler = handler
 
+    def on_undecodable(self, handler: Callable[[int, bool], None] | None) -> None:
+        """Observe a delivery this link dropped because it did not decode.
+
+        Args:
+            handler: Called as ``handler(delivery_id, settled)``, or ``None`` to
+                stop observing. Runs on the connection's frame-reader thread and
+                must return promptly; exceptions it raises are logged and swallowed.
+        """
+        with self._cond:
+            self._undecodable_handler = handler
+
     def _on_disposition(self, performative: Disposition) -> None:
         """Surface a broker-initiated release to a registered handler (step_130 §3).
 
@@ -973,15 +985,27 @@ class ReceiverLink(Link):
             self._partial_first = None
             self._credit = max(0, self._credit - 1)
             self._delivery_count += 1
+        delivery_id = first.delivery_id if first.delivery_id is not None else -1
         try:
             message = Message.decode(data)
         except AMQPError as error:
             self._logger.error("dropping undecodable delivery on link %r: %s", self.name, error)
+            self._report_undecodable(delivery_id, bool(first.settled))
             return
-        delivery_id = first.delivery_id if first.delivery_id is not None else -1
         with self._cond:
             self._deliveries.append(Delivery(delivery_id=delivery_id, message=message, settled=bool(first.settled)))
             self._cond.notify_all()
+
+    def _report_undecodable(self, delivery_id: int, settled: bool) -> None:
+        """Hand a dropped delivery to the :meth:`on_undecodable` handler, if any."""
+        with self._cond:
+            handler = self._undecodable_handler
+        if handler is None:
+            return
+        try:
+            handler(delivery_id, settled)
+        except Exception:
+            self._logger.exception("undecodable-delivery handler raised for link %r", self.name)
 
     def _invoke_flow_handler(self, handler: Callable[[dict[Any, Any]], None], properties: dict[Any, Any]) -> None:
         """Call a user flow handler without letting it break the reader thread."""

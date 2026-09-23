@@ -92,6 +92,9 @@ QUIET_PERIOD = 0.3
 #: Credit most tests grant, small enough to read in an assertion.
 CREDITS = 5
 
+#: A ``transfer`` payload that does not decode as an AMQP message.
+UNDECODABLE_PAYLOAD = b"\xff"
+
 
 class RecordingHandler:
     """A message handler that records every call and can act on each delivery.
@@ -220,6 +223,20 @@ class Harness:
             self.channel,
             self.handle,
             message.encode(),
+            delivery_id=delivery_id,
+            delivery_tag=f"tag-{delivery_id}".encode(),
+            settled=settled,
+        )
+        return delivery_id
+
+    def deliver_undecodable(self, *, settled=False):
+        """Send one ``transfer`` that does not decode, and return its delivery-id."""
+        delivery_id = self._next_delivery_id
+        self._next_delivery_id += 1
+        self.broker.send_transfer(
+            self.channel,
+            self.handle,
+            UNDECODABLE_PAYLOAD,
             delivery_id=delivery_id,
             delivery_tag=f"tag-{delivery_id}".encode(),
             settled=settled,
@@ -788,6 +805,60 @@ class TestCreditReplenishment:
         assert flow.link_credit == 1
         assert flow.delivery_count == CREDITS
         blocked.set()
+        consumer.close()
+
+    def test_an_undecodable_delivery_is_rejected_and_hands_its_credit_back(self, consuming):
+        handler = RecordingHandler()
+        consumer = consuming.build(handler, credits=CREDITS)
+        assert consuming.next_flow().link_credit == CREDITS
+
+        for _ in range(CREDITS):
+            delivery_id = consuming.deliver_undecodable()
+            disposition = consuming.next_disposition()
+            assert disposition.first == delivery_id
+            assert disposition.state == Rejected()
+            flow = consuming.next_flow()
+            assert flow.link_credit == CREDITS
+            assert flow.delivery_count == delivery_id + 1
+        assert handler.call_count == 0
+        consumer.close()
+
+    def test_an_undecodable_delivery_leaves_the_unsettled_count_alone(self, consuming):
+        handler = RecordingHandler()
+        consumer = consuming.build(handler, credits=CREDITS)
+        assert consuming.next_flow().link_credit == CREDITS
+        consuming.deliver("pending")
+        handler.wait()
+
+        consuming.deliver_undecodable()
+        assert consuming.next_disposition().state == Rejected()
+        assert consuming.next_flow().link_credit == CREDITS - 1
+        assert consumer.unsettled_message_count == 1
+        consumer.close()
+
+    def test_an_undecodable_presettled_delivery_hands_its_credit_back(self, consuming):
+        handler = RecordingHandler()
+        consumer = consuming.build(handler, credits=CREDITS, settle_strategy=ConsumerSettleStrategy.PRESETTLED)
+        assert consuming.next_flow().link_credit == CREDITS
+
+        consuming.deliver_undecodable(settled=True)
+        flow = consuming.next_flow()
+        assert flow.link_credit == CREDITS
+        assert flow.delivery_count == 1
+        consuming.expect_no_disposition()
+        consumer.close()
+
+    def test_an_undecodable_delivery_while_paused_grants_nothing(self, consuming):
+        consumer = consuming.build(RecordingHandler(), credits=CREDITS)
+        assert consuming.next_flow().link_credit == CREDITS
+        consumer.pause()
+        assert consuming.next_flow().link_credit == 0
+
+        consuming.deliver_undecodable()
+        assert consuming.next_disposition().state == Rejected()
+        consuming.expect_no_flow()
+        consumer.unpause()
+        assert consuming.next_flow().link_credit == CREDITS
         consumer.close()
 
 
