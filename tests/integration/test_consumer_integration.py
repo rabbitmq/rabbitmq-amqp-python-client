@@ -33,6 +33,7 @@ from rabbitmq_amqp_python_client import (
     ConsumerSettleStrategy,
     ManagementError,
     OutcomeState,
+    ProtocolError,
     QuorumQueueDelayedRetryType,
     StreamOffsetSpecification,
     TimeoutContext,
@@ -328,6 +329,35 @@ class TestRaisingHandler:
 
         # Credit equals the number of failures, so a delivery that keeps its
         # credit after a raise would stop the consumer before the batch ends.
+        expected = self.RAISING_BATCH - len(self.RAISING_FAILURES)
+        _wait_until(lambda: len(accepted) >= expected, f"{expected} deliveries to be accepted")
+        assert sorted(accepted) == [i for i in range(self.RAISING_BATCH) if i not in self.RAISING_FAILURES]
+
+    def test_undecodable_deliveries_do_not_stall_the_consumer(self, monkeypatch, connection, queue, publish, consumers):
+        name = queue("con-it-undecodable")
+        publish(name, [str(index) for index in range(self.RAISING_BATCH)])
+
+        decode = Message.decode
+        poisoned = {str(index) for index in self.RAISING_FAILURES}
+
+        def fail_on_some(data):
+            message = decode(data)
+            if message.body_as_string() in poisoned:
+                raise ProtocolError("simulated undecodable delivery")
+            return message
+
+        monkeypatch.setattr(Message, "decode", staticmethod(fail_on_some))
+
+        accepted = set()
+        lock = threading.Lock()
+
+        def accept(context, message):
+            context.accept()
+            with lock:
+                accepted.add(int(message.body_as_string()))
+
+        _consume(connection, consumers, name, RecordingHandler(action=accept), credits=len(self.RAISING_FAILURES))
+
         expected = self.RAISING_BATCH - len(self.RAISING_FAILURES)
         _wait_until(lambda: len(accepted) >= expected, f"{expected} deliveries to be accepted")
         assert sorted(accepted) == [i for i in range(self.RAISING_BATCH) if i not in self.RAISING_FAILURES]

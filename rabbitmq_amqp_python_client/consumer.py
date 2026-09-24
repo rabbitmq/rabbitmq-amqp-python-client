@@ -729,6 +729,7 @@ class Consumer:
         self._notification_loop: threading.Thread | None = None
         self._pending_by_delivery_id: dict[int, tuple[Context, Message]] = {}
         self._releases: Queue[tuple[TimeoutContext, Message]] = Queue()
+        self._undecodable: Queue[tuple[int, bool]] = Queue()
         self._release_loop: threading.Thread | None = None
 
     # --- public surface -------------------------------------------------
@@ -927,6 +928,7 @@ class Consumer:
             # Registered before the initial flow, same as above: a release could
             # in principle arrive as soon as the link is attached (step_130 §3).
             self._link.on_release(self._handle_broker_release)
+        self._link.on_undecodable(self._queue_undecodable)
         try:
             self._link.flow(0 if self._paused else self._initial_credits)
         except BaseException:
@@ -1053,6 +1055,7 @@ class Consumer:
             # The old link's unsettled deliveries, and whatever the broker might
             # have released on it, are moot once that link is gone.
             self._pending_by_delivery_id = {}
+            self._undecodable = Queue()
             if self._settle_strategy is ConsumerSettleStrategy.DIRECT_REPLY_TO:
                 # The pseudo-queue is session-scoped (step_060_consumer_strategy.md
                 # §3.3 point 5): it dies with the old session, and the fresh attach
@@ -1070,6 +1073,7 @@ class Consumer:
         """Hand every delivery to the handler until the consumer or the link stops (§3.2)."""
         while not self._stopped.is_set():
             try:
+                self._reject_undecodable()
                 delivery = self._link.receive(timeout=DELIVERY_POLL_INTERVAL_SECONDS)
             except AMQPError as error:
                 self._logger.debug("consumer %r stopped receiving: %s", self.id, error)
@@ -1135,6 +1139,10 @@ class Consumer:
                 releases.append((TimeoutContext(self, delivery_id), message))
         for release in releases:
             self._releases.put(release)
+
+    def _queue_undecodable(self, delivery_id: int, settled: bool) -> None:
+        """Hand a delivery the link could not decode to the delivery loop; runs on the frame-reader thread."""
+        self._undecodable.put((delivery_id, settled))
 
     def _observe_flow_properties(self, properties: Mapping[Any, Any]) -> None:
         """Queue the ``rabbitmq:active`` status carried by one ``flow`` (step_090 §1).
@@ -1215,6 +1223,16 @@ class Consumer:
             self._reclaimed_delivery_count += 1
             self._pending_by_delivery_id.pop(delivery_id, None)
             self._replenish_credit()
+
+    def _reject_undecodable(self) -> None:
+        """Reject every delivery the link could not decode, and take its credit back, as Java does."""
+        while not self._undecodable.empty():
+            delivery_id, settled = self._undecodable.get_nowait()
+            with self._lock:
+                if not settled:
+                    self._link.settle(delivery_id, Rejected())
+                self._reclaimed_delivery_count += 1
+                self._replenish_credit()
 
     def _replenish_credit(self) -> None:
         """Top up credit, keeping the outstanding-deliveries window at ``initial_credits`` (§3.3).
