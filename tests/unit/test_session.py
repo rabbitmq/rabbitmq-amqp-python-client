@@ -296,6 +296,34 @@ class TestWindows:
         _channel, performative, _payload = broker.wait_for(Flow)
         assert performative.next_incoming_id == 1
 
+    def test_next_incoming_id_advances_once_per_fragment_of_a_multi_frame_delivery(self, session):
+        """A fragmented delivery still consumes one transfer-id per frame (#141).
+
+        RabbitMQ's own session bookkeeping increments its outgoing transfer-id
+        once per TRANSFER *frame* it sends, continuation frames included, not
+        once per delivery (see rabbit_amqp_session.erl's comment contrasting
+        next_outgoing_id with outgoing_delivery_id). Live-broker testing
+        confirmed this: fragmenting one delivery into 7 frames advanced the
+        broker's real transfer count by 7, and a client that only advanced
+        next-incoming-id on the delivery's final frame — as the ``more`` flag
+        might tempt one to do — would fall behind and eventually trip the
+        same ``amqp:session:window-violation`` this fix prevents, just from
+        under- rather than over-counting.
+        """
+        _broker, _connection, opened = session
+        link = _LinkDouble()
+        handle = opened.allocate_handle(link)
+        # Only the first frame of a delivery carries delivery-id; continuation
+        # frames (more=True) carry none, exactly as a real fragmented transfer
+        # arrives on the wire.
+        opened.handle_frame(Transfer(handle=handle, delivery_id=0, delivery_tag=b"a", more=True), b"frag-1")
+        assert opened._next_incoming_id == 1
+        opened.handle_frame(Transfer(handle=handle, more=True), b"frag-2")
+        assert opened._next_incoming_id == 2
+        opened.handle_frame(Transfer(handle=handle, more=False), b"frag-3")
+        assert opened._next_incoming_id == 3
+        assert [payload for _performative, payload in link.frames] == [b"frag-1", b"frag-2", b"frag-3"]
+
     def test_the_incoming_window_is_replenished_once_half_consumed(self, connect):
         broker, connection = connect()
         opened = Session(incoming_window=4)
