@@ -342,7 +342,15 @@ class TestRaisingHandler:
 
         def fail_on_some(data):
             message = decode(data)
-            if message.body_as_string() in poisoned:
+            # ``decode`` is patched on the shared Message class, so it also sees
+            # the connection's own management-response traffic, whose bodies are
+            # maps rather than strings; only this test's own deliveries can be
+            # judged against ``poisoned``.
+            try:
+                body = message.body_as_string()
+            except TypeError:
+                return message
+            if body in poisoned:
                 raise ProtocolError("simulated undecodable delivery")
             return message
 
