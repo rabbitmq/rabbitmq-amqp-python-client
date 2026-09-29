@@ -241,7 +241,88 @@ class TestWindows:
         link = _LinkDouble()
         handle = opened.allocate_handle(link)
         opened.handle_frame(Transfer(handle=handle, delivery_id=4, delivery_tag=b"t"), b"body")
-        assert opened._next_incoming_id == 5
+        assert opened._next_incoming_id == 1
+
+    def test_next_incoming_id_is_independent_of_the_wire_delivery_id(self, session):
+        """delivery-id and the implicit transfer-id are separate counters (#141).
+
+        RabbitMQ starts a session's real transfer-id count wherever it likes
+        and starts delivery-id at 0 regardless, so next-incoming-id must
+        advance once per transfer *frame* and never adopt the frame's
+        delivery-id, however small or large that happens to be.
+        """
+        _broker, _connection, opened = session
+        link = _LinkDouble()
+        handle = opened.allocate_handle(link)
+        opened.handle_frame(Transfer(handle=handle, delivery_id=0, delivery_tag=b"a"), b"body")
+        opened.handle_frame(Transfer(handle=handle, delivery_id=1, delivery_tag=b"b"), b"body")
+        opened.handle_frame(Transfer(handle=handle, delivery_id=2, delivery_tag=b"c"), b"body")
+        assert opened._next_incoming_id == 3
+
+    def test_next_incoming_id_continues_from_the_peers_arbitrary_starting_point(self, connect):
+        """Reproduces #141: RabbitMQ begins a session with next-outgoing-id set
+        near the 32-bit boundary rather than 0. A client that derives
+        next-incoming-id from the small, independently-numbered delivery-id
+        instead of counting frames sends a FLOW the broker rejects with
+        ``amqp:session:window-violation`` (its next-incoming-id "leads" the
+        broker's real next-outgoing-id).
+        """
+        broker, connection = connect(broker_kwargs={"next_outgoing_id": 0xFFFFFFFC})
+        opened = connection.open_session()
+        link = _LinkDouble()
+        handle = opened.allocate_handle(link)
+        assert opened._next_incoming_id == 0xFFFFFFFC
+        opened.handle_frame(Transfer(handle=handle, delivery_id=0, delivery_tag=b"a"), b"body")
+        assert opened._next_incoming_id == 0xFFFFFFFD
+        opened.handle_frame(Transfer(handle=handle, delivery_id=1, delivery_tag=b"b"), b"body")
+        assert opened._next_incoming_id == 0xFFFFFFFE
+        opened.send_flow()
+        _channel, performative, _payload = broker.wait_for(Flow)
+        assert performative.next_incoming_id == 0xFFFFFFFE
+
+    def test_next_incoming_id_wraps_at_the_32_bit_boundary(self, connect):
+        """The transfer-id is an RFC-1982 serial number: it wraps to 0 rather
+        than overflowing ``uint32``, which would otherwise blow up encoding
+        the next FLOW frame.
+        """
+        broker, connection = connect(broker_kwargs={"next_outgoing_id": 0xFFFFFFFE})
+        opened = connection.open_session()
+        link = _LinkDouble()
+        handle = opened.allocate_handle(link)
+        for delivery_id in range(3):
+            opened.handle_frame(Transfer(handle=handle, delivery_id=delivery_id, delivery_tag=b"t"), b"body")
+        assert opened._next_incoming_id == 1
+        opened.send_flow()
+        _channel, performative, _payload = broker.wait_for(Flow)
+        assert performative.next_incoming_id == 1
+
+    def test_next_incoming_id_advances_once_per_fragment_of_a_multi_frame_delivery(self, session):
+        """A fragmented delivery still consumes one transfer-id per frame (#141).
+
+        RabbitMQ's own session bookkeeping increments its outgoing transfer-id
+        once per TRANSFER *frame* it sends, continuation frames included, not
+        once per delivery (see rabbit_amqp_session.erl's comment contrasting
+        next_outgoing_id with outgoing_delivery_id). Live-broker testing
+        confirmed this: fragmenting one delivery into 7 frames advanced the
+        broker's real transfer count by 7, and a client that only advanced
+        next-incoming-id on the delivery's final frame — as the ``more`` flag
+        might tempt one to do — would fall behind and eventually trip the
+        same ``amqp:session:window-violation`` this fix prevents, just from
+        under- rather than over-counting.
+        """
+        _broker, _connection, opened = session
+        link = _LinkDouble()
+        handle = opened.allocate_handle(link)
+        # Only the first frame of a delivery carries delivery-id; continuation
+        # frames (more=True) carry none, exactly as a real fragmented transfer
+        # arrives on the wire.
+        opened.handle_frame(Transfer(handle=handle, delivery_id=0, delivery_tag=b"a", more=True), b"frag-1")
+        assert opened._next_incoming_id == 1
+        opened.handle_frame(Transfer(handle=handle, more=True), b"frag-2")
+        assert opened._next_incoming_id == 2
+        opened.handle_frame(Transfer(handle=handle, more=False), b"frag-3")
+        assert opened._next_incoming_id == 3
+        assert [payload for _performative, payload in link.frames] == [b"frag-1", b"frag-2", b"frag-3"]
 
     def test_the_incoming_window_is_replenished_once_half_consumed(self, connect):
         broker, connection = connect()

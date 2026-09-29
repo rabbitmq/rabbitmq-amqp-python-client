@@ -69,6 +69,7 @@ class FakeBroker:
         auto_settle=True,
         sasl_layer=True,
         receiver_flow_properties=None,
+        next_outgoing_id=0,
     ):
         self._sock = sock
         self._sock.settimeout(5.0)
@@ -87,6 +88,7 @@ class FakeBroker:
         self.auto_settle = auto_settle
         self.sasl_layer = sasl_layer
         self.receiver_flow_properties = receiver_flow_properties
+        self.next_outgoing_id = next_outgoing_id
 
         self.sasl_init: SaslInit | None = None
         self.remote_open: Open | None = None
@@ -262,7 +264,7 @@ class FakeBroker:
                 channel,
                 Begin(
                     remote_channel=channel,
-                    next_outgoing_id=0,
+                    next_outgoing_id=self.next_outgoing_id,
                     incoming_window=DEFAULT_WINDOW,
                     outgoing_window=DEFAULT_WINDOW,
                     handle_max=self.handle_max,
