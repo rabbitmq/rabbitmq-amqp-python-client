@@ -38,6 +38,11 @@ DEFAULT_WINDOW = 0x7FFFFFFF
 #: Highest link handle the spec allows.
 MAX_HANDLE = 0xFFFFFFFF
 
+#: Transfer-ids are 32-bit RFC-1982 serial numbers: a peer may start theirs at
+#: an arbitrary value (RabbitMQ deliberately starts near this boundary) and it
+#: wraps back to 0 rather than growing past it.
+TRANSFER_ID_MODULUS = 0x1_0000_0000
+
 DEFAULT_BEGIN_TIMEOUT_SECONDS = 5.0
 DEFAULT_END_TIMEOUT_SECONDS = 5.0
 
@@ -429,9 +434,16 @@ class Session:
 
     def _on_transfer(self, performative: Transfer, payload: bytes) -> None:
         with self._cond:
-            if performative.delivery_id is not None:
-                self._next_incoming_id = performative.delivery_id + 1
-                self._received_transfer = True
+            # ``delivery-id`` and the implicit transfer-id next-incoming-id
+            # tracks are independent counters that may start at different
+            # values (RabbitMQ starts the latter near the 32-bit boundary
+            # specifically to catch clients that conflate the two — see
+            # rabbit_amqp_session.erl's comment on next_outgoing_id vs
+            # outgoing_delivery_id). Every transfer *frame* — including a
+            # fragment with no delivery-id of its own — advances it by one.
+            if self._next_incoming_id is not None:
+                self._next_incoming_id = (self._next_incoming_id + 1) % TRANSFER_ID_MODULUS
+            self._received_transfer = True
             self._incoming_used += 1
             replenish = self._incoming_used >= max(1, self._incoming_window // 2)
         link = self._link_for_handle(performative.handle)
