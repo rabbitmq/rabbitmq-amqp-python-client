@@ -92,6 +92,21 @@ _INT16_MIN, _INT16_MAX = -0x8000, 0x7FFF
 _INT32_MIN, _INT32_MAX = -0x80000000, 0x7FFFFFFF
 _INT64_MIN, _INT64_MAX = -0x8000000000000000, 0x7FFFFFFFFFFFFFFF
 
+#: Hard cap on a list/map/array's declared element count. A constant-width
+#: element (``null``, ``boolean``, ``uint0``, ``ulong0``) costs zero further
+#: bytes, so an ``array`` of one of those can claim billions of elements from
+#: a handful of wire bytes; without this cap, decoding one would force an
+#: allocation many orders of magnitude larger than the frame that requested it.
+MAX_COMPOUND_COUNT = 1_000_000
+
+#: Hard cap on how deeply values may nest (a described type wrapping another,
+#: or a list/map/array containing one). Every level costs only one byte on
+#: the wire (e.g. a run of described-type constructors, 0x00), so a small
+#: malicious frame can otherwise recurse past Python's call-stack limit and
+#: crash the process with an uncaught ``RecursionError`` instead of a
+#: ``ProtocolError``. No real AMQP message nests anywhere near this deep.
+MAX_DECODE_DEPTH = 100
+
 
 class Symbol(str):
     """A ``str`` that encodes as an AMQP ``symbol`` (ASCII) instead of a ``string``."""
@@ -575,11 +590,12 @@ class Decoder:
         position: Index of the first byte to read.
     """
 
-    __slots__ = ("_data", "_position")
+    __slots__ = ("_data", "_position", "_depth")
 
     def __init__(self, data: bytes | bytearray | memoryview, position: int = 0) -> None:
         self._data = bytes(data)
         self._position = position
+        self._depth = 0
 
     @property
     def position(self) -> int:
@@ -608,8 +624,19 @@ class Decoder:
         return self.read(1)[0]
 
     def read_value(self) -> Any:
-        """Read one complete value, constructor included."""
-        return self._read_body(self.read_code())
+        """Read one complete value, constructor included.
+
+        Raises:
+            ProtocolError: If reading the value would nest deeper than
+                :data:`MAX_DECODE_DEPTH`.
+        """
+        self._depth += 1
+        try:
+            if self._depth > MAX_DECODE_DEPTH:
+                raise ProtocolError(f"AMQP value nesting exceeds the {MAX_DECODE_DEPTH}-level limit")
+            return self._read_body(self.read_code())
+        finally:
+            self._depth -= 1
 
     def _unpack(self, fmt: str, size: int) -> Any:
         return struct.unpack(fmt, self.read(size))[0]
@@ -650,7 +677,11 @@ class Decoder:
         if code == CODE_DOUBLE:
             return float(self._unpack(">d", 8))
         if code == CODE_CHAR:
-            return chr(int(self._unpack(">I", 4)))
+            code_point = int(self._unpack(">I", 4))
+            try:
+                return chr(code_point)
+            except (ValueError, OverflowError) as error:
+                raise ProtocolError(f"AMQP char 0x{code_point:x} is not a valid Unicode scalar value") from error
         if code == CODE_TIMESTAMP:
             return Timestamp(self._unpack(">q", 8))
         if code == CODE_UUID:
@@ -675,8 +706,14 @@ class Decoder:
         if code in (CODE_VBIN8, CODE_VBIN32):
             return raw
         if code in (CODE_STR8, CODE_STR32):
-            return raw.decode("utf-8")
-        return Symbol(raw.decode("ascii"))
+            try:
+                return raw.decode("utf-8")
+            except UnicodeDecodeError as error:
+                raise ProtocolError(f"AMQP string is not valid UTF-8: {error}") from error
+        try:
+            return Symbol(raw.decode("ascii"))
+        except UnicodeDecodeError as error:
+            raise ProtocolError(f"AMQP symbol is not valid ASCII: {error}") from error
 
     def _read_compound(self, code: int, size: int, count: int) -> Any:
         # `size` is a hint used only to reject a declared length that could
@@ -690,6 +727,8 @@ class Decoder:
         end = self._position + size - width
         if end > len(self._data):
             raise ProtocolError(f"truncated AMQP compound value: declared size {size} overruns the buffer")
+        if count > MAX_COMPOUND_COUNT:
+            raise ProtocolError(f"AMQP compound declares {count} elements, exceeding the {MAX_COMPOUND_COUNT} limit")
         if code in (CODE_ARRAY8, CODE_ARRAY32):
             element_code = self.read_code()
             return [self._read_body(element_code) for _ in range(count)]
@@ -699,7 +738,11 @@ class Decoder:
             result: dict[Any, Any] = {}
             for _ in range(count // 2):
                 key = self.read_value()
-                result[key] = self.read_value()
+                value = self.read_value()
+                try:
+                    result[key] = value
+                except TypeError as error:
+                    raise ProtocolError(f"AMQP map key of type {type(key).__name__} is not hashable") from error
             return result
         return [self.read_value() for _ in range(count)]
 
