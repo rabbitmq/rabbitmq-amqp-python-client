@@ -27,6 +27,7 @@ from rabbitmq_amqp_python_client import (
     TimeoutContext,
     ValidationError,
 )
+from rabbitmq_amqp_python_client.connection import parse_broker_version
 from rabbitmq_amqp_python_client.constants import (
     AMQP_APPLICATION_PROPERTIES_FILTER,
     AMQP_PROPERTIES_FILTER,
@@ -35,6 +36,7 @@ from rabbitmq_amqp_python_client.constants import (
     DIRECT_REPLY_TO_CAPABILITY,
     RABBITMQ_ACTIVE_PROPERTY,
     RABBITMQ_CONSUMER_TIMEOUT_PROPERTY,
+    RABBITMQ_PRIORITY_PROPERTY,
     SQL_FILTER_NAME,
     STREAM_FILTER_VALUES_FILTER,
     STREAM_MATCH_UNFILTERED_FILTER,
@@ -169,6 +171,7 @@ class Harness:
         stream=None,
         consumer_timeout=None,
         on_delivery_release=None,
+        priority=None,
     ):
         """Build one consumer and remember the channel/handle its link got.
 
@@ -187,6 +190,7 @@ class Harness:
                 ``quorum().consumer_timeout(...)`` (step_130 §2).
             on_delivery_release: Handler to register via
                 ``quorum().on_delivery_release(...)`` (step_130 §4).
+            priority: Value to set via ``priority(...)`` (step_140 §1).
         """
         builder = self.connection.consumer_builder()
         if settle_strategy is not ConsumerSettleStrategy.DIRECT_REPLY_TO:
@@ -202,6 +206,8 @@ class Harness:
             builder.quorum().consumer_timeout(consumer_timeout).builder()
         if on_delivery_release is not None:
             builder.quorum().on_delivery_release(on_delivery_release).builder()
+        if priority is not None:
+            builder.priority(priority)
         if stream is not None:
             stream(builder.stream())
         consumer = builder.build()
@@ -299,6 +305,11 @@ def harness(connect):
 def consuming(harness):
     """A harness whose broker accepts every attach — what most tests want."""
     return harness()
+
+
+def broker_properties(version):
+    """The ``open.properties`` RabbitMQ announces itself with."""
+    return {Symbol("product"): "RabbitMQ", Symbol("version"): version}
 
 
 def annotations_of(state):
@@ -1310,6 +1321,132 @@ class TestDelayedRetry:
         with pytest.raises(ConsumerError, match="presettled"):
             context.delayed_retry(1_000)
         consumer.close()
+
+
+class TestConsumerPriority:
+    """step_140: the ``rabbitmq:priority`` attach property."""
+
+    @pytest.fixture
+    def consuming(self, harness):
+        """A harness whose broker announces RabbitMQ 4.3, the oldest that honours the property."""
+        return harness(server_properties=broker_properties("4.3.0"))
+
+    def test_priority_returns_the_same_builder(self):
+        builder = ConsumerBuilder(None).queue("orders")
+        assert builder.priority(5) is builder
+
+    def test_a_non_zero_priority_sets_the_attach_property(self, consuming):
+        consumer = consuming.build(RecordingHandler(), priority=10)
+        assert consuming.attach.properties[RABBITMQ_PRIORITY_PROPERTY] == 10
+        consumer.close()
+
+    def test_a_negative_priority_is_sent_as_is(self, consuming):
+        consumer = consuming.build(RecordingHandler(), priority=-3)
+        assert consuming.attach.properties[RABBITMQ_PRIORITY_PROPERTY] == -3
+        consumer.close()
+
+    def test_a_zero_priority_leaves_the_property_absent(self, consuming):
+        consumer = consuming.build(RecordingHandler(), priority=0)
+        assert consuming.attach.properties is None
+        consumer.close()
+
+    def test_no_priority_leaves_the_attach_properties_unset(self, consuming):
+        consumer = consuming.build(RecordingHandler())
+        assert consuming.attach.properties is None
+        consumer.close()
+
+    def test_calling_priority_twice_keeps_the_last_value(self, consuming):
+        builder = consuming.connection.consumer_builder().queue("orders").message_handler(RecordingHandler())
+        builder.priority(1).priority(7)
+        consumer = builder.build()
+        _channel, attach, _payload = consuming.broker.wait_for(Attach)
+        assert attach.properties[RABBITMQ_PRIORITY_PROPERTY] == 7
+        consumer.close()
+
+    def test_priority_coexists_with_consumer_timeout(self, consuming):
+        consumer = consuming.build(RecordingHandler(), priority=4, consumer_timeout=90_000)
+        assert consuming.attach.properties == {
+            RABBITMQ_CONSUMER_TIMEOUT_PROPERTY: 90_000,
+            RABBITMQ_PRIORITY_PROPERTY: 4,
+        }
+        consumer.close()
+
+    @pytest.mark.parametrize("priority", [-(2**31), 2**31 - 1])
+    def test_the_signed_32_bit_bounds_are_accepted(self, priority):
+        builder = ConsumerBuilder(None).queue("orders").priority(priority)
+        assert builder._priority == priority
+
+    @pytest.mark.parametrize("priority", [-(2**31) - 1, 2**31])
+    def test_a_priority_outside_32_bits_is_refused(self, priority):
+        with pytest.raises(ValidationError, match="priority must be in"):
+            ConsumerBuilder(None).queue("orders").priority(priority)
+
+    def test_priority_encodes_as_an_amqp_int(self):
+        """RabbitMQ silently ignores a rabbitmq:* property of another type (step_140 §2)."""
+        for priority in (10, -3, 100_000, 2**31 - 1, -(2**31)):
+            assert encode_value(Int(priority))[0] in (CODE_INT, CODE_SMALLINT)
+
+
+class TestConsumerPriorityBrokerVersion:
+    """step_140 §3: a non-zero priority is refused unless the broker is known to be 4.3+."""
+
+    @pytest.mark.parametrize("version", ["4.2.9", "3.13.0", "4.0.0-rc.1", "4.2"])
+    def test_a_non_zero_priority_is_refused_on_an_older_broker(self, harness, version):
+        consuming = harness(server_properties=broker_properties(version))
+        with pytest.raises(ValidationError, match="RabbitMQ 4.3 or later"):
+            consuming.build(RecordingHandler(), priority=1)
+        assert consuming.broker.all_received(Attach) == []
+
+    @pytest.mark.parametrize("properties", [None, {}, {"product": "RabbitMQ"}, broker_properties("garbage")])
+    def test_a_non_zero_priority_is_refused_when_the_version_is_unknown(self, harness, properties):
+        consuming = harness(server_properties=properties)
+        with pytest.raises(ValidationError, match="unknown version"):
+            consuming.build(RecordingHandler(), priority=1)
+        assert consuming.broker.all_received(Attach) == []
+
+    def test_the_refusal_names_the_version_found(self, harness):
+        consuming = harness(server_properties=broker_properties("4.2.9"))
+        with pytest.raises(ValidationError, match=r"version 4\.2\.9"):
+            consuming.build(RecordingHandler(), priority=1)
+
+    @pytest.mark.parametrize("version", ["4.3.0", "4.3.0-rc.1", "4.3", "4.4.0", "5.0.1"])
+    def test_a_non_zero_priority_is_accepted_on_4_3_or_later(self, harness, version):
+        consuming = harness(server_properties=broker_properties(version))
+        consumer = consuming.build(RecordingHandler(), priority=1)
+        assert consuming.attach.properties[RABBITMQ_PRIORITY_PROPERTY] == 1
+        consumer.close()
+
+    @pytest.mark.parametrize("properties", [None, broker_properties("3.13.0"), broker_properties("4.3.0")])
+    def test_a_zero_priority_is_accepted_on_every_broker(self, harness, properties):
+        consuming = harness(server_properties=properties)
+        consumer = consuming.build(RecordingHandler(), priority=0)
+        assert consuming.attach.properties is None
+        consumer.close()
+
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("4.3.0", (4, 3, 0)),
+            ("4.3", (4, 3, 0)),
+            ("4.3.0-rc.1", (4, 3, 0)),
+            ("4.4.0+dev", (4, 4, 0)),
+            ("5.0.1", (5, 0, 1)),
+            ("", None),
+            ("garbage", None),
+            ("4", None),
+            (None, None),
+            (43, None),
+        ],
+    )
+    def test_parse_broker_version(self, text, expected):
+        assert parse_broker_version(text) == expected
+
+    def test_the_connection_reports_the_brokers_version(self, harness):
+        consuming = harness(server_properties=broker_properties("4.3.2"))
+        assert consuming.connection.broker_version == (4, 3, 2)
+
+    def test_the_connection_reports_an_unknown_version_as_none(self, harness):
+        assert harness().connection.broker_version is None
 
 
 class TestConsumerTimeout:

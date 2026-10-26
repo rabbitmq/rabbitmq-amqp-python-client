@@ -37,6 +37,7 @@ from rabbitmq_amqp_python_client import (
     QuorumQueueDelayedRetryType,
     StreamOffsetSpecification,
     TimeoutContext,
+    ValidationError,
 )
 from rabbitmq_amqp_python_client.constants import STREAM_FILTER_VALUE_ANNOTATION
 from rabbitmq_amqp_python_client.management import STATUS_BAD_REQUEST
@@ -207,7 +208,7 @@ def _consume(connection, consumers, queue_name, handler, **options):
             address is broker-generated (step_060_consumer_strategy.md §3.3).
         handler: The message handler.
         **options: ``credits``, ``settle_strategy``, ``on_state_changed``,
-            ``consumer_timeout``, ``on_delivery_release``, and ``stream``, a
+            ``consumer_timeout``, ``on_delivery_release``, ``priority``, and ``stream``, a
             ``stream(stream_options)`` callable configuring the stream
             sub-builder.
     """
@@ -225,6 +226,8 @@ def _consume(connection, consumers, queue_name, handler, **options):
         builder.quorum().consumer_timeout(options["consumer_timeout"]).builder()
     if options.get("on_delivery_release") is not None:
         builder.quorum().on_delivery_release(options["on_delivery_release"]).builder()
+    if options.get("priority") is not None:
+        builder.priority(options["priority"])
     if options.get("stream") is not None:
         options["stream"](builder.stream())
     consumer = builder.build()
@@ -1229,3 +1232,79 @@ class TestConsumerTimeout:
         _wait_until(lambda: original_context.is_settled, "the original context to be marked settled")
         with pytest.raises(ConsumerError, match="already been settled"):
             original_context.accept()
+
+
+@pytest.mark.parametrize("quorum", [False, True], ids=["classic", "quorum"])
+class TestConsumerPriority:
+    """step_140: ``rabbitmq:priority`` (needs RabbitMQ 4.3+) decides which consumer is served first."""
+
+    @pytest.fixture(autouse=True)
+    def _requires_4_3(self, connection):
+        version = connection.broker_version
+        if version is None or version < (4, 3, 0):
+            pytest.skip(f"consumer priority needs RabbitMQ 4.3+, broker is {version}")
+
+    def test_the_broker_accepts_a_consumer_with_a_priority(self, connection, queue, publish, consumers, quorum):
+        name = queue("con-it-priority-attach", quorum=quorum)
+        handler = RecordingHandler(action=lambda context, message: context.accept())
+        _consume(connection, consumers, name, handler, priority=1)
+
+        publish(name, ["hello"])
+        handler.wait(1)
+
+    def test_the_highest_priority_consumer_gets_every_message_while_it_has_credit(
+        self, connection, queue, publish, consumers, quorum
+    ):
+        name = queue("con-it-priority-order", quorum=quorum)
+        accept = lambda context, message: context.accept()  # noqa: E731
+        low = RecordingHandler(action=accept)
+        high = RecordingHandler(action=accept)
+        _consume(connection, consumers, name, low, credits=BATCH * 2, priority=0)
+        _consume(connection, consumers, name, high, credits=BATCH * 2, priority=10)
+
+        publish(name, [f"m{index}" for index in range(BATCH)])
+        high.wait(BATCH)
+        assert low.count == 0
+
+    def test_delivery_falls_back_to_the_lower_priority_consumer_when_credit_runs_out(
+        self, connection, queue, publish, consumers, quorum
+    ):
+        name = queue("con-it-priority-fallback", quorum=quorum)
+        low = RecordingHandler(action=lambda context, message: context.accept())
+        # Never settles, so its two credits are never handed back.
+        high = RecordingHandler()
+        _consume(connection, consumers, name, low, credits=BATCH, priority=0)
+        _consume(connection, consumers, name, high, credits=2, priority=10)
+
+        publish(name, [f"m{index}" for index in range(6)])
+        low.wait(4)
+        assert high.count == 2
+
+    def test_consumers_of_equal_priority_both_receive_messages(self, connection, queue, publish, consumers, quorum):
+        name = queue("con-it-priority-equal", quorum=quorum)
+        accept = lambda context, message: context.accept()  # noqa: E731
+        first = RecordingHandler(action=accept)
+        second = RecordingHandler(action=accept)
+        _consume(connection, consumers, name, first, credits=5, priority=3)
+        _consume(connection, consumers, name, second, credits=5, priority=3)
+
+        publish(name, [f"m{index}" for index in range(BATCH)])
+        _wait_until(lambda: first.count + second.count == BATCH, f"{BATCH} deliveries")
+        assert first.count > 0
+        assert second.count > 0
+
+
+class TestConsumerPriorityVersionGate:
+    """step_140 §3: against a broker older than 4.3 a non-zero priority is refused, zero is not."""
+
+    def test_the_broker_version_gate_matches_the_live_broker(self, connection, queue, consumers):
+        version = connection.broker_version
+        assert version is not None, "RabbitMQ announces its version in open.properties"
+        name = queue("con-it-priority-gate")
+        handler = RecordingHandler(action=lambda context, message: context.accept())
+        _consume(connection, consumers, name, handler, priority=0)  # never refused
+        if version < (4, 3, 0):
+            with pytest.raises(ValidationError, match="RabbitMQ 4.3 or later"):
+                _consume(connection, consumers, name, handler, priority=1)
+        else:
+            _consume(connection, consumers, name, handler, priority=1)
