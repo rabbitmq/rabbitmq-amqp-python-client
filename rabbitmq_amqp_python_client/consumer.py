@@ -53,6 +53,7 @@ from .constants import (
     DIRECT_REPLY_TO_CAPABILITY,
     RABBITMQ_ACTIVE_PROPERTY,
     RABBITMQ_CONSUMER_TIMEOUT_PROPERTY,
+    RABBITMQ_PRIORITY_PROPERTY,
     SQL_FILTER_NAME,
     STREAM_FILTER_VALUES_FILTER,
     STREAM_MATCH_UNFILTERED_FILTER,
@@ -78,6 +79,7 @@ from .wire import (
     Accepted,
     DeliveryState,
     Described,
+    Int,
     Long,
     Message,
     Modified,
@@ -114,6 +116,13 @@ ANNOTATION_KEY_PREFIX = "x-"
 #: ``x-consumer-timeout`` argument (management.py's ``TEN_YEARS_MS`` bound),
 #: which is an unrestricted-width ``long``.
 MAX_CONSUMER_TIMEOUT_MS = 0xFFFFFFFF
+
+#: Bounds of ``rabbitmq:priority`` (step_140 §1): a signed 32-bit AMQP ``int``.
+MIN_CONSUMER_PRIORITY = -(2**31)
+MAX_CONSUMER_PRIORITY = 2**31 - 1
+
+#: Oldest broker that honours ``rabbitmq:priority``; older ones silently ignore it (step_140 §3).
+MIN_PRIORITY_BROKER_VERSION = (4, 3, 0)
 
 #: What a relative-interval offset must look like (step_080 §1.1): a count
 #: followed by one of years, months, days, hours, minutes or seconds.
@@ -675,6 +684,7 @@ class Consumer:
         stream_filter: Mapping[str, Any] | None = None,
         consumer_timeout_ms: int | None = None,
         on_delivery_release: DeliveryReleaseHandler | None = None,
+        priority: int = 0,
     ) -> None:
         """Create an unattached consumer; :meth:`open` attaches its link.
 
@@ -702,6 +712,8 @@ class Consumer:
                 force-releases past this timeout (step_130 §4). Without one, the
                 broker's release/block still happens, but this client never
                 learns about it or lifts the block.
+            priority: ``rabbitmq:priority`` attach property (step_140 §1); ``0``
+                (the broker's own default) sends no property at all.
         """
         self._connection = connection
         self._session = session
@@ -715,6 +727,7 @@ class Consumer:
         self._last_stream_offset: int | None = None
         self._consumer_timeout_ms = consumer_timeout_ms
         self._on_delivery_release_handler = on_delivery_release
+        self._priority = priority
         self._logger = _logger
         self._lock = threading.RLock()
         self._closed = False
@@ -898,11 +911,13 @@ class Consumer:
             if self._settle_strategy is ConsumerSettleStrategy.DIRECT_REPLY_TO
             else _consumer_source(self._address, self._effective_stream_filter())
         )
-        attach_properties = (
-            None
-            if self._consumer_timeout_ms is None
-            else {RABBITMQ_CONSUMER_TIMEOUT_PROPERTY: self._consumer_timeout_ms}
-        )
+        attach_properties: dict[str, Any] = {}
+        if self._consumer_timeout_ms is not None:
+            attach_properties[RABBITMQ_CONSUMER_TIMEOUT_PROPERTY] = self._consumer_timeout_ms
+        if self._priority != 0:
+            # Pinned to an AMQP int: RabbitMQ silently ignores a rabbitmq:* property
+            # of any other type (step_140 §2).
+            attach_properties[RABBITMQ_PRIORITY_PROPERTY] = Int(self._priority)
         self._link.attach(
             self._session,
             source=source,
@@ -914,7 +929,7 @@ class Consumer:
                 else SND_SETTLE_MODE_SETTLED
             ),
             rcv_settle_mode=RCV_SETTLE_MODE_FIRST,
-            properties=attach_properties,
+            properties=attach_properties or None,
         )
         if self._settle_strategy is ConsumerSettleStrategy.DIRECT_REPLY_TO:
             self._resolve_direct_reply_to_address()
@@ -1325,6 +1340,7 @@ class ConsumerBuilder:
         self._stream = StreamConfiguration()
         self._consumer_timeout_ms: int | None = None
         self._on_delivery_release_handler: DeliveryReleaseHandler | None = None
+        self._priority = 0
 
     # --- setters --------------------------------------------------------
 
@@ -1400,6 +1416,31 @@ class ConsumerBuilder:
             This builder.
         """
         self._settle_strategy = strategy
+        return self
+
+    def priority(self, priority: int) -> ConsumerBuilder:
+        """Set the consumer priority, sent as the ``rabbitmq:priority`` attach property (step_140 §1).
+
+        The broker delivers to the highest-priority consumer that has credit, and
+        falls back to lower ones only when the higher ones run out of it.
+        Requires RabbitMQ 4.3+ for a non-zero value, which an older broker
+        silently ignores.
+
+        Args:
+            priority: Signed 32-bit priority; higher is served first. Defaults
+                to ``0``, which sends no property. Negative values are allowed.
+
+        Returns:
+            This builder.
+
+        Raises:
+            ValidationError: If ``priority`` does not fit a signed 32-bit integer.
+        """
+        if not MIN_CONSUMER_PRIORITY <= priority <= MAX_CONSUMER_PRIORITY:
+            raise ValidationError(
+                f"priority must be in {MIN_CONSUMER_PRIORITY}..{MAX_CONSUMER_PRIORITY}, got {priority}"
+            )
+        self._priority = priority
         return self
 
     # --- type-specific sub-builders -------------------------------------
@@ -1478,6 +1519,7 @@ class ConsumerBuilder:
         # Built before the session is opened, so an invalid offset specification
         # costs no I/O at all (step_080 §4).
         stream_filter = stream_filter_set(self._stream)
+        self._check_priority_supported()
         session = self._connection._pub_sub_session()
         consumer = Consumer(
             self._connection,
@@ -1490,9 +1532,33 @@ class ConsumerBuilder:
             stream_filter=stream_filter,
             consumer_timeout_ms=self._consumer_timeout_ms,
             on_delivery_release=self._on_delivery_release_handler,
+            priority=self._priority,
         )
         consumer.open()
         return consumer
+
+    def _check_priority_supported(self) -> None:
+        """Refuse a non-zero priority unless the broker is known to be 4.3+ (step_140 §3).
+
+        A broker older than 4.3 accepts the attach and silently ignores
+        ``rabbitmq:priority``, so an unknown version is refused too: the feature
+        cannot be shown to work. A zero priority sends no property and is always
+        allowed.
+
+        Raises:
+            ValidationError: If the priority is non-zero and the broker is older
+                than 4.3 or did not announce its version.
+        """
+        if self._priority == 0:
+            return
+        version = self._connection.broker_version
+        if version is not None and version >= MIN_PRIORITY_BROKER_VERSION:
+            return
+        found = "an unknown version" if version is None else "version " + ".".join(map(str, version))
+        raise ValidationError(
+            f"consumer priority needs RabbitMQ 4.3 or later, but the broker is {found}; "
+            "an older broker would silently ignore it"
+        )
 
 
 class QuorumConsumerOptions:

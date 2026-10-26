@@ -19,6 +19,9 @@ RABBITMQ_ACTIVE_PROPERTY = "rabbitmq:active"
 # --- Consumer timeout (quorum queues, RabbitMQ 4.3+, step_130 §2) ---
 RABBITMQ_CONSUMER_TIMEOUT_PROPERTY = "rabbitmq:consumer-timeout"
 
+# --- Consumer priority (classic and quorum queues, RabbitMQ 4.3+, step_140 §1) ---
+RABBITMQ_PRIORITY_PROPERTY = "rabbitmq:priority"
+
 # --- Per-message delayed retry (quorum queues, RabbitMQ 4.3+, step_120 §1) ---
 DELIVERY_TIME_ANNOTATION = "x-opt-delivery-time"
 

@@ -11,6 +11,7 @@ it in a later step.
 from __future__ import annotations
 
 import contextlib
+import re
 import socket
 import ssl
 import threading
@@ -70,11 +71,41 @@ CONTAINER_ID_PREFIX = "rabbitmq-amqp-python-client"
 #: Condition RabbitMQ uses when it rejects the credentials or the virtual host.
 UNAUTHORIZED_ACCESS_CONDITION = "amqp:unauthorized-access"
 
+#: ``(major, minor, patch)`` of the broker, as :attr:`Connection.broker_version` reports it.
+BrokerVersion = tuple[int, int, int]
+
+#: Leading ``<major>.<minor>[.<patch>]`` of the ``version`` the broker announces in ``open.properties``.
+_BROKER_VERSION_PATTERN = re.compile(r"^\s*(\d+)\.(\d+)(?:\.(\d+))?")
+
+#: ``open.properties`` key under which RabbitMQ announces its version (step_140 §3).
+BROKER_VERSION_PROPERTY = "version"
+
 CONNECT_TIMEOUT_SECONDS = 30.0
 HANDSHAKE_TIMEOUT_SECONDS = 30.0
 CLOSE_TIMEOUT_SECONDS = 10.0
 THREAD_JOIN_TIMEOUT_SECONDS = 5.0
 MIN_HEARTBEAT_INTERVAL_SECONDS = 1.0
+
+
+def parse_broker_version(text: object) -> BrokerVersion | None:
+    """Parse the ``version`` a broker announces in its ``open`` properties (step_140 §3).
+
+    Args:
+        text: The raw property value; anything that is not a string is unknown.
+
+    Returns:
+        ``(major, minor, patch)``, with a missing patch as ``0`` and any suffix
+        (``-rc.1``, ``+dev``) ignored — or ``None`` when ``text`` does not start
+        with ``<digits>.<digits>``.
+    """
+    if not isinstance(text, str):
+        return None
+    match = _BROKER_VERSION_PATTERN.match(text)
+    if match is None:
+        return None
+    major, minor, patch = match.groups()
+    return int(major), int(minor), int(patch or 0)
+
 
 #: Callback invoked at most once when the connection dies without ``close()``.
 #: Receives the failure that killed it, or ``None`` when the peer closed
@@ -318,6 +349,19 @@ class Connection:
     def remote_open(self) -> Open | None:
         """The peer's ``open`` performative, available once bootstrap succeeded."""
         return self._remote_open
+
+    @property
+    def broker_version(self) -> BrokerVersion | None:
+        """The broker's ``(major, minor, patch)`` from its ``open`` properties, or ``None`` if unknown.
+
+        Read from the current connection's ``open``, so it follows an automatic
+        reconnect to a different broker. ``None`` when the broker did not
+        announce a parseable ``version`` (step_140 §3).
+        """
+        remote_open = self._remote_open
+        if remote_open is None or remote_open.properties is None:
+            return None
+        return parse_broker_version(remote_open.properties.get(BROKER_VERSION_PROPERTY))
 
     def open_session(self) -> Session:
         """Begin a new session on the next free channel.
