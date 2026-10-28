@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Close the socket when the broker closed the connection first, and allow `close()` after a failed `dial()` by @adityaanikam
+
 
 ## [[1.0.1](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v1.0.1)]
 

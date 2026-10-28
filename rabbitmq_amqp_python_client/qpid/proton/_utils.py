@@ -585,6 +585,13 @@ class BlockingConnection(Handler):
                 if self.conn.transport:
                     # Close tail to force transport cleanup without waiting/hanging for peer close frame.
                     self.conn.transport.close_tail()
+                    # Keep processing events until the transport is released, otherwise the socket
+                    # stays open when the peer closed the connection first.
+                    self.wait(
+                        lambda: self.conn.transport is None,
+                        timeout=5,
+                        msg="Closing transport",
+                    )
         finally:
             self.conn.free()
             # Nothing left to block on.  Allow reactor to clean up.
@@ -594,6 +601,16 @@ class BlockingConnection(Handler):
                 self.conn = None
             self.container.stop_events()
             self.container = None
+
+    def release_socket(self) -> None:
+        """
+        Close the socket of a connection that will not be used again, for instance
+        because the broker closed it and a new connection took its place.
+        """
+        transport = self.conn.transport if self.conn else None
+        selectable = getattr(transport, "_selectable", None)
+        if selectable is not None:
+            selectable.close()
 
     @property
     def url(self) -> str:
