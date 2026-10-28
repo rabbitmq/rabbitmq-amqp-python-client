@@ -1,4 +1,5 @@
 import os
+import socket
 import tempfile
 import time
 from datetime import datetime, timedelta
@@ -22,6 +23,7 @@ from rabbitmq_amqp_python_client import (
 from rabbitmq_amqp_python_client.qpid.proton import (
     ConnectionException,
 )
+from rabbitmq_amqp_python_client.qpid.proton._io import IO
 from rabbitmq_amqp_python_client.qpid.proton._transport import (
     SSLDomain,
 )
@@ -33,6 +35,7 @@ from .http_requests import (
     create_vhost,
     delete_all_connections,
     delete_vhost,
+    get_connections_names,
 )
 from .utils import token
 
@@ -336,3 +339,55 @@ def test_multiconnection_tries_next_url_on_failure() -> None:
         BlockingConnection(urls=urls, container=mock_container)
 
     assert mock_container.connect.call_count == 2
+
+
+def test_close_after_failed_dial() -> None:
+    # nothing is listening on this port
+    connection = Connection("amqp://guest:guest@127.0.0.1:1/")
+    with pytest.raises(Exception):
+        connection.dial()
+
+    connection.close()
+
+
+@pytest.mark.parametrize(
+    "recovery_configuration",
+    [
+        RecoveryConfiguration(active_recovery=False),
+        RecoveryConfiguration(back_off_reconnect_interval=timedelta(seconds=1)),
+    ],
+    ids=["without_recovery", "with_recovery"],
+)
+def test_sockets_are_closed_when_the_broker_closed_the_connection(
+    recovery_configuration: RecoveryConfiguration,
+) -> None:
+    sockets: list[socket.socket] = []
+    connect = IO.connect
+
+    def recording_connect(addr):
+        sock = connect(addr)
+        sockets.append(sock)
+        return sock
+
+    with patch.object(IO, "connect", staticmethod(recording_connect)):
+        connection = Connection(
+            "amqp://guest:guest@127.0.0.1:5672/",
+            recovery_configuration=recovery_configuration,
+        )
+        connection.dial()
+        management = connection.management()
+
+        # the management api lists a connection a few seconds after it opens
+        deadline = time.time() + 30
+        while not get_connections_names() and time.time() < deadline:
+            time.sleep(0.5)
+
+        # the broker closes the connection, the client has not asked for it
+        delete_all_connections()
+        with pytest.raises(ConnectionClosed):
+            management.declare_queue(StreamSpecification(name="test_close_broker"))
+
+        connection.close()
+
+    assert sockets
+    assert [sock for sock in sockets if sock.fileno() != -1] == []
