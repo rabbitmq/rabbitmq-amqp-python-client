@@ -74,6 +74,15 @@ Each one talks to a local broker:
 PYTHONPATH=. .venv/bin/python docs/examples/basic_connection.py
 ```
 
+### Threading
+
+A single `Connection` can be shared by all threads in a process: it guards its
+state and socket writes with internal locks. Create one `Publisher` and one
+`Consumer` per thread rather than sharing them. They are safe to share, but
+they serialise calls, so sharing gains no throughput. Consumer handlers run on
+the client's own delivery threads, so protect any state they share with your
+code. See [`docs/examples/multithreaded_example.py`](docs/examples/multithreaded_example.py).
+
 ## Development
 
 ```sh
