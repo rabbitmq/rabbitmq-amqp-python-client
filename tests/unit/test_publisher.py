@@ -16,6 +16,7 @@ import pytest
 
 from rabbitmq_amqp_python_client import (
     AMQPTimeoutError,
+    DeliveryAfter,
     InvalidAddressError,
     OutcomeState,
     PublisherError,
@@ -39,7 +40,9 @@ from rabbitmq_amqp_python_client.wire import (
     Attach,
     Detach,
     Error,
+    Long,
     Message,
+    MessageAnnotations,
     Modified,
     Properties,
     Received,
@@ -574,3 +577,41 @@ class TestClose:
         broker.drop_connection()
         connection.close()
         assert connection._publishers == {}
+
+
+class TestDeliveryAfter:
+    """``DeliveryAfter`` stamps ``x-opt-delivery-time`` without disturbing other annotations."""
+
+    def test_creates_annotations_when_absent(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr("rabbitmq_amqp_python_client.publisher.time.time", lambda: 1000.0)
+        message = Message("hi")
+
+        result = DeliveryAfter(message, 30)
+
+        assert result is message
+        assert message.message_annotations is not None
+        value = message.message_annotations.value
+        assert value == {"x-opt-delivery-time": 1_030_000}
+        (key,) = value
+        assert isinstance(key, Symbol)
+        assert isinstance(value[key], Long)
+
+    def test_adds_to_existing_annotations(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr("rabbitmq_amqp_python_client.publisher.time.time", lambda: 1000.0)
+        message = Message("hi", message_annotations=MessageAnnotations({"x-other": 1}))
+
+        DeliveryAfter(message, 1.5)
+
+        assert message.message_annotations is not None
+        assert message.message_annotations.value == {"x-other": 1, "x-opt-delivery-time": 1_001_500}
+
+    def test_replaces_an_existing_delivery_time(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr("rabbitmq_amqp_python_client.publisher.time.time", lambda: 1000.0)
+        message = Message("hi", message_annotations=MessageAnnotations({"x-opt-delivery-time": 5}))
+
+        DeliveryAfter(message, 10)
+
+        assert message.message_annotations is not None
+        (key,) = message.message_annotations.value
+        assert isinstance(key, Symbol)
+        assert message.message_annotations.value[key] == 1_010_000
