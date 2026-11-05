@@ -587,16 +587,21 @@ class BlockingConnection(Handler):
                     self.conn.transport.close_tail()
                     # Keep processing events until the transport is released, otherwise the socket
                     # stays open when the peer closed the connection first.
-                    self.wait(
-                        lambda: self.conn.transport is None,
-                        timeout=5,
-                        msg="Closing transport",
-                    )
+                    try:
+                        self.wait(
+                            lambda: self.conn.transport is None,
+                            timeout=5,
+                            msg="Closing transport",
+                        )
+                    except Timeout:
+                        # The peer is gone anyway: don't make close() fail, just
+                        # make sure the socket is not left open.
+                        self.release_socket()
         finally:
-            self.conn.free()
             # Nothing left to block on.  Allow reactor to clean up.
             # self.run()   # why is this necessary here?
             if self.conn:
+                self.conn.free()
                 self.conn.handler = None  # break cyclical reference
                 self.conn = None
             self.container.stop_events()

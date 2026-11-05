@@ -22,6 +22,7 @@ from rabbitmq_amqp_python_client import (
 )
 from rabbitmq_amqp_python_client.qpid.proton import (
     ConnectionException,
+    Timeout,
 )
 from rabbitmq_amqp_python_client.qpid.proton._io import IO
 from rabbitmq_amqp_python_client.qpid.proton._transport import (
@@ -339,6 +340,38 @@ def test_multiconnection_tries_next_url_on_failure() -> None:
         BlockingConnection(urls=urls, container=mock_container)
 
     assert mock_container.connect.call_count == 2
+
+
+def test_close_releases_the_socket_when_the_transport_is_not_released() -> None:
+    mock_container = MagicMock()
+    mock_conn = mock_container.connect.return_value
+
+    with patch.object(BlockingConnection, "wait") as mock_wait:
+        # two waits to connect, then the wait for the connection to close, and the
+        # wait for the transport to be released times out
+        mock_wait.side_effect = [None, None, None, Timeout("Closing transport")]
+        connection = BlockingConnection(
+            urls=["amqp://host:5672"], container=mock_container
+        )
+
+        with patch.object(BlockingConnection, "release_socket") as release_socket:
+            connection.close()
+
+    release_socket.assert_called_once()
+    mock_conn.free.assert_called_once()
+    assert connection.conn is None
+
+
+def test_close_without_a_connection() -> None:
+    mock_container = MagicMock()
+
+    with patch.object(BlockingConnection, "wait"):
+        connection = BlockingConnection(
+            urls=["amqp://host:5672"], container=mock_container
+        )
+
+    connection.conn = None
+    connection.close()
 
 
 def test_close_after_failed_dial() -> None:
