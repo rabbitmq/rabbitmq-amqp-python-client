@@ -8,7 +8,7 @@ The queue is declared as a quorum queue with ``queue(name).quorum().queue().decl
 ``quorum()`` sets ``x-queue-type`` to ``quorum`` and ``queue()`` returns to the
 plain queue builder for the terminal ``declare()``.
 
-``DeliveryAfter(message, seconds)`` stamps each message with an
+``Message.DeliveryAfter(seconds)`` stamps each message with an
 ``x-opt-delivery-time`` annotation (milliseconds since the epoch) ``seconds``
 ahead, so the quorum queue holds it back and only
 delivers it once that time is reached. See
@@ -35,7 +35,7 @@ import threading
 import uuid
 from datetime import datetime
 
-from rabbitmq_amqp_python_client import Connection, ConnectionParameters, Context, DeliveryAfter, Message
+from rabbitmq_amqp_python_client import Connection, ConnectionParameters, Context, Message
 
 #: How many messages to publish.
 MESSAGE_COUNT = 10
@@ -89,7 +89,7 @@ def quorum_publisher_delay_example() -> None:
         publisher = connection.publisher_builder().queue(queue_name).build()
         try:
             for i in range(MESSAGE_COUNT):
-                msgq = DeliveryAfter(Message(f"message {i}"), DELAY_SECONDS)
+                msgq = Message(f"message {i}").DeliveryAfter(DELAY_SECONDS)
                 result = publisher.publish(msgq)
                 logger.info("%r -> %s", result.message.body_as_string(), result.outcome.state.value)
 

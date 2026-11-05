@@ -30,7 +30,6 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from .constants import (
-    DELIVERY_TIME_ANNOTATION,
     EXCHANGE_ADDRESS_TEMPLATE,
     EXCHANGE_ADDRESS_WITH_KEY_TEMPLATE,
     QUEUE_ADDRESS_TEMPLATE,
@@ -48,13 +47,10 @@ from .wire import (
     Accepted,
     DeliveryState,
     Error,
-    Long,
     Message,
-    MessageAnnotations,
     Rejected,
     Released,
     Source,
-    Symbol,
     Target,
 )
 
@@ -574,31 +570,17 @@ class PublisherBuilder:
 def DeliveryAfter(message: Message, seconds: float) -> Message:  # noqa: N802 - reads like a constructor at call sites
     """Hold ``message`` back so the broker delivers it ``seconds`` from now.
 
-    Stamps the ``x-opt-delivery-time`` message annotation (the current time plus
-    ``seconds``, as an AMQP ``long`` of milliseconds since the Unix epoch, keyed
-    by an AMQP ``symbol``). RabbitMQ honours it on quorum queues (4.3+); a queue
-    type that does not recognise the annotation simply ignores it. A
-    :class:`~.wire.MessageAnnotations` section is created when the message has
-    none; otherwise the key is added to (or replaced in) the existing one, and
-    every other annotation is left untouched.
+    Function form of :meth:`Message.DeliveryAfter <.wire.Message.DeliveryAfter>`,
+    which holds the implementation and documents the annotation it stamps.
 
     Args:
         message: The message to delay. It is modified in place.
         seconds: How long to hold the message back, from now.
 
     Returns:
-        ``message`` itself, so the call can be used inline, e.g.
-        ``publisher.publish(DeliveryAfter(Message("hi"), 30))``.
+        ``message`` itself.
     """
-    delivery_time_ms = Long(int((time.time() + seconds) * 1000))
-    if message.message_annotations is None:
-        message.message_annotations = MessageAnnotations()
-    x_annotations = message.message_annotations.value
-    # A str key already present compares equal to the Symbol, so drop it first
-    # or the old (non-symbol) key object would survive the assignment.
-    x_annotations.pop(DELIVERY_TIME_ANNOTATION, None)
-    x_annotations[Symbol(DELIVERY_TIME_ANNOTATION)] = delivery_time_ms
-    return message
+    return message.DeliveryAfter(seconds)
 
 
 def _require_address_name(kind: str, name: str) -> str:

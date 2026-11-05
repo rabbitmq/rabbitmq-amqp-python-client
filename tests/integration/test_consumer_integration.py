@@ -31,7 +31,6 @@ from rabbitmq_amqp_python_client import (
     ConnectionParameters,
     ConsumerError,
     ConsumerSettleStrategy,
-    DeliveryAfter,
     ManagementError,
     OutcomeState,
     ProtocolError,
@@ -1311,7 +1310,7 @@ class TestConsumerPriorityVersionGate:
             _consume(connection, consumers, name, handler, priority=1)
 
 
-#: How long ``DeliveryAfter`` holds a message back in the tests below.
+#: How long ``Message.DeliveryAfter`` holds a message back in the tests below.
 DELIVERY_AFTER_SECONDS = 4
 
 #: A delayed message must not arrive earlier than this (the delay, less slack
@@ -1320,7 +1319,7 @@ DELIVERY_AFTER_LOWER_BOUND_SECONDS = DELIVERY_AFTER_SECONDS - 0.5
 
 
 class TestDeliveryAfter:
-    """``DeliveryAfter`` makes a quorum queue hold a published message back (RabbitMQ 4.3+)."""
+    """``Message.DeliveryAfter`` makes a quorum queue hold a published message back (RabbitMQ 4.3+)."""
 
     def test_the_broker_holds_a_delayed_message_back_until_its_time(self, connection, queue, publish, consumers):
         name = queue("con-it-delivery-after", quorum=True)
@@ -1328,7 +1327,7 @@ class TestDeliveryAfter:
         _consume(connection, consumers, name, handler, credits=10)
 
         started = time.monotonic()
-        publish(name, [DeliveryAfter(Message("delayed"), DELIVERY_AFTER_SECONDS), "immediate"])
+        publish(name, [Message("delayed").DeliveryAfter(DELIVERY_AFTER_SECONDS), "immediate"])
 
         # The undelayed message proves the consumer is live; the delayed one is still held back.
         handler.wait(1)
@@ -1352,7 +1351,7 @@ class TestDeliveryAfter:
 
         _consume(connection, consumers, name, handle, credits=1)
         message = Message("annotated", message_annotations=MessageAnnotations({Symbol("x-other"): "kept"}))
-        publish(name, [DeliveryAfter(message, 1)])
+        publish(name, [message.DeliveryAfter(1)])
 
         assert arrived.wait(WAIT_TIMEOUT_SECONDS)
         annotations = received[0].message_annotations.value
