@@ -1308,3 +1308,51 @@ class TestConsumerPriorityVersionGate:
                 _consume(connection, consumers, name, handler, priority=1)
         else:
             _consume(connection, consumers, name, handler, priority=1)
+
+
+#: How long ``Message.DeliveryAfter`` holds a message back in the tests below.
+DELIVERY_AFTER_SECONDS = 4
+
+#: A delayed message must not arrive earlier than this (the delay, less slack
+#: for clock rounding and the time between building the message and publishing it).
+DELIVERY_AFTER_LOWER_BOUND_SECONDS = DELIVERY_AFTER_SECONDS - 0.5
+
+
+class TestDeliveryAfter:
+    """``Message.DeliveryAfter`` makes a quorum queue hold a published message back (RabbitMQ 4.3+)."""
+
+    def test_the_broker_holds_a_delayed_message_back_until_its_time(self, connection, queue, publish, consumers):
+        name = queue("con-it-delivery-after", quorum=True)
+        handler = RecordingHandler(action=lambda context, message: context.accept())
+        _consume(connection, consumers, name, handler, credits=10)
+
+        started = time.monotonic()
+        publish(name, [Message("delayed").delivery_after(DELIVERY_AFTER_SECONDS), "immediate"])
+
+        # The undelayed message proves the consumer is live; the delayed one is still held back.
+        handler.wait(1)
+        time.sleep(QUIET_PERIOD_SECONDS)
+        assert handler.bodies == ["immediate"], f"a delayed message arrived after {time.monotonic() - started:.2f}s"
+
+        handler.wait(2)
+        elapsed = time.monotonic() - started
+        assert handler.bodies == ["immediate", "delayed"]
+        assert elapsed >= DELIVERY_AFTER_LOWER_BOUND_SECONDS, f"delivered after only {elapsed:.2f}s"
+
+    def test_other_message_annotations_survive_the_round_trip(self, connection, queue, publish, consumers):
+        name = queue("con-it-delivery-after-annotations", quorum=True)
+        received = []
+        arrived = threading.Event()
+
+        def handle(context, message):
+            received.append(message)
+            context.accept()
+            arrived.set()
+
+        _consume(connection, consumers, name, handle, credits=1)
+        message = Message("annotated", message_annotations=MessageAnnotations({Symbol("x-other"): "kept"}))
+        publish(name, [message.delivery_after(1)])
+
+        assert arrived.wait(WAIT_TIMEOUT_SECONDS)
+        annotations = received[0].message_annotations.value
+        assert annotations["x-other"] == "kept"

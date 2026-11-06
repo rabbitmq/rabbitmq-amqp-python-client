@@ -567,6 +567,22 @@ class PublisherBuilder:
         return publisher
 
 
+def DeliveryAfter(message: Message, seconds: float) -> Message:  # noqa: N802 - reads like a constructor at call sites
+    """Hold ``message`` back so the broker delivers it ``seconds`` from now.
+
+    Function form of :meth:`Message.DeliveryAfter <.wire.Message.DeliveryAfter>`,
+    which holds the implementation and documents the annotation it stamps.
+
+    Args:
+        message: The message to delay. It is modified in place.
+        seconds: How long to hold the message back, from now.
+
+    Returns:
+        ``message`` itself.
+    """
+    return message.delivery_after(seconds)
+
+
 def _require_address_name(kind: str, name: str) -> str:
     """Return ``name``, refusing an empty one.
 
@@ -584,6 +600,7 @@ def _refusal_error(refusal: LinkRefusal) -> PublisherError:
 
 
 __all__ = [
+    "DeliveryAfter",
     "DEFAULT_PUBLISH_TIMEOUT_SECONDS",
     "PUBLISHER_LINK_PREFIX",
     "REJECTION_QUEUE_KEY",

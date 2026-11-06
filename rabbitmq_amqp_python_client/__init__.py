@@ -63,6 +63,7 @@ from .management import (
     StreamSpecification,
 )
 from .publisher import (
+    DeliveryAfter,
     Outcome,
     OutcomeState,
     Publisher,
@@ -171,6 +172,7 @@ __all__ = [
     "StreamOffsetSpecification",
     "TimeoutContext",
     "queue_address",
+    "DeliveryAfter",
     "exchange_address",
     "Message",
     "Header",

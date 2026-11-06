@@ -13,14 +13,17 @@ sections describe a ``binary``, a ``list`` or a single arbitrary value.
 
 from __future__ import annotations
 
+import time
 import uuid as uuid_module
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
+from ..constants import DELIVERY_TIME_ANNOTATION
 from ..exceptions import ProtocolError
 from .encoding import (
     Decoder,
     Described,
+    Long,
     Symbol,
     Timestamp,
     as_dict,
@@ -387,6 +390,34 @@ class Message:
 
     def __post_init__(self) -> None:
         self.body = _normalize_body(self.body)
+
+    def delivery_after(self, seconds: float) -> Message:  # noqa: N802 - reads like a fluent modifier at call sites
+        """Hold this message back so the broker delivers it ``seconds`` from now.
+
+        Stamps the ``x-opt-delivery-time`` message annotation (the current time
+        plus ``seconds``, as an AMQP ``long`` of milliseconds since the Unix
+        epoch, keyed by an AMQP ``symbol``). RabbitMQ honours it on quorum queues
+        (4.4+); a queue type that does not recognise the annotation simply
+        ignores it. A :class:`MessageAnnotations` section is created when the
+        message has none; otherwise the key is added to (or replaced in) the
+        existing one, and every other annotation is left untouched.
+
+        Args:
+            seconds: How long to hold the message back, from now.
+
+        Returns:
+            This message, modified in place, so the call can be chained, e.g.
+            ``publisher.publish(Message("hi").DeliveryAfter(30))``.
+        """
+        delivery_time_ms = Long(int((time.time() + seconds) * 1000))
+        if self.message_annotations is None:
+            self.message_annotations = MessageAnnotations()
+        d_annotations = self.message_annotations.value
+        # A str key already present compares equal to the Symbol, so drop it first
+        # or the old (non-symbol) key object would survive the assignment.
+        d_annotations.pop(DELIVERY_TIME_ANNOTATION, None)
+        d_annotations[Symbol(DELIVERY_TIME_ANNOTATION)] = delivery_time_ms
+        return self
 
     def encode(self) -> bytes:
         """Encode the message as the concatenation of its sections, in spec order."""
