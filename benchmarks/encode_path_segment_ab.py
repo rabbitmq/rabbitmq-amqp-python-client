@@ -26,8 +26,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from rabbitmq_amqp_python_client import AddressHelper  # noqa: E402
-from rabbitmq_amqp_python_client import address_helper as ah  # noqa: E402
+from rabbitmq_amqp_python_client import \
+    AddressHelper  # noqa: E402
+from rabbitmq_amqp_python_client import \
+    address_helper as ah  # noqa: E402
 
 ITERATIONS = 20_000
 REPEATS = 7
