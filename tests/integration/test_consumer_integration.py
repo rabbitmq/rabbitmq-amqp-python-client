@@ -1327,7 +1327,7 @@ class TestDeliveryAfter:
         _consume(connection, consumers, name, handler, credits=10)
 
         started = time.monotonic()
-        publish(name, [Message("delayed").DeliveryAfter(DELIVERY_AFTER_SECONDS), "immediate"])
+        publish(name, [Message("delayed").delivery_after(DELIVERY_AFTER_SECONDS), "immediate"])
 
         # The undelayed message proves the consumer is live; the delayed one is still held back.
         handler.wait(1)
@@ -1351,7 +1351,7 @@ class TestDeliveryAfter:
 
         _consume(connection, consumers, name, handle, credits=1)
         message = Message("annotated", message_annotations=MessageAnnotations({Symbol("x-other"): "kept"}))
-        publish(name, [message.DeliveryAfter(1)])
+        publish(name, [message.delivery_after(1)])
 
         assert arrived.wait(WAIT_TIMEOUT_SECONDS)
         annotations = received[0].message_annotations.value

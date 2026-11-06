@@ -586,7 +586,7 @@ class TestDeliveryAfter:
         monkeypatch.setattr("rabbitmq_amqp_python_client.wire.message.time.time", lambda: 1000.0)
         message = Message("hi")
 
-        result = message.DeliveryAfter(30)
+        result = message.delivery_after(30)
 
         assert result is message
         assert message.message_annotations is not None
@@ -600,7 +600,7 @@ class TestDeliveryAfter:
         monkeypatch.setattr("rabbitmq_amqp_python_client.wire.message.time.time", lambda: 1000.0)
         message = Message("hi", message_annotations=MessageAnnotations({"x-other": 1}))
 
-        message.DeliveryAfter(1.5)
+        message.delivery_after(1.5)
 
         assert message.message_annotations is not None
         assert message.message_annotations.value == {"x-other": 1, "x-opt-delivery-time": 1_001_500}
@@ -609,7 +609,7 @@ class TestDeliveryAfter:
         monkeypatch.setattr("rabbitmq_amqp_python_client.wire.message.time.time", lambda: 1000.0)
         message = Message("hi", message_annotations=MessageAnnotations({"x-opt-delivery-time": 5}))
 
-        message.DeliveryAfter(10)
+        message.delivery_after(10)
 
         assert message.message_annotations is not None
         (key,) = message.message_annotations.value

@@ -580,7 +580,7 @@ def DeliveryAfter(message: Message, seconds: float) -> Message:  # noqa: N802 - 
     Returns:
         ``message`` itself.
     """
-    return message.DeliveryAfter(seconds)
+    return message.delivery_after(seconds)
 
 
 def _require_address_name(kind: str, name: str) -> str:

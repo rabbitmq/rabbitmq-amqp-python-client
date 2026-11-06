@@ -89,7 +89,7 @@ def quorum_publisher_delay_example() -> None:
         publisher = connection.publisher_builder().queue(queue_name).build()
         try:
             for i in range(MESSAGE_COUNT):
-                msgq = Message(f"message {i}").DeliveryAfter(DELAY_SECONDS)
+                msgq = Message(f"message {i}").delivery_after(DELAY_SECONDS)
                 result = publisher.publish(msgq)
                 logger.info("%r -> %s", result.message.body_as_string(), result.outcome.state.value)
 

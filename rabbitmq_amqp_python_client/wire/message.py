@@ -391,7 +391,7 @@ class Message:
     def __post_init__(self) -> None:
         self.body = _normalize_body(self.body)
 
-    def DeliveryAfter(self, seconds: float) -> Message:  # noqa: N802 - reads like a fluent modifier at call sites
+    def delivery_after(self, seconds: float) -> Message:  # noqa: N802 - reads like a fluent modifier at call sites
         """Hold this message back so the broker delivers it ``seconds`` from now.
 
         Stamps the ``x-opt-delivery-time`` message annotation (the current time
