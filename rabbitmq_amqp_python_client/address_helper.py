@@ -1,4 +1,3 @@
-import os
 from typing import Optional
 from urllib.parse import quote
 
@@ -9,81 +8,16 @@ from .entities import (
 from .qpid.proton._message import Message
 
 
-# Feature flag: selects the encode_path_segment implementation.
-# Default "legacy" (current behaviour): "quote" also fixes Unicode,
-# so it must be enabled deliberately, not as a side effect.
-ENCODER_ENV_VAR = "RABBITMQ_AMQP_CLIENT_ENCODER"
-ENCODER_LEGACY = "legacy"
-ENCODER_QUOTE = "quote"
-_ENCODERS = (ENCODER_LEGACY, ENCODER_QUOTE)
+def encode_path_segment(input_string: Optional[str]) -> str:
+    """Percent-encode a path segment as UTF-8, one escape per byte.
 
-
-def _resolve_encoder() -> str:
-    """Read the flag from the environment, once at module import."""
-    value = os.environ.get(ENCODER_ENV_VAR, ENCODER_LEGACY).strip().lower()
-    if value not in _ENCODERS:
-        raise ValueError(
-            f"{ENCODER_ENV_VAR}={value!r} is not valid: "
-            f"use {ENCODER_LEGACY!r} or {ENCODER_QUOTE!r}"
-        )
-    return value
-
-
-_ENCODER = _resolve_encoder()
-
-
-def _set_encoder(encoder: str) -> None:
-    """Switch implementation at runtime. Hook for tests and A/B benchmarks."""
-    global _ENCODER
-    if encoder not in _ENCODERS:
-        raise ValueError(f"encoder {encoder!r} is not valid: use {_ENCODERS}")
-    _ENCODER = encoder
-
-
-def _is_unreserved(char: str) -> bool:
-    # According to RFC 3986, unreserved characters are A-Z, a-z, 0-9, '-', '.', '_', and '~'
-    return char.isalnum() or char in "-._~"
-
-
-def _encode_path_segment_legacy(input_string: Optional[str]) -> str:
-    """Original implementation (O1): per-character loop.
-
-    Note: ``str.isalnum()`` is also true for non-ASCII letters, which are left
-    raw in the URI; for characters outside the BMP ``ord()`` produces more than
-    two hex digits (``🚀`` → ``%1F680``), which is not a valid percent-encoding.
-    """
-    encoded = []
-
-    # Iterate over each character in the input string
-    if input_string is not None:
-        for char in input_string:
-            # Check if the character is an unreserved character
-            if _is_unreserved(char):
-                encoded.append(char)  # Append as is
-            else:
-                # Encode character to %HH format
-                encoded.append(f"%{ord(char):02X}")
-
-        return "".join(encoded)
-
-    return ""
-
-
-def _encode_path_segment_quote(input_string: Optional[str]) -> str:
-    """O1: UTF-8 percent-encoding per byte via ``urllib.parse.quote``.
-
-    ``safe="-._~"`` removes ``/`` from the safe set: the original code encodes
-    it (``%2F``) and ASCII behaviour must stay identical.
+    Unreserved characters (A-Z, a-z, 0-9, ``-``, ``.``, ``_``, ``~``) stay as
+    they are; ``safe="-._~"`` removes ``/`` from the safe set, so it is
+    encoded as ``%2F``.
     """
     if input_string is None:
         return ""
     return quote(input_string, safe="-._~")
-
-
-def encode_path_segment(input_string: Optional[str]) -> str:
-    if _ENCODER == ENCODER_QUOTE:
-        return _encode_path_segment_quote(input_string)
-    return _encode_path_segment_legacy(input_string)
 
 
 class AddressHelper:
