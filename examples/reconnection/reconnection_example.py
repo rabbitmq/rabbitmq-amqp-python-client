@@ -21,7 +21,9 @@ MESSAGES_TO_PUBLISH = 50000
 
 environment = Environment(
     uri="amqp://guest:guest@localhost:5672/",
-    recovery_configuration=RecoveryConfiguration(back_off_reconnect_interval=timedelta(seconds=10))
+    recovery_configuration=RecoveryConfiguration(
+        back_off_reconnect_interval=timedelta(seconds=10)
+    ),
 )
 
 
