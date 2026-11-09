@@ -33,6 +33,7 @@ from .encoding import (
 )
 from .frames import (
     EMPTY_FRAME,
+    FRAME_COALESCE_LIMIT,
     FRAME_HEADER_SIZE,
     FRAME_TYPE_AMQP,
     FRAME_TYPE_SASL,
@@ -42,6 +43,7 @@ from .frames import (
     read_frame,
     read_protocol_header,
     write_frame,
+    write_frame_parts,
     write_protocol_header,
 )
 from .message import (
@@ -117,6 +119,7 @@ __all__ = [
     "EXPIRY_POLICY_SESSION_END",
     "End",
     "Error",
+    "FRAME_COALESCE_LIMIT",
     "FRAME_HEADER_SIZE",
     "FRAME_TYPE_AMQP",
     "FRAME_TYPE_SASL",
@@ -168,5 +171,6 @@ __all__ = [
     "read_frame",
     "read_protocol_header",
     "write_frame",
+    "write_frame_parts",
     "write_protocol_header",
 ]

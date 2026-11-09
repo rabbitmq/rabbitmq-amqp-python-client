@@ -171,6 +171,41 @@ class TestSendFrame:
         assert channel == 4
         assert performative.incoming_window == 1
 
+    def test_passes_a_large_payload_as_a_separate_part(self, connect, monkeypatch):
+        from rabbitmq_amqp_python_client import connection as connection_module
+
+        _broker, connection = connect()
+        calls = []
+
+        def spy(sock, frame_type, channel, parts):
+            calls.append((frame_type, channel, list(parts)))
+
+        monkeypatch.setattr(connection_module, "write_frame_parts", spy)
+        payload = b"x" * 5000
+        connection.send_frame(4, Flow(incoming_window=1, next_outgoing_id=0, outgoing_window=1), payload)
+
+        assert len(calls) == 1
+        frame_type, channel, parts = calls[0]
+        assert (frame_type, channel) == (0, 4)
+        assert len(parts) == 2
+        assert parts[1] is payload
+
+    def test_sends_a_small_payload_through_write_frame_parts(self, connect, monkeypatch):
+        from rabbitmq_amqp_python_client import connection as connection_module
+
+        _broker, connection = connect()
+        calls = []
+
+        def spy(sock, frame_type, channel, parts):
+            calls.append((frame_type, channel, list(parts)))
+
+        monkeypatch.setattr(connection_module, "write_frame_parts", spy)
+        performative = Flow(incoming_window=1, next_outgoing_id=0, outgoing_window=1)
+        payload = b"x" * 32
+        connection.send_frame(4, performative, payload)
+
+        assert calls == [(0, 4, [performative.encode(), payload])]
+
     def test_raises_once_the_connection_is_closed(self, connect):
         _broker, connection = connect()
         connection.close()
