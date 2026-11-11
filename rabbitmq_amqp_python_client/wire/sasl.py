@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
-from ..exceptions import ProtocolError
+from ..exceptions import ProtocolError, ValidationError
 from .encoding import (
     Decoder,
     as_symbol_list,
@@ -259,6 +259,19 @@ _SASL_TYPES: dict[int, Any] = {
 }
 
 
+def _require_no_nul(field: str, value: str) -> None:
+    """Reject a NUL (U+0000) in a PLAIN field, where it would act as a separator.
+
+    Raises:
+        ValidationError: If ``value`` contains a NUL byte.
+    """
+    if "\x00" in value:
+        raise ValidationError(
+            f"SASL PLAIN {field} must not contain a NUL byte (U+0000): "
+            "RFC 4616 uses NUL to separate authzid, authcid and passwd"
+        )
+
+
 def build_plain_initial_response(username: str, password: str) -> bytes:
     """Build the SASL PLAIN initial response.
 
@@ -272,7 +285,15 @@ def build_plain_initial_response(username: str, password: str) -> bytes:
 
     Returns:
         The UTF-8 encoded initial-response bytes.
+
+    Raises:
+        ValidationError: If ``username`` or ``password`` contains a NUL byte
+            (U+0000). Being the field separator of RFC 4616, it would add a
+            separator and shift the ``authcid``/``passwd`` boundary the broker
+            parses, so the credentials are refused before any frame is built.
     """
+    _require_no_nul("username", username)
+    _require_no_nul("password", password)
     return b"\x00" + username.encode("utf-8") + b"\x00" + password.encode("utf-8")
 
 

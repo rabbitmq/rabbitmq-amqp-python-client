@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from rabbitmq_amqp_python_client.exceptions import ProtocolError
+from rabbitmq_amqp_python_client.exceptions import AMQPError, ProtocolError, ValidationError
 from rabbitmq_amqp_python_client.wire import encoding as enc
 from rabbitmq_amqp_python_client.wire import sasl
 
@@ -47,6 +47,30 @@ class TestPlainInitialResponse:
 
     def test_empty_credentials_produce_two_nul_bytes(self):
         assert sasl.build_plain_initial_response("", "") == b"\x00\x00"
+
+    @pytest.mark.parametrize("username", ["user\x00admin", "\x00", "a\x00"])
+    def test_nul_in_username_is_rejected(self, username):
+        with pytest.raises(ValidationError, match="username must not contain a NUL"):
+            sasl.build_plain_initial_response(username, "pw")
+
+    @pytest.mark.parametrize("password", ["pw\x00admin", "\x00"])
+    def test_nul_in_password_is_rejected(self, password):
+        with pytest.raises(ValidationError, match="password must not contain a NUL"):
+            sasl.build_plain_initial_response("user", password)
+
+    def test_a_rejected_credential_raises_an_amqp_error_and_a_value_error(self):
+        with pytest.raises(ValidationError) as excinfo:
+            sasl.build_plain_initial_response("user\x00admin", "pw")
+
+        assert isinstance(excinfo.value, AMQPError)
+        assert isinstance(excinfo.value, ValueError)
+
+    def test_other_control_characters_are_still_accepted(self):
+        assert sasl.build_plain_initial_response("u\x01ser", "pw") == b"\x00u\x01ser\x00pw"
+
+    def test_rejection_does_not_shift_the_field_boundaries(self):
+        fields = sasl.build_plain_initial_response("user", "pw").split(b"\x00")
+        assert fields == [b"", b"user", b"pw"]
 
 
 class TestSaslMechanisms:
