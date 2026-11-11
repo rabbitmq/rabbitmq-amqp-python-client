@@ -8,7 +8,7 @@ The queue is declared as a quorum queue with ``queue(name).quorum().queue().decl
 ``quorum()`` sets ``x-queue-type`` to ``quorum`` and ``queue()`` returns to the
 plain queue builder for the terminal ``declare()``.
 
-``Message.DeliveryAfter(seconds)`` stamps each message with an
+``Message.delivery_after(seconds)`` stamps each message with an
 ``x-opt-delivery-time`` annotation (milliseconds since the epoch) ``seconds``
 ahead, so the quorum queue holds it back and only
 delivers it once that time is reached. See
