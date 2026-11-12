@@ -356,6 +356,53 @@ class TestFrameDispatch:
         broker.auto_respond = True
 
 
+class TestNegotiatedMaxFrameSize:
+    """S-01: inbound frames are bounded by the ``max-frame-size`` negotiated in ``open``."""
+
+    def test_an_inbound_frame_over_the_negotiated_limit_fails_the_connection(self, connect):
+        fired = threading.Event()
+        seen: list[BaseException | None] = []
+
+        def callback(error):
+            seen.append(error)
+            fired.set()
+
+        broker, connection = connect(max_frame_size=1024, on_unexpected_close=callback)
+        assert connection.max_frame_size == 1024
+
+        broker.send_transfer(0, 0, b"x" * 4096)
+
+        assert fired.wait(5.0)
+        assert isinstance(seen[0], ProtocolError)
+        assert "exceeds the negotiated max-frame-size of 1024 bytes" in str(seen[0])
+        assert connection.state is ConnectionState.CLOSED
+
+    def test_an_inbound_frame_above_the_broker_limit_is_accepted(self, connect):
+        """The broker may send up to what this client advertised, not up to the minimum.
+
+        Regression: a broker that advertises 16 KiB while the client advertises 64 KiB
+        is allowed to deliver a 40 KiB frame, because `open` defined that frame as
+        acceptable for this receiver. Bounding inbound frames by the minimum of the two
+        values tore down the connection mid-delivery.
+        """
+        broker, connection = connect(max_frame_size=65536, broker_kwargs={"max_frame_size": 16384})
+        assert connection.max_frame_size == 16384  # outbound: the broker's value wins
+        delivered: list[tuple[int, object, bytes]] = []
+        received = threading.Event()
+
+        def record(channel, performative, payload):
+            delivered.append((channel, performative, payload))
+            received.set()
+
+        connection._dispatch = record
+
+        broker.send_transfer(0, 0, b"x" * 40000)
+
+        assert received.wait(5.0), "a frame within the client's advertised limit was refused"
+        assert delivered[0][2] == b"x" * 40000
+        assert connection.state is ConnectionState.OPEN
+
+
 class _SessionDouble:
     """The minimum surface :meth:`Connection.allocate_channel` records."""
 
