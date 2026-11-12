@@ -18,6 +18,7 @@ at a frame boundary and mid-frame; callers never see a sentinel value.
 from __future__ import annotations
 
 import struct
+from collections.abc import Sequence
 from typing import Any, Protocol
 
 from ..exceptions import ProtocolError
@@ -42,6 +43,12 @@ MIN_MAX_FRAME_SIZE = 512
 #: Hard cap on an accepted frame size, so a bogus length cannot make the client
 #: allocate an unbounded buffer before the frame is rejected.
 FRAME_SIZE_LIMIT = 1 << 30
+
+#: Frames up to this size are joined into one ``sendall``. Below a few KiB the
+#: extra syscall costs more than the copy it avoids; above it the copy dominates.
+#: Measured on CPython 3.10: 1 KiB parts are slower than one joined write,
+#: 64 KiB parts are several times faster.
+FRAME_COALESCE_LIMIT = 4096
 
 FrameBody = Performative | SaslFrame | None
 
@@ -166,8 +173,52 @@ def build_frame(frame_type: int, channel: int, body: bytes = b"") -> bytes:
     return header + body
 
 
+def write_frame_parts(sock: SupportsSendAll, frame_type: int, channel: int, parts: Sequence[bytes]) -> None:
+    """Write one complete frame whose body is the concatenation of ``parts``.
+
+    Frames whose total size is at most :data:`FRAME_COALESCE_LIMIT` are joined
+    into one ``sendall``; above it, the header is written first and each
+    non-empty part is passed to ``sendall`` unchanged. A caller that already
+    holds a large performative and payload in separate buffers therefore avoids
+    joining them into a new bytes object; the frame is still one logical write.
+
+    The caller must serialize concurrent writers: the header and every part
+    must reach the socket without another frame in between. :meth:`Connection.send_frame
+    <rabbitmq_amqp_python_client.connection.Connection.send_frame>` holds its
+    write lock across the whole call.
+
+    Args:
+        sock: Destination; anything with a ``sendall(bytes)`` method.
+        frame_type: :data:`FRAME_TYPE_AMQP` or :data:`FRAME_TYPE_SASL`.
+        channel: Channel the frame applies to; 0 for SASL frames.
+        parts: Encoded frame body, split into one or more buffers.
+
+    Raises:
+        ProtocolError: If the underlying socket fails while sending.
+    """
+    size = FRAME_HEADER_SIZE + sum(len(part) for part in parts)
+    header = struct.pack(">IBBH", size, DEFAULT_DOFF, frame_type, channel)
+    if size <= FRAME_COALESCE_LIMIT:
+        try:
+            sock.sendall(header + b"".join(parts))
+        except OSError as error:
+            raise ProtocolError(f"socket error while writing a {size}-byte frame: {error}") from error
+        return
+    try:
+        sock.sendall(header)
+        for part in parts:
+            if part:
+                sock.sendall(part)
+    except OSError as error:
+        raise ProtocolError(f"socket error while writing a {size}-byte frame: {error}") from error
+
+
 def write_frame(sock: SupportsSendAll, frame_type: int, channel: int, body: bytes = b"") -> None:
-    """Write one complete frame.
+    """Write one complete frame through :func:`write_frame_parts`.
+
+    This compatibility wrapper keeps the existing single-body API while using
+    the same frame-writing primitive as the split-body path. Small bodies are
+    coalesced by :func:`write_frame_parts`; large bodies are written as parts.
 
     Args:
         sock: Destination; anything with a ``sendall(bytes)`` method.
@@ -178,11 +229,7 @@ def write_frame(sock: SupportsSendAll, frame_type: int, channel: int, body: byte
     Raises:
         ProtocolError: If the underlying socket fails while sending.
     """
-    frame = build_frame(frame_type, channel, body)
-    try:
-        sock.sendall(frame)
-    except OSError as error:
-        raise ProtocolError(f"socket error while writing a {len(frame)}-byte frame: {error}") from error
+    write_frame_parts(sock, frame_type, channel, [body])
 
 
 def write_protocol_header(sock: SupportsSendAll, header: bytes) -> None:
@@ -236,6 +283,7 @@ __all__ = [
     "AMQP_SASL_HEADER",
     "DEFAULT_DOFF",
     "EMPTY_FRAME",
+    "FRAME_COALESCE_LIMIT",
     "FRAME_HEADER_SIZE",
     "FRAME_SIZE_LIMIT",
     "FRAME_TYPE_AMQP",
@@ -251,5 +299,6 @@ __all__ = [
     "read_protocol_header",
     "recv_exactly",
     "write_frame",
+    "write_frame_parts",
     "write_protocol_header",
 ]
