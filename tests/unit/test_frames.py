@@ -142,6 +142,27 @@ class TestReadFrame:
         with pytest.raises(ProtocolError, match="exceeds the"):
             frames.read_frame(left)
 
+    def test_frame_at_the_negotiated_max_size_is_accepted(self, socket_pair):
+        left, right = socket_pair
+        body = perf.Transfer(handle=0, delivery_id=1).encode() + b"x" * 128
+        frame = frames.build_frame(frames.FRAME_TYPE_AMQP, 0, body)
+        right.sendall(frame)
+        assert frames.read_frame(left, max_size=len(frame)) == (frames.FRAME_TYPE_AMQP, 0, body)
+
+    def test_frame_over_the_negotiated_max_size_is_rejected(self, socket_pair):
+        left, right = socket_pair
+        body = perf.Transfer(handle=0, delivery_id=1).encode() + b"x" * 128
+        frame = frames.build_frame(frames.FRAME_TYPE_AMQP, 0, body)
+        right.sendall(frame)
+        with pytest.raises(ProtocolError, match="exceeds the negotiated max-frame-size of"):
+            frames.read_frame(left, max_size=len(frame) - 1)
+
+    def test_without_a_negotiated_limit_only_the_absolute_limit_applies(self, socket_pair):
+        left, right = socket_pair
+        body = perf.Close().encode() + b"x" * 4096
+        right.sendall(frames.build_frame(frames.FRAME_TYPE_AMQP, 0, body))
+        assert frames.read_frame(left) == (frames.FRAME_TYPE_AMQP, 0, body)
+
     def test_data_offset_below_the_minimum_is_rejected(self, socket_pair):
         left, right = socket_pair
         right.sendall(struct.pack(">IBBH", 8, 1, frames.FRAME_TYPE_AMQP, 0))

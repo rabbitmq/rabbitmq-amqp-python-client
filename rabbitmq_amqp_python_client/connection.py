@@ -274,7 +274,11 @@ class Connection:
         self._unexpected_close_notified = False
         self._remote_open: Open | None = None
         self._remote_close: Close | None = None
+        # Outbound bound: never send a frame above either peer's value. The inbound bound is
+        # different and is fixed here too: the peer must respect the value this client
+        # advertises in its `open`, even when the broker advertises a smaller one (§2.7.1).
         self._max_frame_size = self._parameters.max_frame_size
+        self._inbound_max_frame_size = self._parameters.max_frame_size
         self._channel_max = self._parameters.channel_max
         self._remote_idle_timeout = 0
         self._reader: threading.Thread | None = None
@@ -733,7 +737,7 @@ class Connection:
         failure: BaseException | None = None
         try:
             while not self._shutdown.is_set():
-                frame_type, channel, body = read_frame(self._socket)
+                frame_type, channel, body = read_frame(self._socket, max_size=self._inbound_max_frame_size)
                 frame_body, payload = decode_frame_body(frame_type, body)
                 if frame_body is None:
                     continue
