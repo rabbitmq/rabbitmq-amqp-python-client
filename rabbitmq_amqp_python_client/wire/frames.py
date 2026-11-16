@@ -36,7 +36,7 @@ FRAME_TYPE_SASL = 0x01
 FRAME_HEADER_SIZE = 8
 DEFAULT_DOFF = 2
 
-#: Smallest ``max-frame-size`` an AMQP peer may negotiate (§2.7.1).
+#: Smallest ``max-frame-size`` an AMQP peer may negotiate.
 MIN_MAX_FRAME_SIZE = 512
 
 #: Hard cap on an accepted frame size, so a bogus length cannot make the client
@@ -95,12 +95,16 @@ def recv_exactly(sock: SupportsRecv, count: int) -> bytes:
     return b"".join(chunks)
 
 
-def read_frame(sock: SupportsRecv) -> tuple[int, int, bytes]:
+def read_frame(sock: SupportsRecv, max_size: int | None = None) -> tuple[int, int, bytes]:
     """Read one complete frame.
 
     Args:
         sock: Source of bytes; anything with a ``recv(n) -> bytes`` method,
             which makes this testable over :func:`socket.socketpair`.
+        max_size: Largest frame this peer agreed to accept, i.e. the negotiated
+            ``max-frame-size``. ``None`` applies only
+            :data:`FRAME_SIZE_LIMIT`, which is what the handshake reads need:
+            the value is negotiated by ``open``, after those reads.
 
     Returns:
         A ``(frame_type, channel, body)`` triple, where ``body`` is everything
@@ -110,8 +114,8 @@ def read_frame(sock: SupportsRecv) -> tuple[int, int, bytes]:
 
     Raises:
         ProtocolError: If the peer closes the connection, if the declared size
-            or data offset is invalid, or if a protocol header arrives where a
-            frame was expected.
+            is above ``max_size`` or the absolute limit, if the data offset is
+            invalid, or if a protocol header arrives where a frame was expected.
     """
     size_bytes = recv_exactly(sock, 4)
     if size_bytes == b"AMQP":
@@ -122,6 +126,8 @@ def read_frame(sock: SupportsRecv) -> tuple[int, int, bytes]:
         raise ProtocolError(f"frame size {size} is smaller than the {FRAME_HEADER_SIZE}-byte frame header")
     if size > FRAME_SIZE_LIMIT:
         raise ProtocolError(f"frame size {size} exceeds the {FRAME_SIZE_LIMIT}-byte limit this client accepts")
+    if max_size is not None and size > max_size:
+        raise ProtocolError(f"frame size {size} exceeds the negotiated max-frame-size of {max_size} bytes")
 
     rest = recv_exactly(sock, size - 4)
     doff, frame_type, channel = struct.unpack(">BBH", rest[:4])
