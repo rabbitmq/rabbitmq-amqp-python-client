@@ -439,11 +439,13 @@ class BlockingConnection(Handler):
 
         # multinode reimplementation (default one wasn't working properly)
         self._disconnection_handled = False
+        self._connection_opened = False
         attempt = 0
         for i in range(len(urls)):
             attempt = attempt + 1
             self.disconnected = False
             self._disconnection_handled = False
+            self._connection_opened = False
             self.timeout = timeout or 60
             self.container = container or Container()
             self.container.timeout = self.timeout
@@ -472,6 +474,7 @@ class BlockingConnection(Handler):
                     timeout=10,
                     msg="Connection opened",
                 )
+                self._connection_opened = True
                 break
 
             except ConnectionException:
@@ -687,8 +690,8 @@ class BlockingConnection(Handler):
                 raise LinkDetached(event.link)
 
     def _handle_disconnection(self) -> None:
-        """Run the recovery callback once for this connection."""
-        if self._disconnection_handled:
+        """Run the recovery callback once for an established connection."""
+        if not self._connection_opened or self._disconnection_handled:
             return
         self._disconnection_handled = True
         if self._on_disconnection_handler is not None:
@@ -712,11 +715,13 @@ class BlockingConnection(Handler):
         self.on_transport_closed(event)
 
     def on_transport_closed(self, event: "Event") -> None:
-        if not self.closing and not self._disconnection_handled:
-            self.disconnected = event.transport.condition or "unknown"
-            self._handle_disconnection()
-            if self.conn is not None and not self._is_closed():
-                raise ConnectionClosed(self.conn)
+        if self.closing or self._disconnection_handled:
+            return
+        self.disconnected = event.transport.condition or "unknown"
+        if self.conn is None or self._is_closed():
+            return
+        self._handle_disconnection()
+        raise ConnectionClosed(self.conn)
 
 
 class AtomicCount:
