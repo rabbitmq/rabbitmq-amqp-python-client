@@ -82,7 +82,6 @@ class Consumer:
             credit = self._credit
 
         self._conn = conn
-        self._receiver = self._create_receiver(addr)
         if self._consumer_options is None:
             logger.debug("creating new receiver without stream")
 

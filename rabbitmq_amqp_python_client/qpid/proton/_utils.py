@@ -438,10 +438,12 @@ class BlockingConnection(Handler):
             urls.append(url)
 
         # multinode reimplementation (default one wasn't working properly)
+        self._disconnection_handled = False
         attempt = 0
         for i in range(len(urls)):
             attempt = attempt + 1
             self.disconnected = False
+            self._disconnection_handled = False
             self.timeout = timeout or 60
             self.container = container or Container()
             self.container.timeout = self.timeout
@@ -684,13 +686,21 @@ class BlockingConnection(Handler):
             if not self.closing:
                 raise LinkDetached(event.link)
 
+    def _handle_disconnection(self) -> None:
+        """Run the recovery callback once for this connection."""
+        if self._disconnection_handled:
+            return
+        self._disconnection_handled = True
+        if self._on_disconnection_handler is not None:
+            self._on_disconnection_handler()
+
     def on_connection_remote_close(self, event: "Event") -> None:
         """
         Event callback for when the link peer closes the connection.
         """
         if event.connection.state & Endpoint.LOCAL_ACTIVE:
-            if self._on_disconnection_handler is not None:
-                event.container.schedule(0, self._on_disconnection_handler())
+            if not self.closing:
+                self._handle_disconnection()
             event.connection.close()
             if not self.closing:
                 raise ConnectionClosed(event.connection)
@@ -702,8 +712,11 @@ class BlockingConnection(Handler):
         self.on_transport_closed(event)
 
     def on_transport_closed(self, event: "Event") -> None:
-        if not self.closing:
+        if not self.closing and not self._disconnection_handled:
             self.disconnected = event.transport.condition or "unknown"
+            self._handle_disconnection()
+            if self.conn is not None and not self._is_closed():
+                raise ConnectionClosed(self.conn)
 
 
 class AtomicCount:
