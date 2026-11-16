@@ -7,6 +7,20 @@ Release notes are taken from the [GitHub releases](https://github.com/rabbitmq/r
 > See the [2.0 discussion](https://github.com/rabbitmq/rabbitmq-amqp-python-client/discussions/123)
 > and the documentation in the [`v2_main` branch](https://github.com/rabbitmq/rabbitmq-amqp-python-client/tree/v2_main).
 
+## [2.0.0-rc.1] - 2026-11-16
+
+First release candidate of version 2.0.
+
+### Added
+- Consumer priority, allowed only on RabbitMQ 4.3+ ([#146](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/146))
+- `Message.delivery_after` and quorum delayed-message example ([#151](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/151))
+
+### Changed
+- Reject NUL bytes in SASL PLAIN credentials ([#158](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/158))
+
+### New Contributors
+- @Pierpaolo1223 contributed in [#158](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/158)
+
 ## [2.0.0-beta.2] - 2026-10-19
 
 ### Added
@@ -41,6 +55,7 @@ Alpha release of version 2.0. No functional changes listed in the release notes.
 
 Alpha release of version 2.0. No functional changes listed in the release notes.
 
+[2.0.0-rc.1]: https://github.com/rabbitmq/rabbitmq-amqp-python-client/compare/v2.0.0-beta.2...v2.0.0-rc.1
 [2.0.0-beta.2]: https://github.com/rabbitmq/rabbitmq-amqp-python-client/compare/v2.0.0-beta.1...v2.0.0-beta.2
 [2.0.0-beta.1]: https://github.com/rabbitmq/rabbitmq-amqp-python-client/compare/v2.0.0-alpha.3...v2.0.0-beta.1
 [2.0.0-alpha.3]: https://github.com/rabbitmq/rabbitmq-amqp-python-client/compare/v2.0.0-alpha.2...v2.0.0-alpha.3
