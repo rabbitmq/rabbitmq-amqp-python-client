@@ -5,8 +5,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+
+## [[1.0.2](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v1.0.2)]
+
+## 1.0.2 - 2026-11-16
+- [Release 1.0.2](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v1.0.2)
+
+### Added
+- Optimize `encode_path_segment` in the address helper and fix Unicode encoding by @Pierpaolo1223 in [#154](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/154)
+
 ### Fixed
-- Close the socket when the broker closed the connection first, and allow `close()` after a failed `dial()` by @adityaanikam
+- Close the socket when the broker closes the connection first, and allow `close()` after a failed `dial()` by @adityaanikam in [#148](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/148)
+
+### Changed
+- Bump urllib3 from 2.7.0 to 2.8.0 by @dependabot in [#153](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/153)
+- Bump pyjwt from 2.13.0 to 2.15.0 by @dependabot in [#152](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/152)
+- Bump certifi from 2026.2.25 to 2026.10.18 by @dependabot in [#160](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/160)
+- Bump black from 26.3.1 to 26.10.1 by @dependabot in [#161](https://github.com/rabbitmq/rabbitmq-amqp-python-client/pull/161)
 
 
 ## [[1.0.1](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v1.0.1)]
