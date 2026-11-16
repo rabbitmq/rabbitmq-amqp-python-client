@@ -353,7 +353,9 @@ class Connection:
                 publisher.close()
             for consumer in self._consumers[:]:
                 consumer.close()
-            self._conn.close()
+            # _conn is only set once dial() has connected
+            if hasattr(self, "_conn"):
+                self._conn.close()
         except Exception as e:
             logger.error(f"Error closing connection: {e}")
             raise e
@@ -436,6 +438,7 @@ class Connection:
 
         base_delay = self._recovery_configuration.back_off_reconnect_interval
         max_delay = timedelta(minutes=1)
+        closed_connection = self._conn
 
         for attempt in range(self._recovery_configuration.MaxReconnectAttempts):
 
@@ -471,6 +474,8 @@ class Connection:
             # connection established
             else:
                 logger.debug("reconnected successful")
+                # the broker closed the previous connection and nothing else will close its socket
+                closed_connection.release_socket()
                 return
 
     @property

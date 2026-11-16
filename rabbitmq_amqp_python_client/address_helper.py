@@ -1,4 +1,5 @@
 from typing import Optional
+from urllib.parse import quote
 
 from .entities import (
     ExchangeToExchangeBindingSpecification,
@@ -7,27 +8,16 @@ from .entities import (
 from .qpid.proton._message import Message
 
 
-def _is_unreserved(char: str) -> bool:
-    # According to RFC 3986, unreserved characters are A-Z, a-z, 0-9, '-', '.', '_', and '~'
-    return char.isalnum() or char in "-._~"
-
-
 def encode_path_segment(input_string: Optional[str]) -> str:
-    encoded = []
+    """Percent-encode a path segment as UTF-8, one escape per byte.
 
-    # Iterate over each character in the input string
-    if input_string is not None:
-        for char in input_string:
-            # Check if the character is an unreserved character
-            if _is_unreserved(char):
-                encoded.append(char)  # Append as is
-            else:
-                # Encode character to %HH format
-                encoded.append(f"%{ord(char):02X}")
-
-        return "".join(encoded)
-
-    return ""
+    Unreserved characters (A-Z, a-z, 0-9, ``-``, ``.``, ``_``, ``~``) stay as
+    they are; ``safe="-._~"`` removes ``/`` from the safe set, so it is
+    encoded as ``%2F``.
+    """
+    if input_string is None:
+        return ""
+    return quote(input_string, safe="-._~")
 
 
 class AddressHelper:
