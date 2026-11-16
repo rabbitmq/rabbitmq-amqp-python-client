@@ -1,5 +1,6 @@
 import time
 from datetime import datetime
+from unittest.mock import Mock
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
@@ -13,6 +14,7 @@ from rabbitmq_amqp_python_client import (
     StreamConsumerOptions,
     StreamSpecification,
 )
+from rabbitmq_amqp_python_client.consumer import Consumer
 from rabbitmq_amqp_python_client.utils import Converter
 
 from .conftest import (
@@ -28,6 +30,21 @@ from .utils import (
     publish_messages,
     setup_dead_lettering,
 )
+
+
+def test_update_connection_creates_one_receiver() -> None:
+    consumer = Consumer.__new__(Consumer)
+    consumer._consumer_options = None
+    consumer._handler = Mock()
+    consumer._credit = 10
+    consumer._addr = "/queues/test"
+    consumer._receiver = Mock()
+    consumer._conn = Mock()
+
+    new_connection = Mock()
+    consumer._update_connection(new_connection)
+
+    new_connection.create_receiver.assert_called_once()
 
 
 def test_consumer_invalid_destination(connection: Connection) -> None:

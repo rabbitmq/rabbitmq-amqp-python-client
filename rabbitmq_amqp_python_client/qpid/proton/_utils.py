@@ -438,10 +438,14 @@ class BlockingConnection(Handler):
             urls.append(url)
 
         # multinode reimplementation (default one wasn't working properly)
+        self._disconnection_handled = False
+        self._connection_opened = False
         attempt = 0
         for i in range(len(urls)):
             attempt = attempt + 1
             self.disconnected = False
+            self._disconnection_handled = False
+            self._connection_opened = False
             self.timeout = timeout or 60
             self.container = container or Container()
             self.container.timeout = self.timeout
@@ -470,6 +474,7 @@ class BlockingConnection(Handler):
                     timeout=10,
                     msg="Connection opened",
                 )
+                self._connection_opened = True
                 break
 
             except ConnectionException:
@@ -684,13 +689,21 @@ class BlockingConnection(Handler):
             if not self.closing:
                 raise LinkDetached(event.link)
 
+    def _handle_disconnection(self) -> None:
+        """Run the recovery callback once for an established connection."""
+        if not self._connection_opened or self._disconnection_handled:
+            return
+        self._disconnection_handled = True
+        if self._on_disconnection_handler is not None:
+            self._on_disconnection_handler()
+
     def on_connection_remote_close(self, event: "Event") -> None:
         """
         Event callback for when the link peer closes the connection.
         """
         if event.connection.state & Endpoint.LOCAL_ACTIVE:
-            if self._on_disconnection_handler is not None:
-                event.container.schedule(0, self._on_disconnection_handler())
+            if not self.closing:
+                self._handle_disconnection()
             event.connection.close()
             if not self.closing:
                 raise ConnectionClosed(event.connection)
@@ -702,8 +715,13 @@ class BlockingConnection(Handler):
         self.on_transport_closed(event)
 
     def on_transport_closed(self, event: "Event") -> None:
-        if not self.closing:
-            self.disconnected = event.transport.condition or "unknown"
+        if self.closing or self._disconnection_handled:
+            return
+        self.disconnected = event.transport.condition or "unknown"
+        if self.conn is None or self._is_closed():
+            return
+        self._handle_disconnection()
+        raise ConnectionClosed(self.conn)
 
 
 class AtomicCount:
