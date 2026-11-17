@@ -1319,9 +1319,16 @@ DELIVERY_AFTER_LOWER_BOUND_SECONDS = DELIVERY_AFTER_SECONDS - 0.5
 
 
 class TestDeliveryAfter:
-    """``Message.DeliveryAfter`` makes a quorum queue hold a published message back (RabbitMQ 4.3+)."""
+    """``Message.DeliveryAfter`` makes a quorum queue hold a published message back (RabbitMQ 4.4+).
+
+    The annotation is documented as 4.4+ (``Message.delivery_after`` and
+    ``docs/examples/README.md``): 4.3 accepts the publish and delivers it
+    immediately, so the test must not run there.
+    """
 
     def test_the_broker_holds_a_delayed_message_back_until_its_time(self, connection, queue, publish, consumers):
+        if (connection.broker_version or (0, 0, 0)) < (4, 4, 0):
+            pytest.skip("delayed publish needs RabbitMQ 4.4+: x-opt-delivery-time is ignored before")
         name = queue("con-it-delivery-after", quorum=True)
         handler = RecordingHandler(action=lambda context, message: context.accept())
         _consume(connection, consumers, name, handler, credits=10)

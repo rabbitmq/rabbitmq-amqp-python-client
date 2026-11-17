@@ -10,6 +10,7 @@ that has to prove a message really landed attaches a raw
 
 from __future__ import annotations
 
+import concurrent.futures
 import contextlib
 import time
 import uuid
@@ -27,7 +28,7 @@ from rabbitmq_amqp_python_client import (
     exchange_address,
     queue_address,
 )
-from rabbitmq_amqp_python_client.wire import Accepted, Message, Properties, Source
+from rabbitmq_amqp_python_client.wire import FRAME_COALESCE_LIMIT, Accepted, Message, Properties, Source
 
 pytestmark = pytest.mark.integration
 
@@ -42,6 +43,13 @@ MAX_LENGTH = 5
 #: on exactly the ``MAX_LENGTH + 1``-th publish).
 REJECT_MAX_ATTEMPTS = 50
 REJECT_TIMEOUT_SECONDS = 30.0
+
+#: Concurrent publishers used to prove that the write lock spans a whole frame
+#: while large payloads go out as separate parts (OPTIMIZATIONS.md, O1).
+FRAME_WRITER_THREADS = 4
+
+#: Messages each of the concurrent publishers sends.
+FRAME_WRITER_MESSAGES_PER_THREAD = 2
 
 
 def _name(prefix: str) -> str:
@@ -154,6 +162,33 @@ def _receive_one(connection, address):
         session.end()
 
 
+def _receive_many(connection, address, count):
+    """Attach a receiver to ``address``, settle ``count`` messages, and detach.
+
+    Returns:
+        The message bodies, in delivery order; shorter than ``count`` if the
+        broker stops delivering before the receive timeout.
+    """
+    session = connection.open_session()
+    receiver = ReceiverLink()
+    receiver.attach(session, source=Source(address=address))
+    bodies = []
+    try:
+        receiver.flow(count)
+        deadline = time.monotonic() + RECEIVE_TIMEOUT_SECONDS
+        while len(bodies) < count:
+            delivery = receiver.receive(timeout=max(0.0, deadline - time.monotonic()))
+            if delivery is None:
+                break
+            if not delivery.settled:
+                receiver.settle(delivery.delivery_id, Accepted())
+            bodies.append(delivery.message.body_as_bytes())
+        return bodies
+    finally:
+        receiver.detach()
+        session.end()
+
+
 class TestPublishToQueue:
     def test_a_queue_publish_is_accepted(self, connection, topology, publishers):
         info = topology.queue(_name("pub-it"))
@@ -183,6 +218,51 @@ class TestPublishToQueue:
         outcomes = [publisher.publish(Message(f"m-{index}")).outcome.state for index in range(10)]
         assert outcomes == [OutcomeState.ACCEPTED] * 10
         assert management.queue_info(info.name).message_count == 10
+
+
+class TestFrameWriteParts:
+    """frames above ``FRAME_COALESCE_LIMIT`` are written header-first, part by part.
+
+    The unit suite checks the split against a recording sink; only a live broker
+    proves that header, performative and payload reassemble into exactly one
+    valid frame, and that the write lock keeps concurrent frames whole.
+    """
+
+    @pytest.mark.parametrize(
+        "body_size",
+        [FRAME_COALESCE_LIMIT // 4, FRAME_COALESCE_LIMIT * 2],
+        ids=["coalesced", "split"],
+    )
+    def test_a_payload_round_trips_whole(self, connection, topology, publishers, body_size):
+        info = topology.queue(_name("pub-it-frame"))
+        publisher = connection.publisher_builder().queue(info.name).build()
+        publishers.append(publisher)
+        body = bytes(index % 251 for index in range(body_size))
+
+        result = publisher.publish(Message(body), timeout=PUBLISH_TIMEOUT_SECONDS)
+
+        assert result.outcome.state is OutcomeState.ACCEPTED
+        delivery = _receive_one(connection, queue_address(info.name))
+        assert delivery is not None
+        assert delivery.message.body_as_bytes() == body
+
+    def test_concurrent_large_publishes_keep_every_frame_whole(self, connection, topology, publishers):
+        info = topology.queue(_name("pub-it-frame-threads"))
+        publisher = connection.publisher_builder().queue(info.name).build()
+        publishers.append(publisher)
+        bodies = [
+            bytes([index + 1]) * (FRAME_COALESCE_LIMIT * 2)
+            for index in range(FRAME_WRITER_THREADS * FRAME_WRITER_MESSAGES_PER_THREAD)
+        ]
+
+        def publish(body):
+            return publisher.publish(Message(body), timeout=PUBLISH_TIMEOUT_SECONDS).outcome.state
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=FRAME_WRITER_THREADS) as pool:
+            states = list(pool.map(publish, bodies))
+
+        assert states == [OutcomeState.ACCEPTED] * len(bodies)
+        assert sorted(_receive_many(connection, queue_address(info.name), len(bodies))) == sorted(bodies)
 
 
 class TestPublishToExchange:

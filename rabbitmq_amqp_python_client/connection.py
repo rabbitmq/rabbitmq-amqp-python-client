@@ -62,6 +62,7 @@ from .wire import (
     read_frame,
     read_protocol_header,
     write_frame,
+    write_frame_parts,
     write_protocol_header,
 )
 
@@ -434,6 +435,11 @@ class Connection:
     def send_frame(self, channel: int, performative: Performative, payload: bytes = b"") -> None:
         """Write one AMQP frame carrying ``performative`` on ``channel``.
 
+        Every frame goes through :func:`write_frame_parts`: small frames are
+        coalesced into one buffer there, while large frames are written with the
+        performative and payload as separate parts, so a large payload is not
+        copied into a temporary frame buffer.
+
         Args:
             channel: Channel number the frame applies to.
             performative: Performative to encode as the frame body.
@@ -445,9 +451,11 @@ class Connection:
         """
         if self._shutdown.is_set() or self._state is ConnectionState.CLOSED:
             raise ProtocolError("the connection is closed")
-        body = performative.encode() + payload
+        body_parts = [performative.encode()]
+        if payload:
+            body_parts.append(payload)
         with self._write_lock:
-            write_frame(self._socket, FRAME_TYPE_AMQP, channel, body)
+            write_frame_parts(self._socket, FRAME_TYPE_AMQP, channel, body_parts)
 
     def allocate_channel(self, session: Session) -> int:
         """Reserve the next free channel number for ``session``.

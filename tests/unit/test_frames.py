@@ -202,7 +202,7 @@ class TestWriteFrame:
         frames.write_frame(left, frames.FRAME_TYPE_AMQP, 0)
         assert frames.read_frame(right) == (frames.FRAME_TYPE_AMQP, 0, b"")
 
-    def test_writes_a_large_body_in_one_call(self, socket_pair):
+    def test_writes_a_large_body(self, socket_pair):
         left, right = socket_pair
         body = perf.Transfer(handle=0, delivery_id=1).encode() + b"z" * 200000
         writer = threading.Thread(target=frames.write_frame, args=(left, frames.FRAME_TYPE_AMQP, 0, body))
@@ -219,6 +219,84 @@ class TestWriteFrame:
         left.close()
         with pytest.raises(ProtocolError, match="socket error while writing"):
             frames.write_frame(left, frames.FRAME_TYPE_AMQP, 0, b"\x40")
+
+
+class TestWriteFrameParts:
+    def test_coalesces_small_parts_into_one_write(self):
+        class RecordingSink:
+            def __init__(self):
+                self.calls = []
+
+            def sendall(self, data):
+                self.calls.append(data)
+
+        sink = RecordingSink()
+        frames.write_frame_parts(sink, frames.FRAME_TYPE_AMQP, 7, [b"\x40", b"payload"])
+
+        assert len(sink.calls) == 1
+        size, doff, frame_type, channel = struct.unpack(">IBBH", sink.calls[0][:8])
+        assert size == frames.FRAME_HEADER_SIZE + len(b"\x40payload")
+        assert (doff, frame_type, channel) == (frames.DEFAULT_DOFF, frames.FRAME_TYPE_AMQP, 7)
+        assert sink.calls[0][8:] == b"\x40payload"
+
+    def test_passes_large_header_and_parts_separately(self):
+        class RecordingSink:
+            def __init__(self):
+                self.calls = []
+
+            def sendall(self, data):
+                self.calls.append(data)
+
+        sink = RecordingSink()
+        performative = perf.Transfer(handle=1, delivery_id=2, delivery_tag=b"\x02").encode()
+        payload = b"x" * frames.FRAME_COALESCE_LIMIT
+
+        frames.write_frame_parts(sink, frames.FRAME_TYPE_AMQP, 7, [performative, payload])
+
+        assert len(sink.calls) == 3
+        size, doff, frame_type, channel = struct.unpack(">IBBH", sink.calls[0])
+        assert size == frames.FRAME_HEADER_SIZE + len(performative) + len(payload)
+        assert (doff, frame_type, channel) == (frames.DEFAULT_DOFF, frames.FRAME_TYPE_AMQP, 7)
+        assert sink.calls[1] is performative
+        assert sink.calls[2] is payload
+
+    def test_round_trips_through_a_socket_pair(self, socket_pair):
+        left, right = socket_pair
+        performative = perf.Transfer(handle=0, delivery_id=1, delivery_tag=b"\x01")
+        payload = b"the-message" * 1024
+
+        frames.write_frame_parts(
+            left,
+            frames.FRAME_TYPE_AMQP,
+            5,
+            [performative.encode(), payload],
+        )
+
+        assert frames.read_frame(right) == (
+            frames.FRAME_TYPE_AMQP,
+            5,
+            performative.encode() + payload,
+        )
+
+    def test_empty_parts_writes_a_heartbeat(self, socket_pair):
+        left, right = socket_pair
+        frames.write_frame_parts(left, frames.FRAME_TYPE_AMQP, 0, [])
+        assert frames.read_frame(right) == (frames.FRAME_TYPE_AMQP, 0, b"")
+
+    def test_socket_error_names_the_whole_frame(self):
+        class FailingSink:
+            def __init__(self):
+                self.calls = 0
+
+            def sendall(self, data):
+                self.calls += 1
+                if self.calls == 2:
+                    raise OSError("boom")
+
+        payload = b"x" * frames.FRAME_COALESCE_LIMIT
+        with pytest.raises(ProtocolError, match="4105-byte frame") as excinfo:
+            frames.write_frame_parts(FailingSink(), frames.FRAME_TYPE_AMQP, 1, [b"\x40", payload])
+        assert isinstance(excinfo.value.__cause__, OSError)
 
 
 class TestProtocolHeaders:
