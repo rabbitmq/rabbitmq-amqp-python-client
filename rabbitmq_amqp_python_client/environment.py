@@ -128,7 +128,7 @@ class Environment:
         proper cleanup of resources.
         """
         errors = []
-        for connection in self._connections:
+        for connection in self._connections[:]:
             try:
                 connection.close()
             except Exception as e:
