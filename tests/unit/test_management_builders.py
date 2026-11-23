@@ -553,6 +553,12 @@ class TestQueuePurgeAndDelete:
         management.response = {}
         assert _queue(management).purge() == 0
 
+    @pytest.mark.parametrize("count", ["abc", -1, True])
+    def test_purge_rejects_a_count_that_is_not_a_non_negative_integer(self, management, count):
+        management.response = {"message_count": count}
+        with pytest.raises(ProtocolError, match="message_count"):
+            _queue(management, "orders").purge()
+
     def test_delete_returns_a_name_only_stub(self, management):
         info = _queue(management, "orders").delete()
         assert info == QueueInfo(name="orders")
@@ -587,6 +593,23 @@ class TestQueueInfoParsing:
     def test_rejects_a_queue_type_it_does_not_know(self):
         with pytest.raises(ProtocolError, match="unknown queue type"):
             QueueInfo.from_body({"name": "q", "type": "mystery"})
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [("message_count", "abc"), ("consumer_count", "abc"), ("message_count", -1), ("message_count", True)],
+    )
+    def test_rejects_a_counter_that_is_not_a_non_negative_integer(self, field, value):
+        with pytest.raises(ProtocolError, match=field):
+            QueueInfo.from_body({"name": "q", field: value})
+
+    def test_rejects_arguments_that_are_not_a_map(self):
+        with pytest.raises(ProtocolError, match="arguments"):
+            QueueInfo.from_body({"name": "q", "arguments": "not-a-map"})
+
+    @pytest.mark.parametrize("replicas", [7, "rabbit@node1", ["rabbit@node1", 7]])
+    def test_rejects_replicas_that_are_not_a_sequence_of_strings(self, replicas):
+        with pytest.raises(ProtocolError, match="replicas"):
+            QueueInfo.from_body({"name": "q", "replicas": replicas})
 
     def test_is_frozen(self):
         info = QueueInfo(name="q")
