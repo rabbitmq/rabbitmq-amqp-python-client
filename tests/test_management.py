@@ -510,8 +510,8 @@ def test_declare_stream_with_args(management: Management) -> None:
         name=stream_name,
         max_len_bytes=1000,
         max_age=timedelta(seconds=200000),
-        stream_max_segment_size_bytes=200,
-        stream_filter_size_bytes=100,
+        stream_max_segment_size_bytes=4096,
+        stream_filter_size_bytes=4096,
         initial_group_size=5,
     )
 
