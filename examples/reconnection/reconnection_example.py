@@ -1,5 +1,18 @@
 # type: ignore
-from datetime import timedelta
+"""
+Reconnection example.
+
+A publisher and a consumer run independently, each one in its own thread and
+with its own connection (the TCP connection is not thread safe).
+Every few seconds the main thread prints a status line.
+
+Try to close the connections from the RabbitMQ management UI (or restart the
+broker) while the example is running and watch the clients recover.
+Press Ctrl+C to stop.
+"""
+import threading
+import time
+from datetime import datetime, timedelta
 
 from rabbitmq_amqp_python_client import (
     AddressHelper,
@@ -16,8 +29,14 @@ from rabbitmq_amqp_python_client import (
     RecoveryConfiguration,
 )
 
-# here we keep track of the objects we need to reconnect
-MESSAGES_TO_PUBLISH = 50000
+EXCHANGE_NAME = "test-exchange"
+QUEUE_NAME = "example-queue"
+ROUTING_KEY = "routing-key"
+
+# pause between two published messages: 0.01 means ~100 msg/s
+PUBLISH_INTERVAL_SECONDS = 0.01
+# how often the status line is printed
+STATUS_INTERVAL_SECONDS = 5
 
 environment = Environment(
     uri="amqp://guest:guest@localhost:5672/",
@@ -26,19 +45,37 @@ environment = Environment(
     ),
 )
 
+stop_event = threading.Event()
+
+
+def log(who: str, text: str) -> None:
+    print(f"{datetime.now():%H:%M:%S.%f}"[:-3] + f" [{who:<9}] {text}", flush=True)
+
+
+class Stats:
+    """Counters shared between the publisher and the consumer threads."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self.published = 0
+        self.consumed = 0
+        self.publish_errors = 0
+
+    def inc(self, name: str) -> None:
+        with self._lock:
+            setattr(self, name, getattr(self, name) + 1)
+
+    def snapshot(self) -> tuple:
+        with self._lock:
+            return self.published, self.consumed, self.publish_errors
+
+
+stats = Stats()
+
 
 class MyMessageHandler(AMQPMessagingHandler):
 
-    def __init__(self):
-        super().__init__()
-        self._count = 0
-
     def on_message(self, event: Event):
-        if self._count % 1000 == 0:
-            print(
-                "received 100 message: " + Converter.bytes_to_string(event.message.body)
-            )
-
         # accepting
         self.delivery_context.accept(event)
 
@@ -56,19 +93,15 @@ class MyMessageHandler(AMQPMessagingHandler):
         # in case of rejection with annotations added
         # self.delivery_context.discard_with_annotations(event)
 
-        self._count = self._count + 1
-
-        if self._count == MESSAGES_TO_PUBLISH:
-            print("closing receiver")
-            # if you want you can add cleanup operations here
+        stats.inc("consumed")
 
     def on_connection_closed(self, event: Event):
         # if you want you can add cleanup operations here
-        print("connection closed")
+        log("consumer", "connection closed")
 
     def on_link_closed(self, event: Event) -> None:
         # if you want you can add cleanup operations here
-        print("link closed")
+        log("consumer", "link closed")
 
 
 def create_connection() -> Connection:
@@ -86,105 +119,162 @@ def create_connection() -> Connection:
     return connection
 
 
-def main() -> None:
-    exchange_name = "test-exchange"
-    queue_name = "example-queue"
-    routing_key = "routing-key"
-
-    print("connection to amqp server")
+def publisher_loop(addr: str) -> None:
+    """Publish until stop_event is set. Uses its own connection."""
     connection = create_connection()
-    management = connection.management()
-    publisher = None
-    consumer = None
+    publisher = connection.publisher(addr)
+    log("publisher", "started")
 
-    print("declaring exchange and queue")
-    management.declare_exchange(ExchangeSpecification(name=exchange_name))
-
-    management.declare_queue(
-        QuorumQueueSpecification(name=queue_name)
-        # QuorumQueueSpecification(name=queue_name, dead_letter_exchange="dead-letter")
-    )
-
-    print("binding queue to exchange")
-    bind_name = management.bind(
-        ExchangeToQueueBindingSpecification(
-            source_exchange=exchange_name,
-            destination_queue=queue_name,
-            binding_key=routing_key,
-        )
-    )
-
-    addr = AddressHelper.exchange_address(exchange_name, routing_key)
-
-    addr_queue = AddressHelper.queue_address(queue_name)
-
-    print("create a publisher and publish a test message")
-    if publisher is None:
-        publisher = connection.publisher(addr)
-
-    print("purging the queue")
-    messages_purged = management.purge_queue(queue_name)
-
-    print("messages purged: " + str(messages_purged))
-
-    # publishing messages
-    while True:
-        for i in range(MESSAGES_TO_PUBLISH):
-
-            if i % 1000 == 0:
-                print("published 1000 messages...")
-            try:
-                if publisher is not None:
-                    publisher.publish(Message(body=Converter.string_to_bytes("test")))
-            except ConnectionClosed:
-                print("publisher closing exception, resubmitting")
-                # publisher = connection.publisher(addr)
-                continue
-
-        print("closing publisher")
+    reconnecting = False
+    while not stop_event.is_set():
         try:
-            if publisher is not None:
-                publisher.close()
+            publisher.publish(Message(body=Converter.string_to_bytes("test")))
         except ConnectionClosed:
-            print("publisher closing exception, resubmitting")
+            # the client is recovering the connection: wait and retry
+            stats.inc("publish_errors")
+            if not reconnecting:
+                log("publisher", "connection lost, waiting for recovery...")
+                reconnecting = True
+            time.sleep(1)
             continue
-        break
 
-    print(
-        "create a consumer and consume the test message - press control + c to terminate to consume"
-    )
-    if consumer is None:
-        consumer = connection.consumer(addr_queue, message_handler=MyMessageHandler())
+        if reconnecting:
+            log("publisher", "connection recovered, publishing again")
+            reconnecting = False
+        stats.inc("published")
+        time.sleep(PUBLISH_INTERVAL_SECONDS)
 
-    while True:
+    log("publisher", "stopping")
+    try:
+        publisher.close()
+    except ConnectionClosed:
+        pass
+
+
+def consumer_loop(addr_queue: str, consumer_ready: threading.Event) -> None:
+    """Consume until stop_event is set. Uses its own connection."""
+    connection = create_connection()
+    consumer = connection.consumer(addr_queue, message_handler=MyMessageHandler())
+    log("consumer", "started")
+
+    # keep a reference so the main thread can stop it
+    consumer_loop.consumer = consumer
+    consumer_ready.set()
+
+    while not stop_event.is_set():
         try:
             consumer.run()
         except KeyboardInterrupt:
-            pass
+            break
         except ConnectionClosed:
+            log("consumer", "connection lost, waiting for recovery...")
+            time.sleep(1)
             continue
         except Exception as e:
-            print("consumer exited for exception " + str(e))
+            log("consumer", f"exited for exception {e!r}")
+            break
 
-        break
+        if not stop_event.is_set():
+            time.sleep(1)
 
-    print("cleanup")
-    consumer.close()
+    # the consumer container has been stopped: the connection is released
+    # by environment.close() in main
+    log("consumer", "stopped")
 
-    print("unbind")
+
+def main() -> None:
+    log("main", "connecting to amqp server")
+    connection = create_connection()
+    management = connection.management()
+
+    log("main", "declaring exchange and queue")
+    management.declare_exchange(ExchangeSpecification(name=EXCHANGE_NAME))
+    management.declare_queue(
+        QuorumQueueSpecification(name=QUEUE_NAME)
+        # QuorumQueueSpecification(name=queue_name, dead_letter_exchange="dead-letter")
+    )
+
+    log("main", "binding queue to exchange")
+    bind_name = management.bind(
+        ExchangeToQueueBindingSpecification(
+            source_exchange=EXCHANGE_NAME,
+            destination_queue=QUEUE_NAME,
+            binding_key=ROUTING_KEY,
+        )
+    )
+
+    log("main", "purging the queue")
+    log("main", f"messages purged: {management.purge_queue(QUEUE_NAME)}")
+
+    addr = AddressHelper.exchange_address(EXCHANGE_NAME, ROUTING_KEY)
+    addr_queue = AddressHelper.queue_address(QUEUE_NAME)
+
+    consumer_ready = threading.Event()
+    consumer_thread = threading.Thread(
+        target=consumer_loop, args=(addr_queue, consumer_ready), name="consumer"
+    )
+    publisher_thread = threading.Thread(
+        target=publisher_loop, args=(addr,), name="publisher"
+    )
+
+    # the consumer is started first, then the publisher: they are fully independent
+    consumer_thread.start()
+    consumer_ready.wait(timeout=30)
+    publisher_thread.start()
+
+    log(
+        "main",
+        "running - close the connections from the RabbitMQ UI to test the "
+        "recovery, press Ctrl+C to stop",
+    )
+
+    last_published = last_consumed = 0
+    try:
+        while True:
+            time.sleep(STATUS_INTERVAL_SECONDS)
+            published, consumed, errors = stats.snapshot()
+            log(
+                "status",
+                f"published={published} (+{published - last_published}) "
+                f"consumed={consumed} (+{consumed - last_consumed}) "
+                f"in-flight={published - consumed} publish-errors={errors}",
+            )
+            last_published, last_consumed = published, consumed
+    except KeyboardInterrupt:
+        log("main", "Ctrl+C received, shutting down")
+
+    stop_event.set()
+    publisher_thread.join(timeout=30)
+
+    # give the consumer a moment to drain the remaining messages
+    time.sleep(1)
+    consumer = getattr(consumer_loop, "consumer", None)
+    if consumer is not None:
+        try:
+            consumer.stop()
+        except Exception as e:
+            log("main", f"error while stopping the consumer: {e!r}")
+    consumer_thread.join(timeout=30)
+
+    published, consumed, errors = stats.snapshot()
+    log(
+        "main",
+        f"final: published={published} consumed={consumed} publish-errors={errors}",
+    )
+
+    log("main", "unbind")
     management.unbind(bind_name)
 
-    print("delete queue")
-    management.delete_queue(queue_name)
+    log("main", "delete queue")
+    management.delete_queue(QUEUE_NAME)
 
-    print("delete exchange")
-    management.delete_exchange(exchange_name)
+    log("main", "delete exchange")
+    management.delete_exchange(EXCHANGE_NAME)
 
-    print("closing connections")
+    log("main", "closing connections")
     management.close()
-    print("after management closing")
     environment.close()
-    print("after connection closing")
+    log("main", "done")
 
 
 if __name__ == "__main__":
