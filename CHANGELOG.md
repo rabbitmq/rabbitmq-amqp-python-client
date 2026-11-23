@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Reconnect consumers after a dropped connection without creating a duplicate receiver, and start recovery only for an established connection whose transport closes unexpectedly.
+
 
 ## [[1.0.2](https://github.com/rabbitmq/rabbitmq-amqp-python-client/releases/tag/v1.0.2)]
 

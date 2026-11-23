@@ -4,7 +4,7 @@ import tempfile
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -22,6 +22,7 @@ from rabbitmq_amqp_python_client import (
 )
 from rabbitmq_amqp_python_client.qpid.proton import (
     ConnectionException,
+    Endpoint,
     Timeout,
 )
 from rabbitmq_amqp_python_client.qpid.proton._io import IO
@@ -424,3 +425,49 @@ def test_sockets_are_closed_when_the_broker_closed_the_connection(
 
     assert sockets
     assert [sock for sock in sockets if sock.fileno() != -1] == []
+
+
+def test_transport_close_reconnects_once() -> None:
+    connection = BlockingConnection.__new__(BlockingConnection)
+    connection.closing = False
+    connection.disconnected = False
+    connection._connection_opened = True
+    connection._disconnection_handled = False
+    connection._on_disconnection_handler = Mock()
+    connection.conn = Mock()
+    connection.conn.state = 0
+    connection.conn.hostname = "localhost"
+    connection.conn.remote_condition = None
+
+    event = Mock()
+    event.transport.condition = None
+
+    with pytest.raises(ConnectionClosed):
+        connection.on_transport_closed(event)
+
+    connection._on_disconnection_handler.assert_called_once()
+
+    # A transport emits both head and tail close events; only one recovery runs.
+    connection.on_transport_closed(event)
+    connection._on_disconnection_handler.assert_called_once()
+
+
+def test_transport_close_after_remote_close_does_not_recover() -> None:
+    connection = BlockingConnection.__new__(BlockingConnection)
+    connection.closing = False
+    connection.disconnected = False
+    connection._connection_opened = True
+    connection._disconnection_handled = False
+    connection._on_disconnection_handler = Mock()
+    connection.conn = Mock()
+    connection.conn.state = Endpoint.REMOTE_CLOSED
+    connection.conn.hostname = "localhost"
+    connection.conn.remote_condition = None
+
+    event = Mock()
+    event.transport.condition = None
+
+    connection.on_transport_closed(event)
+
+    connection._on_disconnection_handler.assert_not_called()
+    assert connection.disconnected == "unknown"
