@@ -10,6 +10,7 @@ Try to close the connections from the RabbitMQ management UI (or restart the
 broker) while the example is running and watch the clients recover.
 Press Ctrl+C to stop.
 """
+
 import threading
 import time
 from datetime import datetime, timedelta
