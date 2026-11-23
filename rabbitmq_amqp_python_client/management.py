@@ -28,7 +28,7 @@ import hashlib
 import threading
 import urllib.parse
 import uuid
-from collections.abc import Collection, Iterable, Mapping
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
@@ -404,7 +404,7 @@ class QueueInfo:
 
         Raises:
             ProtocolError: If the broker reports a queue type this client does
-                not know.
+                not know, or a field whose type does not match the profile.
         """
         raw_type = body.get("type")
         try:
@@ -417,11 +417,11 @@ class QueueInfo:
             auto_delete=bool(body.get("auto_delete", False)),
             exclusive=bool(body.get("exclusive", False)),
             queue_type=queue_type,
-            arguments={str(key): value for key, value in (body.get("arguments") or {}).items()},
+            arguments=_require_string_map(body, "arguments", "queue"),
             leader=str(body.get("leader") or ""),
-            replicas=tuple(str(item) for item in (body.get("replicas") or ())),
-            message_count=int(body.get("message_count") or 0),
-            consumer_count=int(body.get("consumer_count") or 0),
+            replicas=_require_string_sequence(body, "replicas", "queue"),
+            message_count=_require_count(body, "message_count", "queue"),
+            consumer_count=_require_count(body, "consumer_count", "queue"),
         )
 
 
@@ -558,6 +558,68 @@ def _as_maps(value: Any, context: str) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         raise ProtocolError(f"expected a list in the {context} response, got {type(value).__name__}")
     return [_as_map(item, context) for item in value]
+
+
+def _require_count(body: Mapping[str, Any], field: str, context: str) -> int:
+    """Read a counter from a management response body.
+
+    ``None`` and a missing field read as zero: the broker omits a field when it
+    has nothing to report for it.
+
+    Raises:
+        ProtocolError: If the field is present and is not a non-negative integer.
+    """
+    value = body.get(field)
+    if value is None:
+        return 0
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ProtocolError(
+            f"the broker reported an invalid {field} in the {context} response: "
+            f"expected a non-negative integer, got {value!r}"
+        )
+    return value
+
+
+def _require_string_map(body: Mapping[str, Any], field: str, context: str) -> dict[str, Any]:
+    """Read a map field from a management response body.
+
+    ``None`` and a missing field read as an empty map.
+
+    Raises:
+        ProtocolError: If the field is present and is not a map.
+    """
+    value = body.get(field)
+    if value is None:
+        return {}
+    if not isinstance(value, Mapping):
+        raise ProtocolError(
+            f"the broker reported an invalid {field} in the {context} response: "
+            f"expected a map, got {type(value).__name__}"
+        )
+    return {str(key): item for key, item in value.items()}
+
+
+def _require_string_sequence(body: Mapping[str, Any], field: str, context: str) -> tuple[str, ...]:
+    """Read a sequence-of-strings field from a management response body.
+
+    ``None`` and a missing field read as an empty sequence.
+
+    Raises:
+        ProtocolError: If the field is present and is not a sequence of strings.
+    """
+    value = body.get(field)
+    if value is None:
+        return ()
+    if isinstance(value, (str, bytes, bytearray)) or not isinstance(value, Sequence):
+        raise ProtocolError(
+            f"the broker reported an invalid {field} in the {context} response: "
+            f"expected a sequence of strings, got {type(value).__name__}"
+        )
+    if any(not isinstance(item, str) for item in value):
+        raise ProtocolError(
+            f"the broker reported an invalid {field} in the {context} response: every entry must be a string"
+        )
+    return tuple(value)
 
 
 def _normalized_arguments(value: Any) -> dict[str, Any]:
@@ -865,7 +927,7 @@ class Management:
         """Issue ``DELETE /queues/{name}/messages`` and return the purged count."""
         _require_name("queue", name)
         body = self._request(VERB_DELETE, queue_messages_path(name), None, EXPECTED_PURGE_QUEUE)
-        return int(_as_map(body, "queue purge").get("message_count") or 0)
+        return _require_count(_as_map(body, "queue purge"), "message_count", "queue purge")
 
     def _delete_queue(self, name: str) -> QueueInfo:
         """Issue ``DELETE /queues/{name}`` and return a name-only stub."""

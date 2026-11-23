@@ -12,7 +12,7 @@ import threading
 
 import pytest
 
-from rabbitmq_amqp_python_client import AMQPTimeoutError, ManagementError, ProtocolError
+from rabbitmq_amqp_python_client import AMQPError, AMQPTimeoutError, ManagementError, ProtocolError
 from rabbitmq_amqp_python_client.constants import (
     MANAGEMENT_LINK_CREDIT,
     MANAGEMENT_LINK_NAME,
@@ -441,6 +441,58 @@ class TestCorrelationEngine:
         with pytest.raises(Exception) as failure:  # noqa: B017 - the transport decides the type
             outcome.result()
         assert not isinstance(failure.value, AMQPTimeoutError), "the caller waited out the request timeout"
+
+
+class TestUnexpectedValuesFromTheServer:
+    """End-to-end: management responses whose fields carry unexpected types.
+
+    A live broker never sends these, so the scripted peer plays the response:
+    the whole stack still runs — frame decode, link pair, correlation engine,
+    response validation, ``QueueInfo`` parsing — and the caller must see
+    ``ProtocolError`` rather than a built-in escaping the ``AMQPError``
+    hierarchy.
+    """
+
+    @pytest.mark.parametrize(
+        ("body", "field", "detail"),
+        [
+            ({"message_count": "abc"}, "message_count", "'abc'"),
+            ({"consumer_count": "abc"}, "consumer_count", "'abc'"),
+            ({"message_count": -1}, "message_count", "-1"),
+            ({"message_count": True}, "message_count", "True"),
+            ({"arguments": "not-a-map"}, "arguments", "got str"),
+            ({"replicas": 7}, "replicas", "got int"),
+            ({"replicas": "rabbit@node1"}, "replicas", "got str"),
+            ({"replicas": ["rabbit@node1", 7]}, "replicas", "every entry must be a string"),
+        ],
+    )
+    def test_surfaces_a_protocol_error_and_keeps_the_connection_usable(self, connect, body, field, detail):
+        broker, connection = connect(broker_kwargs={"initial_credit": 10})
+        management = _open_management(connection)
+
+        broken = _in_background(lambda: management.queue_info("orders"))
+        _serve_one(broker, "200", {"name": "orders", **body})
+        with pytest.raises(ProtocolError, match=field) as failure:
+            broken.result()
+
+        assert isinstance(failure.value, AMQPError)
+        assert detail in str(failure.value)
+
+        # A response the caller could not parse must not poison the link pair.
+        healthy = _in_background(lambda: management.queue_info("orders"))
+        _serve_one(broker, "200", {"name": "orders", "message_count": 7})
+        assert healthy.result().message_count == 7
+
+    def test_purge_surfaces_a_protocol_error(self, connect):
+        broker, connection = connect(broker_kwargs={"initial_credit": 10})
+        management = _open_management(connection)
+
+        broken = _in_background(lambda: management.queue("orders").purge())
+        _serve_one(broker, "200", {"message_count": "abc"})
+        with pytest.raises(ProtocolError, match="message_count") as failure:
+            broken.result()
+
+        assert isinstance(failure.value, AMQPError)
 
 
 # --- helpers ------------------------------------------------------------
