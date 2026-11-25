@@ -3,7 +3,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from rabbitmq_amqp_python_client import Environment
-from rabbitmq_amqp_python_client.qpid.proton._exceptions import Timeout
+from rabbitmq_amqp_python_client.qpid.proton._exceptions import (
+    Timeout,
+)
 
 
 def test_environment_close_closes_every_connection() -> None:
