@@ -348,17 +348,30 @@ class Connection:
         Closes the underlying connection and removes it from the connection list.
         """
         logger.debug("Closing connection")
+        link_close_failed = False
         try:
-            for publisher in self._publishers[:]:
-                publisher.close()
-            for consumer in self._consumers[:]:
-                consumer.close()
-            # _conn is only set once dial() has connected
-            if hasattr(self, "_conn"):
-                self._conn.close()
+            try:
+                for publisher in self._publishers[:]:
+                    publisher.close()
+                for consumer in self._consumers[:]:
+                    consumer.close()
+            except Exception:
+                link_close_failed = True
+                raise
+            finally:
+                # _conn is only set once dial() has connected.
+                if hasattr(self, "_conn"):
+                    try:
+                        self._conn.close()
+                    except Exception:
+                        if not link_close_failed:
+                            raise
+                        logger.exception(
+                            "Error closing transport after link close failed"
+                        )
         except Exception as e:
             logger.error(f"Error closing connection: {e}")
-            raise e
+            raise
 
         finally:
             if self in self._connections:
